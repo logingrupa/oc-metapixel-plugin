@@ -1,0 +1,11 @@
+/vendor
+/node_modules
+.DS_Store
+.idea
+.vscode
+.phpunit.result.cache
+.phpstan.cache
+phpstan-baseline.neon
+composer.phar
+composer.lock
+*.log
