@@ -6,14 +6,17 @@ parameters:
     level: 10
     paths:
         - Plugin.php
+        - models
         # NOTE: PHPStan v2 paths: does not support the (?) optional-path
         # marker (that syntax only works in excludePaths:). Each subsequent
         # phase MUST reopen this list as new directories land:
-        #   Phase 2 (SKEL-01..06):     add `classes`, `models`, `middleware`
+        #   Phase 2 Plan 02-01 (SKEL-01/02/06):  add `models` (this commit).
+        #   Phase 2 Plan 02-02 (SKEL-05):        add `classes`.
+        #   Phase 2 Plan 02-03 (SKEL-03):        add `middleware`.
+        #   Phase 2 Plan 02-04 (SKEL-04):        add `components`.
         #   Phase 3 (PAY-01..11):      ensure `classes` covers `classes/event`,
         #                              `classes/meta`, `classes/queue`,
         #                              `classes/exception`; no new top-level dirs
-        #   Phase 4 (FUN-01..14):      add `components`
         #   Phase 5 (HARD-01..08):     add `controllers`
         # See 01-REVIEW.md "Forward-Compat Reopens" + remediation log.
     excludePaths:
