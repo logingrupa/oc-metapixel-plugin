@@ -275,6 +275,38 @@ final class PurchasePixelTest extends MetapixelTestCase
         $this->assertNull($obComponent->arMetaEvent, 'PayloadBuilder throw MUST result in render-nothing (T-03-35 acceptable degradation).');
     }
 
+    public function test_custom_data_json_contains_no_script_close_tag_even_with_hostile_order_number(): void
+    {
+        // CR-01 regression: force an attacker-controlled string into the
+        // server-built order_number column (a value that normally flows
+        // through Lovata's own OrderProcessor::generateOrderNumber so the
+        // attack surface is small today — but the fence we lock here is
+        // defense-in-depth against any future change to that generator).
+        // The encoded JSON must contain neither `</script>` nor `<script>`
+        // substrings: JSON_HEX_TAG escapes `<` and `>` to < / >.
+        $obOrder = OrderFixtures::makePaidOrder();
+        $sUuid = Uuid::uuid4()->toString();
+        $iEventTime = 1715000000;
+        $obOrder->forceFill([
+            'order_number' => '</script><script>alert(1)</script>',
+            'meta_purchase_event_id' => $sUuid,
+            'meta_purchase_event_time' => $iEventTime,
+        ])->save();
+
+        $obComponent = $this->makeComponent((string) $obOrder->fresh()->secret_key);
+        $obComponent->onRun();
+
+        $this->assertNotNull($obComponent->sCustomDataJson, 'sCustomDataJson MUST be populated when arMetaEvent is set.');
+        $this->assertStringNotContainsString('</script>', $obComponent->sCustomDataJson, 'JSON_HEX_TAG MUST prevent </script> break-out.');
+        $this->assertStringNotContainsString('<script>', $obComponent->sCustomDataJson, 'JSON_HEX_TAG MUST prevent <script> injection.');
+        // Sanity: the order_number IS in the encoded payload (the attacker
+        // string isn't filtered out — it's unicode-escape-encoded so it
+        // renders as literal text inside the JS object literal, not as a tag).
+        // JSON_HEX_TAG in PHP encodes `<` to `<` and `>` to `>`.
+        $this->assertStringContainsString('\u003C', $obComponent->sCustomDataJson, 'angle bracket < MUST be unicode-escaped to \u003C via JSON_HEX_TAG.');
+        $this->assertStringContainsString('\u003E', $obComponent->sCustomDataJson, 'angle bracket > MUST be unicode-escaped to \u003E via JSON_HEX_TAG.');
+    }
+
     public function test_custom_data_matches_capi_envelope_byte_for_byte(): void
     {
         // The dedup contract: Pixel side's custom_data MUST equal the CAPI

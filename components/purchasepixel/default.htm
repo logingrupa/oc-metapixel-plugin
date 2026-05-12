@@ -11,8 +11,11 @@
     future regression that lets attacker-controlled strings reach the
     column.
 
-    custom_data is rendered via |json_encode|raw — json_encode produces
-    a syntactically-safe JS object literal.
+    custom_data is rendered via __SELF__.sCustomDataJson which is
+    pre-encoded server-side in PurchasePixel::encodeCustomDataForScript with
+    JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT so the partial
+    cannot break out of <script> via `</script>` injection regardless of any
+    future slash-escape changes elsewhere in the plugin (CR-01 lock).
 
     No render when arMetaEvent is null (any guard failure in
     PurchasePixel::onRun — disabled / order-not-found / non-paid /
@@ -24,7 +27,7 @@
 <!-- Metapixel — server-deduplicated Purchase Pixel twin -->
 <script>
     if (typeof fbq === 'function') {
-        fbq('track', 'Purchase', Object.assign({event_time: {{ __SELF__.arMetaEvent.event_time }} }, {{ __SELF__.arMetaEvent.custom_data|json_encode|raw }}), { eventID: '{{ __SELF__.arMetaEvent.event_id|e('js') }}' });
+        fbq('track', 'Purchase', Object.assign({event_time: {{ __SELF__.arMetaEvent.event_time }} }, {{ __SELF__.sCustomDataJson|raw }}), { eventID: '{{ __SELF__.arMetaEvent.event_id|e('js') }}' });
     }
 </script>
 {% endif %}

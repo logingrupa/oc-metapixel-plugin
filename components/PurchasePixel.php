@@ -55,6 +55,18 @@ final class PurchasePixel extends ComponentBase
     public ?array $arMetaEvent = null;
 
     /**
+     * Pre-rendered, defense-in-depth JSON-encoded custom_data slice for the
+     * Twig partial. CR-01 lock: built server-side via getInlineScriptJson()
+     * with JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT so
+     * the partial cannot break out of <script> via `</script>` injection
+     * regardless of slash-escaping defaults. Today's input chain is server-
+     * controlled (UUIDv4 event_id, server-built SKUs + order_number), but
+     * the flag set is mandatory belt-and-braces for any future refactor
+     * that touches custom_data sources.
+     */
+    public ?string $sCustomDataJson = null;
+
+    /**
      * @return array{name: string, description: string}
      */
     #[\Override]
@@ -147,6 +159,34 @@ final class PurchasePixel extends ComponentBase
             'event_name' => 'Purchase',
             'custom_data' => $arCustomData,
         ];
+        $this->sCustomDataJson = $this->encodeCustomDataForScript($arCustomData);
+    }
+
+    /**
+     * CR-01 lock: render the custom_data slice for in-<script> interpolation
+     * with the canonical "safe-for-script-context" JSON encode flag set.
+     *
+     * The flags do three things:
+     *  - JSON_HEX_TAG: escapes `<`/`>` to `<` / `>`. This is the
+     *    primary defense — even if a future change adds JSON_UNESCAPED_SLASHES
+     *    elsewhere, `</script>` cannot reach the rendered DOM.
+     *  - JSON_HEX_AMP / JSON_HEX_APOS / JSON_HEX_QUOT: belt-and-braces escapes
+     *    for `&`/`'`/`"` so the output is safe in attribute context too (the
+     *    partial does not use it there today, but the contract is symmetric).
+     *  - JSON_UNESCAPED_UNICODE: keep multi-byte product names readable for
+     *    Meta's product-feed reconciliation (we already use this elsewhere).
+     *  - JSON_THROW_ON_ERROR: any encode failure surfaces as JsonException →
+     *    boundary catch in onRun returns null custom_data → render-nothing.
+     *
+     * @param  array<string, mixed>  $arCustomData
+     */
+    private function encodeCustomDataForScript(array $arCustomData): string
+    {
+        return json_encode(
+            $arCustomData,
+            JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT
+                | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
+        );
     }
 
     private function isDisabled(): bool
