@@ -1,0 +1,5 @@
+1.0.0:
+    - 'Initial plugin scaffolding (Phase 1 + Phase 2 — no migrations).'
+1.0.1:
+    - 'Add meta_purchase_event_id + meta_purchase_event_time columns to orders table for Purchase CAPI idempotency + Pixel dedup.'
+    - add_meta_purchase_event_id_to_orders_table.php
