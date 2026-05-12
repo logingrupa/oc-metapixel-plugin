@@ -41,6 +41,29 @@ class Settings extends CommonSettings
     public $translatable = ['pixel_id'];
 
     /**
+     * Mass-assignment allowlist (WR-02 lock). October's Settings array-form
+     * `set([...])` would otherwise hydrate any field name posted by the
+     * backend form — including invented keys not in fields.yaml. Explicit
+     * allowlist matches the 10 SKEL-02 fields and prevents arbitrary keys
+     * (e.g. via XSS-enabled CSRF on the backend Settings page) from being
+     * persisted into `system_settings.value`.
+     *
+     * @var array<int, string>
+     */
+    public $fillable = [
+        'pixel_id',
+        'capi_access_token',
+        'test_event_code',
+        'currency_code',
+        'phone_country_code',
+        'send_hashed_pii',
+        'queue_connection',
+        'paid_status_code',
+        'refire_purchase_on_status_flip',
+        'ensure_fbp_fbc_server_side',
+    ];
+
+    /**
      * Dropdown options for the `paid_status_code` field. Auto-invoked by
      * October's form builder via `options: getPaidStatusCodeOptions` in
      * fields.yaml. Uses Status::lists('name','code') (NOT pluck) — the
