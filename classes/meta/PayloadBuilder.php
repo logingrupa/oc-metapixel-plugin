@@ -101,6 +101,15 @@ class PayloadBuilder
     }
 
     /**
+     * CR-02 lock: require UUID **version 4** specifically. `Uuid::isValid()`
+     * alone returns true for any well-formed UUID — v1, v3, v4, v5, Nil.
+     * The class contract (PAY-03 — "event_id direction is server → frontend
+     * only, server-generated UUIDv4") and the InvalidEventIdException name
+     * ("event_id is not a valid UUID v4") both require the stronger check.
+     * Production dispatch site uses Uuid::uuid4() so this never trips today;
+     * the validator guards future migrations that might backfill the column
+     * from a different (v1 timestamp-based, v5 deterministic) source.
+     *
      * @throws InvalidEventIdException
      */
     private function assertValidEventId(string $sEventId, int $iOrderId): void
@@ -108,6 +117,13 @@ class PayloadBuilder
         if ($sEventId === '' || ! Uuid::isValid($sEventId)) {
             throw new InvalidEventIdException(
                 'event_id is not a valid UUID',
+                ['event_id' => $sEventId, 'order_id' => $iOrderId],
+            );
+        }
+
+        if (Uuid::fromString($sEventId)->getFields()->getVersion() !== 4) {
+            throw new InvalidEventIdException(
+                'event_id is not a valid UUIDv4',
                 ['event_id' => $sEventId, 'order_id' => $iOrderId],
             );
         }

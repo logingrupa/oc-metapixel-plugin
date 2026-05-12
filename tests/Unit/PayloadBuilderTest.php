@@ -210,6 +210,51 @@ final class PayloadBuilderTest extends MetapixelTestCase
         $this->assertTrue($bThrown, 'Non-UUID string must throw InvalidEventIdException.');
     }
 
+    public function test_throws_invalid_event_id_on_uuid_v1(): void
+    {
+        // CR-02 lock: server contract is UUIDv4 only. Uuid::isValid() alone
+        // accepts v1/v3/v5/Nil — the validator must additionally check
+        // getVersion() === 4 so a future column backfill from a non-v4
+        // source (e.g. legacy plugin's UUIDv1, deterministic UUIDv5) cannot
+        // silently corrupt Meta's dedup pairing.
+        $this->setSetting('currency_code', 'EUR');
+        $obOrder = OrderFixtures::makePaidOrder();
+        // Generate a UUIDv1 (time-based). Ramsey provides Uuid::uuid1().
+        $sUuidV1 = \Ramsey\Uuid\Uuid::uuid1()->toString();
+        $this->assertSame(1, \Ramsey\Uuid\Uuid::fromString($sUuidV1)->getFields()->getVersion(), 'sanity: must be UUIDv1.');
+
+        $bThrown = false;
+        try {
+            (new PayloadBuilder)->buildPurchaseEventPayload($obOrder, $sUuidV1, 1715000000);
+        } catch (InvalidEventIdException $obException) {
+            $bThrown = true;
+            $this->assertSame($sUuidV1, $obException->arContext['event_id']);
+            $this->assertSame('event_id is not a valid UUIDv4', $obException->getMessage());
+        }
+        $this->assertTrue($bThrown, 'UUIDv1 must throw InvalidEventIdException despite Uuid::isValid() returning true.');
+    }
+
+    public function test_throws_invalid_event_id_on_uuid_v5(): void
+    {
+        // CR-02 lock companion: UUIDv5 (deterministic / SHA1-namespaced) is
+        // a likely future contender for deterministic event_id generation
+        // ("the same order resolves to the same event_id"). MUST be rejected
+        // by the validator — Meta's dedup semantics rely on v4 randomness.
+        $this->setSetting('currency_code', 'EUR');
+        $obOrder = OrderFixtures::makePaidOrder();
+        $sUuidV5 = \Ramsey\Uuid\Uuid::uuid5(\Ramsey\Uuid\Uuid::NAMESPACE_DNS, 'example.com')->toString();
+        $this->assertSame(5, \Ramsey\Uuid\Uuid::fromString($sUuidV5)->getFields()->getVersion(), 'sanity: must be UUIDv5.');
+
+        $bThrown = false;
+        try {
+            (new PayloadBuilder)->buildPurchaseEventPayload($obOrder, $sUuidV5, 1715000000);
+        } catch (InvalidEventIdException $obException) {
+            $bThrown = true;
+            $this->assertSame($sUuidV5, $obException->arContext['event_id']);
+        }
+        $this->assertTrue($bThrown, 'UUIDv5 must throw InvalidEventIdException.');
+    }
+
     public function test_currency_falls_back_to_settings_when_order_relation_and_code_null(): void
     {
         // Order relation already null in hermetic schema (no currencies table);
