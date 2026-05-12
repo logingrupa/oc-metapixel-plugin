@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0.0
 milestone_name: milestone
-status: in-progress
-stopped_at: "Plan 03-05 complete (PAY-02 — SendCapiEvent Laravel 12 ShouldQueue queue job: 3 files / 106 tests / 318 assertions / 90.9% total / SendCapiEvent.php 100.0%). Next: plan 03-06 (PAY-03 — OrderStatusWatcher dispatch site)."
-last_updated: "2026-05-12T22:39:12Z"
-last_activity: 2026-05-12 -- Plan 03-05 shipped (composer qa green, 106 tests / 318 assertions / 0 skipped / 90.9 % coverage / SendCapiEvent.php 100.0 %). Phase 3 5/6 plans done.
+status: in-progress-manual-checkpoint
+stopped_at: "Plan 03-06 tasks 1-8 complete (PAY-03 — OrderStatusWatcher + PurchasePixel + Plugin::boot wiring: 5 files created / 4 modified / 126 tests / 365 assertions / 89.6% total / OrderStatusWatcher.php 90.3% / PurchasePixel.php 83.3%). Task 9 PENDING manual staging verification of PAY-10 (dedup ≥ 80% + EMQ ≥ 8) + PAY-11 (bank-transfer admin-flip single-channel CAPI). Operator must deploy + run Meta Events Manager Test Events observation."
+last_updated: "2026-05-12T23:07:40Z"
+last_activity: 2026-05-12 -- Plan 03-06 tasks 1-8 shipped (composer qa green, 126 tests / 365 assertions / 0 skipped / 89.6 % coverage / OrderStatusWatcher.php 90.3 % / PurchasePixel.php 83.3 %). Phase 3 6/6 plans automated tasks done; Task 9 BLOCKING manual checkpoint pending staging.
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 6
-  completed_plans: 5
-  percent: 83
+  completed_plans: 5.5
+  percent: 92
 ---
 
 # Project State
@@ -25,18 +25,18 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 
 ## Current Position
 
-Phase: 03 (purchase-end-to-end) — in progress
-Plan: 5 of 6 (03-01 + 03-02 + 03-03 + 03-04 + 03-05 shipped — PAY-01 + PAY-02 + PAY-04 + PAY-05 + PAY-06 + PAY-07 + PAY-08 + PAY-09 done)
-Status: Phase 03 wave 3 partial — plans 03-01..03-05 done. Next: plan 03-06 (PAY-03, wave 4 — OrderStatusWatcher dispatch site + PAY-10..11 manual staging verification).
-Last activity: 2026-05-12 -- Plan 03-05 shipped: classes/queue/SendCapiEvent.php (181 LOC) — Laravel 12 ShouldQueue queue job (final class) with 4 traits (Dispatchable, InteractsWithQueue, Queueable, SerializesModels), public int $tries = 3, public array $backoff = [1, 4, 16], constructor-promoted readonly properties (public readonly string $sEventName, public readonly array $arPayload), container-injected handle(MetaClient $obClient): void with 3-branch try/catch: success → Log::info, MetaApiTransientException → Log::warning + RETHROW for Laravel retry, multi-catch MetaApiPermanentException | MissingPixelConfigException | MissingCapiTokenException → writeFailedEvent + Log::error + no rethrow (CONTEXT Area 1 Q2 dead-letter contract). failed(Throwable $obException): void hook for $tries-exhausted dead-letter — wraps non-Meta exceptions as MetaApiPermanentException to preserve FailedEvent type contract. Private writeFailedEvent helper with documented silent catch (T-03-22 worker-park mitigation). buildLogContext helper namespaces all keys under meta_pixel.* (CONTEXT Discretion #9). tests/Feature/SendCapiEventTest.php (320 LOC, 12 test methods, 29 assertions): success-on-200, transient rethrow, $tries-exhausted failed() hook, permanent (400) no-rethrow, missing pixel_id, missing capi_access_token, $tries/$backoff lock, DB-write failure absorbed, ShouldQueue reflection check, Mockery payload-passthrough spy, failed() non-Meta wrap, readonly property propagation. dispatchSync runs handle()/failed() synchronously; $this->app->instance(MetaClient::class, $obMock) binds mock into container. Mockery first plugin use. 3 task commits + 1 summary commit. composer qa green: 106 tests / 318 assertions / 0 skipped / **90.9% coverage** (SendCapiEvent.php 100.0% / MetaClient.php 100% / PayloadBuilder 84.1% / UserDataHasher 90.3% / Exceptions 100% / FailedEvent 100%). 4 deviations: Rule 1 pint cosmetic (3 fixers — types_spaces no-space-around-pipe in multi-catch + single_line_empty_body + phpdoc_align); Rule 1 PHPUnit risky-test for Log::shouldHaveReceived (rewrote to state assertion on readonly properties); Rule 1 PHPUnit risky-test for Mockery::on closure (added captured-by-reference buffer + assertSame); Rule 1 unused MetaApiPermanentException import cleanup.
+Phase: 03 (purchase-end-to-end) — automated tasks complete, awaiting Task-9 manual staging verification
+Plan: 6 of 6 tasks 1-8 done (03-06 — PAY-03 + PAY-10/11 plumbing shipped). Task 9 (BLOCKING manual checkpoint) PENDING.
+Status: Phase 03 wave 4 partial — production code + automated tests green; staging verification of PAY-10 + PAY-11 acceptance criteria remains.
+Last activity: 2026-05-12 -- Plan 03-06 tasks 1-8 shipped: classes/event/OrderStatusWatcher.php (301 LOC) — final class dispatching Purchase via CAPI on Order eloquent.updated/created with refire-flip + status + idempotency fences and atomic saveQuietly of BOTH meta_purchase_event_id AND meta_purchase_event_time (Pixel-twin contract); components/PurchasePixel.php (245 LOC) — browser-side Pixel twin reading both persisted columns and emitting fbq('track','Purchase',custom_data,{eventID}); components/purchasepixel/default.htm Twig partial with e('js') defence-in-depth; Plugin.php now Event::subscribe(OrderStatusWatcher::class) BEFORE the CLI gate so backend admin (PAY-11) AND queue worker contexts see model events, and registerComponents adds PurchasePixel as 'purchasePixel'; tests/MetapixelTestCase.php bootOrdersTable provisions BOTH new columns + dropHermeticSchemas cleans fixture tables; models/Settings.php public $rules + fields.yaml pattern shipping the PH-01 retro-fit regex /^\d{6,20}$/ for pixel_id (T-04-01 mitigation); tests/Feature/OrderStatusWatcherTest.php (10 methods locking PAY-03 invariants — fresh-paid, same-status-noop, refire=off flip-flop, refire=on flip-flop, plugin-disabled, admin-created path, event_id + event_time persistence, refire=on clears BOTH columns, event_time-within-2-seconds); tests/Feature/PurchasePixelTest.php (13 methods locking the dedup-contract round-trip from DB through component to fbq(), including the byte-for-byte custom_data === CAPI custom_data dedup-contract test). 8 task commits. composer qa green: 126 tests / 365 assertions / 0 skipped / **89.6% coverage** (OrderStatusWatcher.php 90.3% / PurchasePixel.php 83.3% / SendCapiEvent.php 100% / MetaClient.php 100% / PayloadBuilder 84.1% / UserDataHasher 90.3% / Exceptions 100% / FailedEvent 100%). 9 deviations: 7 Rule-1 phpstan-level-10 narrowing fixes (setAttribute/getAttribute for the new columns; intOrZero helper for mixed→int casts; void@return instead of void|Response; Order|null instanceof narrowing; array<string,mixed> re-key on extractCustomData; test fixture idempotency-column clear so eloquent.updated fires fresh; admin-created-path positions-before-order ordering); 1 Rule-2 coverage gap (PurchasePixelTest 66.7% → 83.3% via 6 added tests); 1 Rule-3 commit order swap (Task 4 PurchasePixel files committed BEFORE Task 3 Plugin.php so each commit independently passes composer analyse). **Task 9 (BLOCKING manual): operator must deploy to staging, configure pixel_id + test_event_code, integrate `[purchasePixel] orderSlug = "{{ :slug }}"` block on order-complete.htm, place a real PayPal order, observe Meta Events Manager Test Events to verify dedup ≥ 80% AND EMQ ≥ 8 (PAY-10), then flip a bank-transfer order to paid in backend admin to verify single-channel CAPI (PAY-11), then flip the same order canceled→paid to verify status flip-flop no-refire (PAY-03 success criterion 3). Edit 03-06-SUMMARY.md's "Task 9 staging-verification results" section in place with recorded findings.**
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 10 (Phase 1 + Plans 02-01..04 + Plans 03-01..05)
-- Average duration: ~20 min (Plans 02-01 + 02-02 + 02-03 + 02-04 + 03-01 + 03-02 + 03-03 + 03-04 + 03-05: ~94+9+10+5+14+39+6 ≈ ~177 min / 9 plans = ~20 min); Phase 1 not timed
-- Total execution time: ~2.95 hours
+- Total plans completed: 10.5 (Phase 1 + Plans 02-01..04 + Plans 03-01..06 tasks 1-8; Task 9 manual checkpoint PENDING)
+- Average duration: ~20 min (Plans 02-01 + 02-02 + 02-03 + 02-04 + 03-01 + 03-02 + 03-03 + 03-04 + 03-05 + 03-06 tasks 1-8: ~94+9+10+5+14+39+6+21 ≈ ~198 min / 10 plans = ~20 min); Phase 1 not timed
+- Total execution time: ~3.3 hours
 
 **By Phase:**
 
@@ -44,12 +44,12 @@ Last activity: 2026-05-12 -- Plan 03-05 shipped: classes/queue/SendCapiEvent.php
 |---|---|---|---|
 | 1. Tooling | 1 | — | — |
 | 2. Skeleton+cookie | 4/4 | ~103 min | 26 min |
-| 3. Purchase end-to-end | 5/6 | ~74 min | 15 min |
+| 3. Purchase end-to-end | 6/6 (Task 9 manual pending) | ~95 min automated | 16 min |
 
 **Recent Trend:**
 
-- Last 10 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01..04 (all passed), 03-purchase/03-01-PLAN + 03-02-PLAN + 03-03-PLAN + 03-04-PLAN + 03-05-PLAN (passed).
-- Trend: Plan 03-05 = 3 task commits + 1 summary commit, 4 deviations (all Rule 1 cosmetic / test hygiene — pint multi-catch types_spaces, PHPUnit risky-test on Log spy, PHPUnit risky-test on Mockery::on, unused import). composer qa green / 106 tests / 318 assertions / 0 skipped / **90.9 % coverage** (was 90.0 %; +0.9pp) / **SendCapiEvent.php 100.0 %**. Plan duration ~6 min (fastest Phase 3 plan; benefits from established patterns — Settings reflection priming, MockHandler test infra, FailedEvent factory contract all reused verbatim from prior plans). **Phase 3 wave 3 PARTIAL — PAY-02 shipped. 1 plan / 3 requirements (PAY-03 + PAY-10..11) still pending.**
+- Last 10 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01..04 (all passed), 03-purchase/03-01-PLAN + 03-02-PLAN + 03-03-PLAN + 03-04-PLAN + 03-05-PLAN (passed), 03-06-PLAN tasks 1-8 (passed; task 9 PENDING manual).
+- Trend: Plan 03-06 tasks 1-8 = 8 task commits, 9 deviations (7 Rule-1 phpstan narrowing, 1 Rule-2 coverage gap, 1 Rule-3 commit order swap). composer qa green / 126 tests / 365 assertions / 0 skipped / **89.6 % coverage** (was 90.9 %; -1.3pp explained by +550 LOC of new production code) / OrderStatusWatcher.php 90.3 % / PurchasePixel.php 83.3 %. Plan duration ~21 min (8 tasks; on par with the per-task ~3 min average — biggest time sinks were the 2 test files at 5 min each). **Phase 3 wave 4 PARTIAL — PAY-03 shipped automated; PAY-10 + PAY-11 PENDING manual staging verification.**
 
 *Updated after each plan completion*
 

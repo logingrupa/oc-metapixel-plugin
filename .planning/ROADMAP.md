@@ -67,7 +67,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 03-03-PLAN.md — MetaClient Guzzle wrapper (PAY-01) ✓ 2026-05-12
   - [x] 03-04-PLAN.md — PayloadBuilder + UserDataHasher (PAY-06, PAY-07, PAY-08) ✓ 2026-05-12
   - [x] 03-05-PLAN.md — SendCapiEvent queue job (PAY-02) ✓ 2026-05-12
-  - [ ] 03-06-PLAN.md — OrderStatusWatcher + Plugin::boot + manual staging verification (PAY-03, PAY-10, PAY-11)
+  - [~] 03-06-PLAN.md — OrderStatusWatcher + PurchasePixel + Plugin::boot + manual staging verification (PAY-03 ✓ automated; PAY-10 + PAY-11 PENDING staging) — tasks 1-8 ✓ 2026-05-12 / task 9 PENDING manual checkpoint
 
 ### Phase 4: Funnel completion
 
@@ -106,6 +106,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |---|---|---|---|
 | 1. Tooling | 1/1 | Complete | 2026-05-12 |
 | 2. Skeleton + cookie fix | 4/4 | Complete | 2026-05-12 |
-| 3. Purchase end-to-end | 5/6 | In progress | - |
+| 3. Purchase end-to-end | 5.5/6 (tasks 1-8 of plan 03-06 done; task 9 manual checkpoint PENDING) | In progress — awaiting staging | - |
 | 4. Funnel completion | 0/- | Not started | - |
 | 5. Hardening + launch | 0/- | Not started | - |
