@@ -5,9 +5,15 @@ declare(strict_types=1);
 use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
-    ->withPaths([
+    ->withPaths(array_filter([
         __DIR__.'/Plugin.php',
-    ])
+        __DIR__.'/classes',
+        __DIR__.'/models',
+        __DIR__.'/components',
+        __DIR__.'/middleware',
+        __DIR__.'/controllers',
+        __DIR__.'/console',
+    ], static fn (string $sPath): bool => file_exists($sPath)))
     ->withPhpSets(php84: true)
     ->withPreparedSets(
         deadCode: true,

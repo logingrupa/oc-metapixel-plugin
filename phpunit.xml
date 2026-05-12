@@ -17,6 +17,12 @@
     <source>
         <include>
             <file>./Plugin.php</file>
+            <directory>./classes</directory>
+            <directory>./models</directory>
+            <directory>./components</directory>
+            <directory>./middleware</directory>
+            <directory>./controllers</directory>
+            <directory>./console</directory>
         </include>
     </source>
     <php>
