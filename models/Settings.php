@@ -66,21 +66,28 @@ class Settings extends CommonSettings
     /**
      * Dropdown options for the `paid_status_code` field. Auto-invoked by
      * October's form builder via `options: getPaidStatusCodeOptions` in
-     * fields.yaml. Uses Status::lists('name','code') (NOT pluck) — the
-     * CodeField scope on Status provides the lists() method via
-     * Kharanenka\Scope\CodeField.
+     * fields.yaml.
+     *
+     * WR-06 lock: iterate the Eloquent Status collection explicitly rather
+     * than going through `(array) Status::lists()`. The `lists()` return type
+     * has drifted across October versions (Collection vs array); the cast
+     * happens to flatten the current Collection's internal items array but
+     * is fragile — `(array)` semantics on a Collection are not part of
+     * October's documented contract. Explicit iteration is also type-stable
+     * for status codes that look numeric (`'5'` vs `5` would otherwise
+     * collide depending on which return shape `lists()` produces).
      *
      * @return array<string, string>
      */
     public function getPaidStatusCodeOptions(): array
     {
-        $arRaw = (array) Status::lists('name', 'code');
+        $obList = Status::orderBy('sort_order')->get();
         $arResult = [];
-        foreach ($arRaw as $mCode => $mName) {
-            if (! is_scalar($mName)) {
+        foreach ($obList as $obStatus) {
+            if (! is_scalar($obStatus->code) || ! is_scalar($obStatus->name)) {
                 continue;
             }
-            $arResult[(string) $mCode] = (string) $mName;
+            $arResult[(string) $obStatus->code] = (string) $obStatus->name;
         }
 
         return $arResult;
