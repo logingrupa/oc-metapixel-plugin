@@ -218,11 +218,46 @@ abstract class MetapixelTestCase extends TestCase
     }
 
     /**
+     * Provision the minimal `lovata_orders_shopaholic_orders` table — only the
+     * columns this plugin's Phase 3 work touches (status_id, secret_key,
+     * order_number, total_price_value, currency_id, customer fields). Mirrors
+     * the RetryPaymentTestCase hermetic pattern (lines 93-115). Plan 03-01
+     * MigrationsBootTest calls this before running the Phase 3 migration so
+     * `Schema::table(..., function (Blueprint $obTable) { $obTable->string(...) })`
+     * has a table to mutate. Subsequent Phase 3 plans (03-06 OrderStatusWatcher)
+     * also call this to land hermetic Order rows.
+     *
+     * Guarded — safe to call multiple times in a single test.
+     */
+    protected function bootOrdersTable(): void
+    {
+        if (Schema::hasTable('lovata_orders_shopaholic_orders')) {
+            return;
+        }
+
+        Schema::create('lovata_orders_shopaholic_orders', function ($obTable): void {
+            $obTable->increments('id');
+            $obTable->integer('status_id')->nullable();
+            $obTable->string('order_number')->nullable();
+            $obTable->string('secret_key')->nullable();
+            $obTable->decimal('total_price_value', 15, 2)->nullable();
+            $obTable->integer('currency_id')->nullable();
+            $obTable->string('email')->nullable();
+            $obTable->string('phone')->nullable();
+            $obTable->string('name')->nullable();
+            $obTable->string('last_name')->nullable();
+            $obTable->timestamps();
+        });
+    }
+
+    /**
      * Drop hermetic tables in tearDown() so each test starts from a clean
      * schema slate. Safe to call when no hermetic table was created.
      */
     protected function dropHermeticSchemas(): void
     {
+        Schema::dropIfExists('logingrupa_metapixel_failed_events');
+        Schema::dropIfExists('lovata_orders_shopaholic_orders');
         Schema::dropIfExists('lovata_orders_shopaholic_statuses');
         Schema::dropIfExists('system_settings');
     }

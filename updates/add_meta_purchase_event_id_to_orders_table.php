@@ -42,6 +42,7 @@ class AddMetaPurchaseEventIdToOrdersTable extends Migration
     const TABLE_NAME = 'lovata_orders_shopaholic_orders';
     const COLUMN_ID = 'meta_purchase_event_id';
     const COLUMN_TIME = 'meta_purchase_event_time';
+    const INDEX_NAME = 'lovata_orders_shopaholic_orders_meta_purchase_event_id_index';
 
     /**
      * Apply migration — add both meta_purchase_event_id + meta_purchase_event_time columns.
@@ -64,7 +65,8 @@ class AddMetaPurchaseEventIdToOrdersTable extends Migration
     }
 
     /**
-     * Rollback migration — drop both columns.
+     * Rollback migration — drop the index first (required for SQLite and clean
+     * for MySQL), then drop both columns.
      */
     public function down(): void
     {
@@ -78,6 +80,12 @@ class AddMetaPurchaseEventIdToOrdersTable extends Migration
         }
 
         Schema::table(self::TABLE_NAME, function (Blueprint $obTable): void {
+            if (Schema::hasColumn(self::TABLE_NAME, self::COLUMN_ID)) {
+                // Drop the index before the column. SQLite errors out if a column
+                // with a live index is dropped (Laravel 12 schema builder validates).
+                // MySQL handles the implicit drop but explicit ordering is safer.
+                $obTable->dropIndex(self::INDEX_NAME);
+            }
             $obTable->dropColumn([self::COLUMN_ID, self::COLUMN_TIME]);
         });
     }
