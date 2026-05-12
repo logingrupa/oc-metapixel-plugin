@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixelshopaholic;
 
 use Backend;
+use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use System\Classes\PluginBase;
 
@@ -74,7 +75,7 @@ class Plugin extends PluginBase
         // Prime PluginGuard so isDisabled() is computed once per request and the
         // 'metapixel.disabled' container-singleton bridge is bound for handler use.
         // CONTEXT Area 1 Q2-Q3 + SKEL-05.
-        \Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard::instance();
+        PluginGuard::instance();
     }
 
     /**

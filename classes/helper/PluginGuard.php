@@ -48,8 +48,6 @@ class PluginGuard
 
     /**
      * Return the memoized disabled flag.
-     *
-     * @return bool
      */
     public function isDisabled(): bool
     {
@@ -60,8 +58,6 @@ class PluginGuard
 
     /**
      * Return the memoized pixel_id (null when disabled).
-     *
-     * @return string|null
      */
     public function getPixelId(): ?string
     {
@@ -73,8 +69,6 @@ class PluginGuard
     /**
      * Reset both the Singleton-trait instance and the container singleton bridge.
      * Intended for test teardown — flushes the disabled-flag memo between tests.
-     *
-     * @return void
      */
     public static function flush(): void
     {
@@ -88,8 +82,6 @@ class PluginGuard
     /**
      * Auto-invoked by the Singleton trait on the first instance() call.
      * Primes the memo and binds the `metapixel.disabled` container singleton.
-     *
-     * @return void
      */
     protected function init(): void
     {
@@ -109,8 +101,6 @@ class PluginGuard
      * not a hard throw. This is the only catch in PluginGuard and matches the
      * CLAUDE.md Tiger-Style allowance for explicit, reason-documented boundary
      * catches (see Plugin::boot() PHPDoc).
-     *
-     * @return void
      */
     protected function prime(): void
     {
