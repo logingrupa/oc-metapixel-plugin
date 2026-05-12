@@ -79,13 +79,12 @@ final class SendCapiEvent implements ShouldQueue
     /**
      * @param  string  $sEventName  Meta event name (Purchase, ViewContent, AddToCart, ...).
      * @param  array<string, mixed>  $arPayload  Envelope built by PayloadBuilder
-     *                                            (`['data' => [['event_id' => ..., ...]]]`).
+     *                                           (`['data' => [['event_id' => ..., ...]]]`).
      */
     public function __construct(
         public readonly string $sEventName,
         public readonly array $arPayload,
-    ) {
-    }
+    ) {}
 
     /**
      * Send the CAPI payload through MetaClient. Transient → rethrow for Laravel
@@ -107,7 +106,7 @@ final class SendCapiEvent implements ShouldQueue
                 'meta_pixel.attempt' => $this->attempts(),
             ]));
             throw $obException;
-        } catch (MetaApiPermanentException | MissingPixelConfigException | MissingCapiTokenException $obException) {
+        } catch (MetaApiPermanentException|MissingPixelConfigException|MissingCapiTokenException $obException) {
             // Permanent failure: persist + no rethrow. Job marked succeeded so the
             // queue worker doesn't park. CONTEXT Area 1 Q2 + PATTERNS lines 329-336.
             $this->writeFailedEvent($obException);

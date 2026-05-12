@@ -239,6 +239,25 @@ final class SendCapiEventTest extends MetapixelTestCase
         $this->assertSame($arPayload, $arCaptured, 'MetaClient::send must receive the EXACT $arPayload constructor argument.');
     }
 
+    public function test_failed_hook_wraps_non_meta_exception_as_permanent(): void
+    {
+        // Locks the failed() else-branch — Laravel may call failed() with a
+        // non-Meta exception (DB error, container resolution failure, etc.) and
+        // we wrap it into MetaApiPermanentException so the FailedEvent type
+        // contract holds.
+        $this->primeSettings();
+        $arPayload = $this->makePayload('non-meta-uuid-001');
+        $obJob = new SendCapiEvent('Purchase', $arPayload);
+
+        $obJob->failed(new \RuntimeException('container resolution failure'));
+
+        $this->assertSame(1, FailedEvent::count(), 'Non-Meta exception must still produce a FailedEvent row.');
+        /** @var FailedEvent $obFailed */
+        $obFailed = FailedEvent::first();
+        $this->assertSame('non-meta-uuid-001', $obFailed->event_id);
+        $this->assertStringContainsString('container resolution failure', $obFailed->graph_error ?? '', 'Original exception message must be preserved on the FailedEvent row.');
+    }
+
     public function test_event_name_propagates_to_logged_context(): void
     {
         // Lock CONTEXT Discretion #9: meta_pixel.event_name appears in the log
