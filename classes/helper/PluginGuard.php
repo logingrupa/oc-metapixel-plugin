@@ -102,6 +102,14 @@ class PluginGuard
      * Read Settings::get('pixel_id') once, log a warning when empty, set the
      * memoized $bIsDisabled flag. Idempotent — early-returns when already primed.
      *
+     * Wraps the Settings read in a Throwable catch as a deliberate boundary-layer
+     * fallback: SKEL-05 forbids cascading boot failures, so an inaccessible
+     * `system_settings` table (during early bootstrap, broken DB, fresh install
+     * before migrations) must surface as `disabled = true` with a logged warning,
+     * not a hard throw. This is the only catch in PluginGuard and matches the
+     * CLAUDE.md Tiger-Style allowance for explicit, reason-documented boundary
+     * catches (see Plugin::boot() PHPDoc).
+     *
      * @return void
      */
     protected function prime(): void
@@ -110,8 +118,21 @@ class PluginGuard
             return;
         }
 
-        $mPixelId = Settings::get('pixel_id', '');
-        $sPixelId = is_scalar($mPixelId) ? (string) $mPixelId : '';
+        try {
+            $mPixelId = Settings::get('pixel_id', '');
+            $sPixelId = is_scalar($mPixelId) ? (string) $mPixelId : '';
+        } catch (\Throwable $obException) {
+            // Boundary catch: Settings table missing / DB unavailable at boot
+            // must NOT cascade through Campaigns/PromoMechanism/Order. SKEL-05.
+            Log::warning(
+                'Metapixel: pixel_id not configured — plugin disabled',
+                ['reason' => 'settings_read_failed', 'exception' => $obException->getMessage()]
+            );
+            $this->bIsDisabled = true;
+
+            return;
+        }
+
         if ($sPixelId === '') {
             Log::warning('Metapixel: pixel_id not configured — plugin disabled');
             $this->bIsDisabled = true;

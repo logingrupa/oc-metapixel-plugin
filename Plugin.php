@@ -60,14 +60,21 @@ class Plugin extends PluginBase
     /**
      * Boot method, called right before the request route.
      *
-     * Boot wiring lands in Plan 02-02 (PluginGuard prime) and 02-03 (kernel
-     * pushMiddleware). Phase 2 keeps boot minimal per CONTEXT Area 1 Q1 —
-     * registering Event::subscribe handlers for classes that don't yet exist
-     * would make the plugin unbootable.
+     * Prime PluginGuard so isDisabled() is computed once per request and the
+     * 'metapixel.disabled' container-singleton bridge is bound for handler
+     * use. Phase 2 keeps boot otherwise minimal per CONTEXT Area 1 Q1 +
+     * Q2-Q3 — registering Event::subscribe handlers for classes that don't
+     * yet exist would make the plugin unbootable.
+     *
+     * Middleware push (kernel pushMiddleware) lands in Plan 02-03 (SKEL-03).
+     * Event::subscribe(...) handler registration lands in Phase 3+.
      */
     public function boot(): void
     {
-        // Boot wiring lands in Plan 02-02 (PluginGuard prime) and 02-03 (kernel pushMiddleware). Phase 2 keeps boot minimal per CONTEXT Area 1 Q1.
+        // Prime PluginGuard so isDisabled() is computed once per request and the
+        // 'metapixel.disabled' container-singleton bridge is bound for handler use.
+        // CONTEXT Area 1 Q2-Q3 + SKEL-05.
+        \Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard::instance();
     }
 
     /**
