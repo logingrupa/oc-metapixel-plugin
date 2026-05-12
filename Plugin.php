@@ -5,8 +5,11 @@ namespace Logingrupa\Metapixelshopaholic;
 use Backend;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Event;
+use Logingrupa\Metapixelshopaholic\Classes\Event\OrderStatusWatcher;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixelshopaholic\Components\PixelHead;
+use Logingrupa\Metapixelshopaholic\Components\PurchasePixel;
 use Logingrupa\Metapixelshopaholic\Middleware\EnsureFbpFbcCookies;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use System\Classes\PluginBase;
@@ -93,6 +96,16 @@ class Plugin extends PluginBase
         // 1) Prime PluginGuard in every context (CONTEXT Area 1 Q2-Q3 + SKEL-05).
         PluginGuard::instance();
 
+        // 1b) Phase 3 plan 03-06 (PAY-03 / PAY-10 / PAY-11): subscribe
+        // OrderStatusWatcher globally — storefront, backend, AND queue
+        // worker contexts. The backend admin status-flip (bank-transfer
+        // path PAY-11) MUST be observed since no browser-side Pixel twin
+        // exists there. The queue worker MUST observe model events when a
+        // saved-elsewhere Order is later rehydrated inside a job context.
+        // Subscription happens BEFORE the CLI gate below — the gate only
+        // skips the HTTP middleware push, not Event::subscribe.
+        Event::subscribe(OrderStatusWatcher::class);
+
         // 2) CLI-only gate (WR-01): no HTTP response in CLI = nothing to
         // push to. Backend-vs-storefront discrimination happens inside the
         // middleware against the actual request URL.
@@ -127,12 +140,18 @@ class Plugin extends PluginBase
     }
 
     /**
-     * Register Phase 2 components.
+     * Register Phase 2 + Phase 3 components.
      *
      * pixelHead — emits fbq('init') + fbq('track', 'PageView', ..., {eventID})
      * with a server-generated UUIDv4 eventID. Renders alongside the theme's
      * existing partials/facebook_pixel.htm per SKEL-04 / CONTEXT Area 2 Q1.
      * Phase 4 FUN-01 will dispatch the CAPI twin from onRun().
+     *
+     * purchasePixel — Phase 3 plan 03-06 browser-side Pixel twin for the
+     * thank-you page. Reads the persisted meta_purchase_event_id +
+     * meta_purchase_event_time written atomically by OrderStatusWatcher
+     * and emits fbq('track', 'Purchase', custom_data, {eventID}) so Meta
+     * dedups Pixel + CAPI by event_id within its ±10 s event_time window.
      *
      * @return array<class-string, string>
      */
@@ -141,6 +160,7 @@ class Plugin extends PluginBase
     {
         return [
             PixelHead::class => 'pixelHead',
+            PurchasePixel::class => 'purchasePixel',
         ];
     }
 }
