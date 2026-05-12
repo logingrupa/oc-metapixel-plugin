@@ -13,7 +13,7 @@ Five sequential phases (S0→S4 in PLAN.md terms) ship a production-grade Meta P
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Tooling** — `composer qa` green on empty plugin (composer.json, phpstan lvl 10 + larastan + universalObjectCrates, phpmd copy of Toolbox, pint, rector, Pest 4 + MetapixelTestCase, CI). ✓ 2026-05-12
-- [ ] **Phase 2: Skeleton + cookie fix** — Plugin.php, Settings extending CommonSettings, `EnsureFbpFbcCookies` middleware. Fixes live empty-cookie bug.
+- [x] **Phase 2: Skeleton + cookie fix** — Plugin.php, Settings extending CommonSettings, `EnsureFbpFbcCookies` middleware, PluginGuard + PixelHead component. Fixes live empty-cookie bug. ✓ 2026-05-12
 - [ ] **Phase 3: Purchase end-to-end** — MetaClient, SendCapiEvent queue job, OrderStatusWatcher, idempotency via `meta_purchase_event_id` column, PayloadBuilder + UserDataHasher + custom exception hierarchy. Dedup verified ≥ 80 % / EMQ ≥ 8 in Test Events.
 - [ ] **Phase 4: Funnel completion** — PageView, ViewContent, ViewCategory, Search, AddToCart, AddToWishlist, InitiateCheckout, AddPaymentInfo, Lead, CompleteRegistration, Contact. All share event_id + event_time. content_ids format locked to Facebook Catalog feed.
 - [ ] **Phase 5: Hardening + launch** — FailedEvents backend list + onReplay + onCheckDedup, lang/{en,lv,ru}, README with runbook, Composer marketplace listing, coverage ≥ 90 %.
@@ -46,9 +46,9 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. The theme's existing `facebook_pixel.htm` partial renders unchanged when no `arMetaEvent` is set (no regression), and renders event metadata + `fbq('track', ..., {eventID})` when it IS set.
 **Plans:** 4 plans
   - [x] 02-01-PLAN.md — Plugin boot + Settings + lang scaffolding (SKEL-01, SKEL-02, SKEL-06) ✓ 2026-05-12
-  - [ ] 02-02-PLAN.md — PluginGuard helper + boot-time disabled flag (SKEL-05)
-  - [ ] 02-03-PLAN.md — EnsureFbpFbcCookies middleware + global registration (SKEL-03)
-  - [ ] 02-04-PLAN.md — PixelHead component alongside theme partial (SKEL-04)
+  - [x] 02-02-PLAN.md — PluginGuard helper + boot-time disabled flag (SKEL-05) ✓ 2026-05-12
+  - [x] 02-03-PLAN.md — EnsureFbpFbcCookies middleware + global registration (SKEL-03) ✓ 2026-05-12
+  - [x] 02-04-PLAN.md — PixelHead component alongside theme partial (SKEL-04) ✓ 2026-05-12
 
 ### Phase 3: Purchase end-to-end
 
@@ -99,7 +99,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |---|---|---|---|
 | 1. Tooling | 1/1 | Complete | 2026-05-12 |
-| 2. Skeleton + cookie fix | 0/- | Not started | - |
+| 2. Skeleton + cookie fix | 4/4 | Complete | 2026-05-12 |
 | 3. Purchase end-to-end | 0/- | Not started | - |
 | 4. Funnel completion | 0/- | Not started | - |
 | 5. Hardening + launch | 0/- | Not started | - |
