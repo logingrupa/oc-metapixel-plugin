@@ -172,6 +172,109 @@ final class PurchasePixelTest extends MetapixelTestCase
         $this->assertNull($obComponent->arMetaEvent, 'slug not matching any order_secret_key MUST render nothing.');
     }
 
+    public function test_component_details_returns_name_and_description(): void
+    {
+        $obComponent = new PurchasePixel;
+
+        $arDetails = $obComponent->componentDetails();
+
+        $this->assertArrayHasKey('name', $arDetails);
+        $this->assertArrayHasKey('description', $arDetails);
+        $this->assertSame('Purchase Pixel', $arDetails['name']);
+        $this->assertStringContainsString('event_id', $arDetails['description']);
+    }
+
+    public function test_define_properties_exposes_order_slug(): void
+    {
+        $obComponent = new PurchasePixel;
+
+        $arProperties = $obComponent->defineProperties();
+
+        $this->assertArrayHasKey('orderSlug', $arProperties);
+        $this->assertSame('string', $arProperties['orderSlug']['type']);
+        $this->assertSame('{{ :slug }}', $arProperties['orderSlug']['default']);
+        $this->assertSame('^[a-zA-Z0-9-]+$', $arProperties['orderSlug']['validationPattern']);
+    }
+
+    public function test_status_fence_falls_back_to_status_id_lookup_when_relation_missing(): void
+    {
+        // Exercises the fallback path in isAtPaidStatus() — status_id points
+        // to a non-existent row (status was deleted between Order save and
+        // thank-you-page render). Both the relation load AND the Status::where
+        // lookup return null → render nothing (status fence rejects).
+        $obOrder = OrderFixtures::makePaidOrder();
+        // Point at an orphaned status_id — relation lookup returns null and
+        // Status::where('id', 9999)->value('code') returns null too.
+        $obOrder->forceFill([
+            'status_id' => 9999,
+            'meta_purchase_event_id' => Uuid::uuid4()->toString(),
+            'meta_purchase_event_time' => 1715000000,
+        ])->save();
+        // Avoid eager-loaded `status` relation — fresh from DB.
+        $obFresh = $obOrder->fresh();
+
+        $obComponent = $this->makeComponent((string) $obFresh->secret_key);
+        $obComponent->onRun();
+
+        $this->assertNull($obComponent->arMetaEvent, 'orphan status_id MUST render nothing via fallback fence.');
+    }
+
+    public function test_status_fence_passes_via_fallback_lookup_for_paid_status_id(): void
+    {
+        // Same path as above but with status_id pointing at the paid status —
+        // the fallback should resolve 'new-payment-received' via Status::where
+        // and return true.
+        $obOrder = OrderFixtures::makePaidOrder();
+        $obOrder->forceFill([
+            'meta_purchase_event_id' => Uuid::uuid4()->toString(),
+            'meta_purchase_event_time' => 1715000000,
+        ])->save();
+        // unsetRelation forces a fresh lookup; on the fresh fetch the relation
+        // is not loaded so getRelationValue triggers the BelongsTo query.
+        $obFresh = $obOrder->fresh();
+
+        $obComponent = $this->makeComponent((string) $obFresh->secret_key);
+        $obComponent->onRun();
+
+        $this->assertNotNull($obComponent->arMetaEvent, 'fallback lookup MUST resolve paid status when relation is null.');
+    }
+
+    public function test_empty_order_slug_property_resolves_no_order(): void
+    {
+        // Exercises the early-return branch in resolveOrder() when the
+        // orderSlug property is the empty string (e.g. route binding
+        // didn't populate :slug on the actual page).
+        OrderFixtures::makePaidOrder();
+        $obComponent = $this->makeComponent('');
+        $obComponent->onRun();
+
+        $this->assertNull($obComponent->arMetaEvent, 'empty orderSlug MUST render nothing.');
+    }
+
+    public function test_payload_builder_exception_logs_warning_and_renders_nothing(): void
+    {
+        // The PayloadBuilder catch branch in onRun() — exercises the boundary
+        // catch that prevents a thank-you-page 500. Force the throw by
+        // deleting all order_positions on a paid order so resolveOrderPositions
+        // raises OrderHasNoItemsException (a MetaPixelException subclass).
+        $obOrder = OrderFixtures::makePaidOrder();
+        $obOrder->forceFill([
+            'meta_purchase_event_id' => Uuid::uuid4()->toString(),
+            'meta_purchase_event_time' => 1715000000,
+        ])->save();
+        // Delete positions: PayloadBuilder reads relation values → empty
+        // collection → OrderHasNoItemsException MetaPixelException subclass.
+        \DB::table('lovata_orders_shopaholic_order_positions')
+            ->where('order_id', $obOrder->id)
+            ->delete();
+        $obOrder = $obOrder->fresh();
+
+        $obComponent = $this->makeComponent((string) $obOrder->secret_key);
+        $obComponent->onRun();
+
+        $this->assertNull($obComponent->arMetaEvent, 'PayloadBuilder throw MUST result in render-nothing (T-03-35 acceptable degradation).');
+    }
+
     public function test_custom_data_matches_capi_envelope_byte_for_byte(): void
     {
         // The dedup contract: Pixel side's custom_data MUST equal the CAPI
