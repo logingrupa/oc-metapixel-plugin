@@ -16,9 +16,11 @@
         "lovata/toolbox-plugin": "^2.2",
         "lovata/ordersshopaholic-plugin": "^1.33",
         "lovata/shopaholic-plugin": "^1.32",
-        "lovata/buddies-plugin": "^1.10",
         "guzzlehttp/guzzle": "^7.8",
         "ramsey/uuid": "^4.7"
+    },
+    "suggest": {
+        "lovata/buddies-plugin": "Optional — only required if your site uses Lovata.Buddies for user registration. UserHelper auto-detects at runtime."
     },
     "require-dev": {
         "pestphp/pest": "^4.1",
@@ -41,7 +43,7 @@
         "test": "../../../vendor/bin/pest --configuration phpunit.xml",
         "analyse": "../../../vendor/bin/phpstan analyse --configuration=phpstan.neon",
         "baseline": "../../../vendor/bin/phpstan analyse --configuration=phpstan.neon --generate-baseline=phpstan-baseline.neon",
-        "phpmd": "../../../vendor/bin/phpmd Plugin.php text phpmd.xml",
+        "phpmd": "../../../vendor/bin/phpmd Plugin.php,classes,middleware,models,components,controllers,updates text phpmd.xml",
         "pint": "../../../vendor/bin/pint . --config=pint.json",
         "pint-test": "../../../vendor/bin/pint . --config=pint.json --test",
         "rector-dry": "../../../vendor/bin/rector process --config=rector.php --dry-run",
