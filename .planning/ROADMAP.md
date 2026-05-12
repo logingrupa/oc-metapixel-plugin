@@ -31,7 +31,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `assert(...)` usage anywhere under `classes/`, `components/`, `controllers/`, `middleware/`, `models/`, `Plugin.php` fails `composer analyse` via `spaze/phpstan-disallowed-calls`.
   4. GitHub Actions `metapixel-qa.yml` workflow triggers on push/PR touching the plugin and runs `composer qa` on PHP 8.4.
   5. `tests/MetapixelTestCase.php` boots the October CMS test harness (`runOctoberUpCommand()`) successfully in a minimal test.
-**Plans:** TBD
+**Plans:** 1 plan
 
 ### Phase 2: Skeleton + cookie fix
 
@@ -61,7 +61,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Flipping the same order away from and back to `new-payment-received` does NOT re-fire Purchase (DB column is populated).
   4. `composer qa` green with PAY-* classes added, coverage includes every `PayloadBuilder` precondition throw and the `SendCapiEvent` retry + dead-letter branches (Guzzle mocked via `MockHandler`).
   5. Meta Events Manager → Test Events reports dedup ≥ 80 % and EMQ ≥ 8 for Purchase using `test_event_code`.
-**Plans:** TBD
+**Plans:** 6 plans
+  - [ ] 03-01-PLAN.md — Migrations + FailedEvent model (PAY-04, PAY-05)
+  - [ ] 03-02-PLAN.md — Exception hierarchy (PAY-09)
+  - [ ] 03-03-PLAN.md — MetaClient Guzzle wrapper (PAY-01)
+  - [ ] 03-04-PLAN.md — PayloadBuilder + UserDataHasher (PAY-06, PAY-07, PAY-08)
+  - [ ] 03-05-PLAN.md — SendCapiEvent queue job (PAY-02)
+  - [ ] 03-06-PLAN.md — OrderStatusWatcher + Plugin::boot + manual staging verification (PAY-03, PAY-10, PAY-11)
 
 ### Phase 4: Funnel completion
 
@@ -100,6 +106,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |---|---|---|---|
 | 1. Tooling | 1/1 | Complete | 2026-05-12 |
 | 2. Skeleton + cookie fix | 4/4 | Complete | 2026-05-12 |
-| 3. Purchase end-to-end | 0/- | Not started | - |
+| 3. Purchase end-to-end | 0/6 | Not started | - |
 | 4. Funnel completion | 0/- | Not started | - |
 | 5. Hardening + launch | 0/- | Not started | - |
