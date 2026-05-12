@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0.0
 milestone_name: milestone
 status: in-progress
-stopped_at: "Plan 03-02 complete (PAY-09 — Exception hierarchy: MetaPixelException abstract base + 7 concrete finals + lang stubs en/lv/ru + 11-test ExceptionHierarchyTest). Plan 03-01 forward-reference loop closed. Next: plan 03-03 (PAY-01 — MetaClient Guzzle wrapper)."
-last_updated: "2026-05-12T21:43:41Z"
-last_activity: 2026-05-12 -- Plan 03-02 shipped (composer qa green, 54 tests / 184 assertions / 0 skipped / 89.3 % coverage). Phase 3 2/6 plans done.
+stopped_at: "Plan 03-03 complete (PAY-01 — MetaClient Guzzle 7 wrapper: 198-LOC HTTP boundary class + 14-test MetaClientTest with MockHandler-backed Guzzle + 100% MetaClient.php coverage). Next: plan 03-04 (PAY-06 — PayloadBuilder)."
+last_updated: "2026-05-12T22:03:00Z"
+last_activity: 2026-05-12 -- Plan 03-03 shipped (composer qa green, 69 tests / 230 assertions / 0 skipped / 92.7 % coverage / MetaClient.php 100 %). Phase 3 3/6 plans done.
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 6
-  completed_plans: 2
-  percent: 33
+  completed_plans: 3
+  percent: 50
 ---
 
 # Project State
@@ -26,17 +26,17 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 ## Current Position
 
 Phase: 03 (purchase-end-to-end) — in progress
-Plan: 2 of 6 (03-01 + 03-02 shipped — PAY-04 + PAY-05 + PAY-09 done)
-Status: Phase 03 wave 1 complete — plans 03-01 + 03-02 both done. Next: plan 03-03 (PAY-01, wave 2 — MetaClient Guzzle wrapper).
-Last activity: 2026-05-12 -- Plan 03-02 shipped: 1 abstract base (MetaPixelException) + 7 final concretes (MissingPixelConfigException, MissingCapiTokenException, OrderHasNoCurrencyException, OrderHasNoItemsException, InvalidEventIdException, MetaApiTransientException, MetaApiPermanentException), PHP 8.4 constructor-promoted public readonly array $arContext, abstract isRetryable(): bool contract (only MetaApiTransientException returns true), JSON_UNESCAPED_SLASHES|UNICODE jsonContext() log-injection guard, 7 lang stub keys × 3 locales (en/lv/ru = 21 entries), 11-test ExceptionHierarchyTest locking abstract/final/extends/readonly/isRetryable/jsonContext/lang-key invariants. 5 task commits + summary commit. composer qa green (54 tests / 184 assertions / 0 skipped / 89.3% coverage, up from 76.1%). Plan 03-01 forward-reference loop CLOSED — 4 @phpstan-ignore class.notFound markers removed; 3 previously-skipped FailedEventModelTest cases auto-run + pass. All 8 exception files at 100% coverage. FailedEvent jumped 0% → 100%. 3 deviations: Rule 1 jsonContext([]) test expectation mismatch (analog returns '[]' for empty), Rule 3 readonly-aware anon double rewrite in FailedEventModelTest, Rule 3 dead is_array branch removed in FailedEvent::createFromPayloadAndException.
+Plan: 3 of 6 (03-01 + 03-02 + 03-03 shipped — PAY-04 + PAY-05 + PAY-09 + PAY-01 done)
+Status: Phase 03 wave 2 in progress — plans 03-01 + 03-02 + 03-03 done. Next: plan 03-04 (PAY-06, wave 2 — PayloadBuilder).
+Last activity: 2026-05-12 -- Plan 03-03 shipped: classes/meta/MetaClient.php (198 LOC) — single HTTP boundary to Meta Graph API v20.0 /events with constructor-injectable `?ClientInterface $obClient`, public const string GRAPH_VERSION = 'v20.0', private const array TRANSIENT_STATUS_CODES = [408, 429, 500, 502, 503, 504], 'http_errors' => false on default Client (single getStatusCode switch as decision point), 5-second timeout (T-03-15 worker-block cap), lazy Settings reads in send() (pixel_id/capi_access_token/test_event_code), four typed-exception throw sites (MissingPixelConfigException, MissingCapiTokenException, MetaApiTransientException, MetaApiPermanentException), Log::warning/error breadcrumbs without access token (T-03-12). tests/Unit/MetaClientTest.php — 14 test methods locking the 7 send-time invariants + transient-status sweep (408/429/500/502/503/504) + permanent-status sweep (400/401/403/404/422) + ConnectException → transient + RequestException catch coverage (defense-in-depth) + decodeResponseBody non-array guard + GRAPH_VERSION constant. 3 task commits + summary commit. composer qa green (69 tests / 230 assertions / 0 skipped / 92.7% coverage / MetaClient.php 100% / total 86.3% → 92.7% +6.4pp). 5 deviations: Rule 1 HR-02 multi-Settings::set flap (switched to reflection-priming via Settings::instance()->setAttribute — plan explicitly anticipated this), Rule 3 Pest 4 @dataProvider on class-style tests (replaced with inline foreach), Rule 1 array-destructure breaks by-ref (switched to explicit by-ref parameter), Rule 1 phpstan level 10 json_decode→array<mixed> narrowing (extracted decodeResponseBody helper with explicit key-iteration), Rule 3 phpmd CyclomaticComplexity = 10 hit (extracted classifyResponse helper).
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 7 (Phase 1 + Plans 02-01..04 + Plans 03-01..02)
-- Average duration: ~20 min (Plans 02-01 + 02-02 + 02-03 + 02-04 + 03-01 + 03-02: ~94+9+10+5 = ~118 min / 6 plans = ~20 min); Phase 1 not timed
-- Total execution time: ~2.0 hours
+- Total plans completed: 8 (Phase 1 + Plans 02-01..04 + Plans 03-01..03)
+- Average duration: ~19 min (Plans 02-01 + 02-02 + 02-03 + 02-04 + 03-01 + 03-02 + 03-03: ~94+9+10+5+14 ≈ ~132 min / 7 plans = ~19 min); Phase 1 not timed
+- Total execution time: ~2.2 hours
 
 **By Phase:**
 
@@ -44,12 +44,12 @@ Last activity: 2026-05-12 -- Plan 03-02 shipped: 1 abstract base (MetaPixelExcep
 |---|---|---|---|
 | 1. Tooling | 1 | — | — |
 | 2. Skeleton+cookie | 4/4 | ~103 min | 26 min |
-| 3. Purchase end-to-end | 2/6 | ~15 min | 8 min |
+| 3. Purchase end-to-end | 3/6 | ~29 min | 10 min |
 
 **Recent Trend:**
 
-- Last 7 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01..04 (all passed), 03-purchase/03-01-PLAN + 03-02-PLAN (passed).
-- Trend: Plan 03-02 = 5 task commits + 1 summary commit, 3 deviations (Rule 1 jsonContext test expectation, Rule 3 readonly anon double, Rule 3 dead is_array branch). composer qa green / 54 tests / 184 assertions / 0 skipped / 89.3 % coverage (was 76.1 %; +13.2pp). All 8 new exception files at 100% coverage. FailedEvent 0% → 100%. Wave-1 forward-reference loop fully closed. **Phase 3 wave 1 done — PAY-04 + PAY-05 + PAY-09 shipped. 4 plans / 8 requirements (PAY-01..03, PAY-06..08, PAY-10..11) still pending.**
+- Last 8 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01..04 (all passed), 03-purchase/03-01-PLAN + 03-02-PLAN + 03-03-PLAN (passed).
+- Trend: Plan 03-03 = 3 task commits + 1 summary commit, 5 deviations (Rule 1 HR-02 multi-Settings::set flap → reflection priming, Rule 3 Pest 4 dataProvider → inline foreach, Rule 1 array-destructure by-ref → explicit by-ref param, Rule 1 phpstan json_decode narrowing → decodeResponseBody extraction, Rule 3 phpmd CyclomaticComplexity = 10 → classifyResponse extraction). composer qa green / 69 tests / 230 assertions / 0 skipped / 92.7 % coverage (was 89.3 %; +3.4pp) / **MetaClient.php at 100 %**. **Phase 3 wave 2 in progress — PAY-01 shipped on top of wave 1 (PAY-04 + PAY-05 + PAY-09). 3 plans / 7 requirements (PAY-02 + PAY-03 + PAY-06..08 + PAY-10..11) still pending.**
 
 *Updated after each plan completion*
 
@@ -109,6 +109,16 @@ New from Plan 03-02 execution:
 - **EH-03** `composer qa` total coverage 76.1% → 89.3% (+13.2pp) — driven by FailedEvent jumping 0% → 100% (the 3 previously-skipped factory tests now run) + all 8 new exception classes at 100%. The "is FailedEvent really 0%?" doubt from plan 03-01's SUMMARY is resolved: it WAS only because the factory was untested, not because of pcov trait-attribution. The trait-attribution explanation was wrong; the static factory was simply unreached by Phase 2 baseline tests.
 - **EH-04** `jsonContext([])` returns the JSON-array literal `'[]'`, NOT `'{}'` (the `'{}'` literal is the encode-failure fallback only — verified with stream resources in ExceptionHierarchyTest::test_jsonContext_returns_compact_json). The GoodsReceivedException analog has identical behavior. Forward-impact: any Phase-3 plan that wants `'{}'` for empty input must wrap with `$ar === [] ? '{}' : self::jsonContext($ar)`.
 
+New from Plan 03-03 execution:
+
+- **MC-01** HTTP-boundary pattern: constructor-injectable `?ClientInterface $obClient = null` is the canonical testable HTTP-client shape for this plugin. Default Guzzle Client built with `'http_errors' => false` so status-code-based classification flows through a SINGLE switch (no parallel try/catch shapes). Reusable for any future Logingrupa.Metapixelshopaholic third-party-HTTP class (e.g. Phase 5 HARD-03's optional Slack/Telegram dead-letter alerter).
+- **MC-02** HR-02 confirmed reproducible under multi-Settings::set load. The `Settings::set + clearInternalCache + Cache::flush` round-trip flaps when ≥ 2 fields are primed per test (every MetaClient test sets pixel_id + capi_access_token, some also test_event_code). The reliable workaround is the reflection-priming pattern (`Settings::instance()->setAttribute(...)`) — identical shape to `PixelHeadTest::primePluginGuardEnabled`. Pattern locked for plans 03-04..03-06.
+- **MC-03** Pest 4 does NOT enumerate PHPUnit `@dataProvider` decorators on class-style test methods. The data-driven pattern in Pest 4 is functional (`it('...', $closure)->with([dataset])`). For class-style tests use an inline `foreach` loop. Documented in MetaClientTest::test_send_throws_transient_on_each_transient_status_code's class-level comment.
+- **MC-04** Array-destructuring of a returned tuple `[$a, $b] = $fn()` silently breaks by-reference semantics — `[$obClient, $arHistory] = $this->make(...)` with `return [..., &$arHistory]` copies the dereferenced array. Fix: explicit by-reference parameter on the helper. Pattern locked for any future Middleware::history-based test in this plugin.
+- **MC-05** phpstan level 10 + `json_decode(..., true)` returns `array<mixed>` (NOT `array<string, mixed>`). The narrowing path that does NOT require `@phpstan-ignore` / `assert` / `@var` is: `foreach ($mDecoded as $mKey => $mValue) { if (is_string($mKey)) { ... } }` — phpstan infers `array<string, mixed>` from the explicit key check. Pattern locked for any future JSON-decode-to-typed-array in this plugin.
+- **MC-06** phpmd `CyclomaticComplexity = 10` fires at exactly 10 (reportLevel inclusive). HTTP-client send() methods with 3 Settings guards + try/catch (ConnectException, RequestException) + status-code classification hit this trivially. Extract the response-classification block into a private `classifyResponse(int, string): array` helper to drop complexity from 10 → 6. Pattern locked for plans 03-04..03-06.
+- **MC-07** PH-01 (pixel_id regex validator) still pending. T-03-11 explicitly surfaced again in plan 03-03 SUMMARY's "Forward TODO" section. **HIGH priority** for plan 03-06 OrderStatusWatcher OR Phase 5 HARD-03. Without `regex:/^\d{6,20}$/` on the Settings field, a compromised admin can inject path-traversal sequences into the URL via pixel_id — Guzzle's URI-path encoding mitigates SQL/XSS at the HTTP layer but the stored XSS surface in `components/pixelhead/default.htm` remains.
+
 Carried forward from Plan 02-04 execution:
 
 - **PH-01** Plan 02-01 retro-fit (HIGH priority for Phase 5 launch OR Phase 3 pre-PAY-01): add `regex:/^\d{6,20}$/` validator to the `pixel_id` field in `models/settings/fields.yaml` per T-04-01. Without it a compromised admin could set pixel_id to `'); alert(1)//` and break out of the inlined `<script>` string in `components/pixelhead/default.htm`. Backend Settings authenticated trust boundary mitigates partially, but stored XSS surface remains.
@@ -129,7 +139,7 @@ None. All 5 open questions resolved via codebase evidence (see `.planning/answer
 
 ## Session Continuity
 
-Last activity: 2026-05-12 — Plan 03-02 (Exception hierarchy — PAY-09) shipped end-to-end. 5 task commits + 1 summary commit. composer qa green: 54 tests / 184 assertions / 0 skipped / **89.3 % coverage** (PixelHead 94.4 % / middleware 96.1 % / PluginGuard 93.5 % / Settings 92.9 % / Plugin 52.0 % / **FailedEvent 100% / all 8 exception classes 100%**). PAY-04 + PAY-05 + PAY-09 complete. **Phase 3: 2 / 6 plans done — wave 1 closed.**
+Last activity: 2026-05-12 — Plan 03-03 (MetaClient Guzzle 7 wrapper — PAY-01) shipped end-to-end. 3 task commits + 1 summary commit. composer qa green: 69 tests / 230 assertions / 0 skipped / **92.7 % coverage** (PixelHead 94.4 % / middleware 96.1 % / PluginGuard 93.5 % / Settings 92.9 % / Plugin 52.0 % / FailedEvent 100% / all 8 exception classes 100% / **MetaClient 100 %**). PAY-01 + PAY-04 + PAY-05 + PAY-09 complete. **Phase 3: 3 / 6 plans done — wave 2 in progress (PAY-01 done, PAY-06..08 + PAY-02..03 + PAY-10..11 pending).**
 Last session: 2026-05-12
-Stopped at: Plan 03-02 complete. Wave-1 forward-reference loop CLOSED. Next: plan 03-03 (PAY-01 — MetaClient Guzzle wrapper, wave 2). The exception hierarchy now in place is the throw/catch surface for plans 03-03 (MetaClient), 03-04 (PayloadBuilder), 03-05 (SendCapiEvent), 03-06 (OrderStatusWatcher).
-Resume file: `.planning/phases/03-purchase-end-to-end/03-03-PLAN.md`
+Stopped at: Plan 03-03 complete. MetaClient HTTP boundary in place. Next: plan 03-04 (PAY-06 — PayloadBuilder, wave 2). The MetaClient::send(array): array contract is now the consumer surface for plan 03-05 SendCapiEvent (PAY-02) — `handle(MetaClient $obClient): void` will resolve via Laravel container.
+Resume file: `.planning/phases/03-purchase-end-to-end/03-04-PLAN.md`

@@ -28,7 +28,7 @@
 
 ### Purchase end-to-end (Phase 3)
 
-- [ ] **PAY-01**: `classes/meta/MetaClient.php` wraps Guzzle (`guzzlehttp/guzzle ^7.8`) targeting Graph API v20 `/events` endpoint. Constructor-injectable `ClientInterface` for test mocking. Reads `pixel_id`, `capi_access_token`, `test_event_code` from Settings. Exponential-backoff retry 3× on transient errors (HTTP 429/5xx), throws `MetaApiTransientException`. Permanent errors (4xx except 429) throw `MetaApiPermanentException`.
+- [x] **PAY-01**: `classes/meta/MetaClient.php` wraps Guzzle (`guzzlehttp/guzzle ^7.8`) targeting Graph API v20 `/events` endpoint. Constructor-injectable `ClientInterface` for test mocking. Reads `pixel_id`, `capi_access_token`, `test_event_code` from Settings. Exponential-backoff retry 3× on transient errors (HTTP 429/5xx), throws `MetaApiTransientException`. Permanent errors (4xx except 429) throw `MetaApiPermanentException`. ✓ Plan 03-03 (2026-05-12 — MetaClient itself is stateless single-shot; the 3× exponential retry lives at the queue-job layer in plan 03-05 SendCapiEvent::$backoff = [1, 4, 16] per CONTEXT Area 1 Q1+Q2 lock; transient list = [408, 429, 500, 502, 503, 504] + ConnectException; MetaClient.php at 100% coverage)
 - [ ] **PAY-02**: `classes/queue/SendCapiEvent.php` queue job accepting `(event_id, event_time, event_name, custom_data, user_data, action_source, event_source_url)`. Retries 3× on `MetaApiTransientException`. On `MetaApiPermanentException` → `FailedEvent::createFromPayloadAndException` + no rethrow (dead-lettered). Logs at each stage with context array.
 - [ ] **PAY-03**: `classes/event/OrderStatusWatcher.php` listens on `Order::model.afterUpdate`. When `$obOrder->status->code === Settings::get('paid_status_code', 'new-payment-received')` AND `meta_purchase_event_id` is NULL, it generates a UUID v4, `saveQuietly` to the column, and dispatches `SendCapiEvent::dispatch(...)`. Idempotent by DB-level guard.
 - [x] **PAY-04**: `updates/add_meta_purchase_event_id_to_orders_table.php` adds `meta_purchase_event_id VARCHAR(36) NULL` + index, positioned after the existing `secret_key` column on `lovata_orders_shopaholic_orders`. Reversible `down()`. ✓ Plan 03-01 (also adds `meta_purchase_event_time BIGINT UNSIGNED NULL` for Pixel + CAPI event_time dedup matching)
@@ -120,7 +120,7 @@
 | SKEL-04 | Phase 2 | Plan 02-04 Complete |
 | SKEL-05 | Phase 2 | Plan 02-02 Complete |
 | SKEL-06 | Phase 2 | Plan 02-01 Complete |
-| PAY-01 | Phase 3 | Pending |
+| PAY-01 | Phase 3 | Plan 03-03 Complete |
 | PAY-02 | Phase 3 | Pending |
 | PAY-03 | Phase 3 | Pending |
 | PAY-04 | Phase 3 | Plan 03-01 Complete |
