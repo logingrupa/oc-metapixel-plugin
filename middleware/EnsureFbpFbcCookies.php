@@ -110,89 +110,125 @@ class EnsureFbpFbcCookies
     {
         $obResponse = $fnNext($obRequest);
 
-        // WR-01 lock: backend path short-circuit lives HERE rather than in
-        // Plugin::boot() so the decision is made against the resolved request
-        // URL (not via boot-time `App::runningInBackend()` which depends on
-        // URL detection that may not have completed during early boot). Path-
-        // based comparison defends against non-default BACKEND_URI deploys.
-        $sBackendUri = (string) config('cms.backendUri', 'backend');
-        if ($sBackendUri !== '' && $obRequest->is(ltrim($sBackendUri, '/').'*')) {
+        if ($this->shouldSkip($obRequest)) {
             return $obResponse;
         }
 
-        // Defense-in-depth: short-circuit when the plugin is disabled.
-        // `App::bound(...)` guards against requests that arrive BEFORE
-        // Plugin::boot() has run (e.g. early service-provider boot hooks).
-        if (App::bound('metapixel.disabled') && App::make('metapixel.disabled')) {
-            return $obResponse;
-        }
-
-        // Master kill-switch (CR-01): operator may disable server-side cookie
-        // injection from backend Settings without uninstalling the plugin.
-        // Wrap in a Throwable catch so a missing/locked system_settings table
-        // does not cascade — fail-safe default ON matches fields.yaml default.
-        try {
-            $bToggleEnabled = (bool) Settings::get('ensure_fbp_fbc_server_side', true);
-        } catch (\Throwable $obException) {
-            // Boundary catch: Settings read failure must not 500 the response.
-            // SKEL-05 boot-resilience principle applied at request boundary.
-            $bToggleEnabled = true;
-        }
-        if (! $bToggleEnabled) {
-            return $obResponse;
-        }
-
-        // CR-02: derive subdomain-index from a configured-host allowlist.
-        // Refuses untrusted hosts to defeat Host-header spoofing (threat T-host).
         $sHost = strtolower($obRequest->getHost());
         if (! isset(self::HOST_INDEX_MAP[$sHost])) {
+            // CR-02: untrusted host → refuse to poison Meta with a guessed index.
             return $obResponse;
         }
         $iSubdomainIndex = self::HOST_INDEX_MAP[$sHost];
 
-        // WR-08: use microtime for true ms precision matching Meta's field name.
+        // WR-08: microtime for true ms precision matching Meta's field name.
         // 64-bit PHP only — overflow impossible until year ~292 million.
         $iCreationTimeMs = (int) (microtime(true) * 1000);
         $bSecure = $obRequest->secure();
         $iExpire = time() + self::COOKIE_TTL_SECONDS;
 
-        // `_fbp` — set when missing. Random segment is 16 hex chars (8 random
-        // bytes via libsodium-backed CSPRNG). Never overwrites an existing cookie.
-        if ($obRequest->cookie(self::COOKIE_FBP) === null) {
-            $sFbp = sprintf(
-                'fb.%d.%d.%s',
-                $iSubdomainIndex,
-                $iCreationTimeMs,
-                bin2hex(random_bytes(8))
-            );
-            $obResponse->headers->setCookie(
-                Cookie::create('_fbp', $sFbp, $iExpire, '/', null, $bSecure, false, false, 'lax')
-            );
-        }
-
-        // `_fbc` — set ONLY when the request carries a well-formed `fbclid`
-        // query AND no `_fbc` cookie was sent. fbclid is validated locally
-        // (CR-03): Symfony's Cookie::create does NOT enforce a length cap, so
-        // an attacker can otherwise deliver multi-KiB cookie payloads that
-        // propagate to CAPI envelopes and bloat every subsequent request.
-        $sFbclid = (string) $obRequest->query('fbclid', '');
-        if (
-            $sFbclid !== ''
-            && strlen($sFbclid) <= self::FBCLID_MAX_LENGTH
-            && preg_match(self::FBCLID_ALLOWED_PATTERN, $sFbclid) === 1
-            && $obRequest->cookie(self::COOKIE_FBC) === null
-        ) {
-            $sFbc = sprintf(
-                'fb.%d.%d.%s',
-                $iSubdomainIndex,
-                $iCreationTimeMs,
-                $sFbclid
-            );
-            $obResponse->headers->setCookie(
-                Cookie::create('_fbc', $sFbc, $iExpire, '/', null, $bSecure, false, false, 'lax')
-            );
-        }
+        $this->maybeSetFbp($obRequest, $obResponse, $iSubdomainIndex, $iCreationTimeMs, $iExpire, $bSecure);
+        $this->maybeSetFbc($obRequest, $obResponse, $iSubdomainIndex, $iCreationTimeMs, $iExpire, $bSecure);
 
         return $obResponse;
+    }
+
+    /**
+     * Aggregate the short-circuit checks: backend path, plugin-disabled
+     * container flag, and operator-controlled Settings toggle. Returning true
+     * means handle() should leave the response untouched.
+     */
+    private function shouldSkip(Request $obRequest): bool
+    {
+        // WR-01: backend path short-circuit. Path-based check against the
+        // resolved request URL — more reliable than boot-time
+        // App::runningInBackend() on non-default BACKEND_URI deploys.
+        $mBackendUri = config('cms.backendUri', 'backend');
+        $sBackendUri = is_scalar($mBackendUri) ? (string) $mBackendUri : '';
+        if ($sBackendUri !== '' && $obRequest->is(ltrim($sBackendUri, '/').'*')) {
+            return true;
+        }
+
+        // Defense-in-depth: plugin-disabled flag (PluginGuard / Phase 3+
+        // handlers also gate on this). `App::bound(...)` guards requests
+        // arriving before Plugin::boot() has run (early service-provider
+        // boot hooks).
+        if (App::bound('metapixel.disabled') && App::make('metapixel.disabled')) {
+            return true;
+        }
+
+        // CR-01 master kill-switch: operator-controlled Settings toggle.
+        // Boundary catch matches SKEL-05 — a broken system_settings table
+        // must NOT 500 the response; default ON mirrors fields.yaml.
+        try {
+            $bToggleEnabled = (bool) Settings::get('ensure_fbp_fbc_server_side', true);
+        } catch (\Throwable $obException) {
+            $bToggleEnabled = true;
+        }
+
+        return ! $bToggleEnabled;
+    }
+
+    /**
+     * Set `_fbp` when missing. Random segment is 16 hex chars (8 random bytes
+     * via libsodium-backed CSPRNG). Never overwrites an existing cookie.
+     */
+    private function maybeSetFbp(
+        Request $obRequest,
+        Response $obResponse,
+        int $iSubdomainIndex,
+        int $iCreationTimeMs,
+        int $iExpire,
+        bool $bSecure
+    ): void {
+        if ($obRequest->cookie(self::COOKIE_FBP) !== null) {
+            return;
+        }
+        $sFbp = sprintf(
+            'fb.%d.%d.%s',
+            $iSubdomainIndex,
+            $iCreationTimeMs,
+            bin2hex(random_bytes(8))
+        );
+        $obResponse->headers->setCookie(
+            Cookie::create('_fbp', $sFbp, $iExpire, '/', null, $bSecure, false, false, 'lax')
+        );
+    }
+
+    /**
+     * Set `_fbc` ONLY when the request carries a well-formed `fbclid` query
+     * AND no `_fbc` cookie was sent. fbclid is validated locally (CR-03):
+     * Symfony's Cookie::create does NOT enforce a length cap, so an attacker
+     * can otherwise deliver multi-KiB cookie payloads that propagate to CAPI
+     * envelopes and bloat every subsequent request.
+     */
+    private function maybeSetFbc(
+        Request $obRequest,
+        Response $obResponse,
+        int $iSubdomainIndex,
+        int $iCreationTimeMs,
+        int $iExpire,
+        bool $bSecure
+    ): void {
+        $mFbclid = $obRequest->query('fbclid', '');
+        $sFbclid = is_scalar($mFbclid) ? (string) $mFbclid : '';
+        if ($sFbclid === '' || strlen($sFbclid) > self::FBCLID_MAX_LENGTH) {
+            return;
+        }
+        if (preg_match(self::FBCLID_ALLOWED_PATTERN, $sFbclid) !== 1) {
+            return;
+        }
+        if ($obRequest->cookie(self::COOKIE_FBC) !== null) {
+            return;
+        }
+        $sFbc = sprintf(
+            'fb.%d.%d.%s',
+            $iSubdomainIndex,
+            $iCreationTimeMs,
+            $sFbclid
+        );
+        $obResponse->headers->setCookie(
+            Cookie::create('_fbc', $sFbc, $iExpire, '/', null, $bSecure, false, false, 'lax')
+        );
     }
 }

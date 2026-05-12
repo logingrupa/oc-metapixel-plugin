@@ -48,7 +48,7 @@ class Settings extends CommonSettings
      * (e.g. via XSS-enabled CSRF on the backend Settings page) from being
      * persisted into `system_settings.value`.
      *
-     * @var array<int, string>
+     * @var list<string>
      */
     public $fillable = [
         'pixel_id',
@@ -84,10 +84,15 @@ class Settings extends CommonSettings
         $obList = Status::orderBy('sort_order')->get();
         $arResult = [];
         foreach ($obList as $obStatus) {
-            if (! is_scalar($obStatus->code) || ! is_scalar($obStatus->name)) {
+            // Use getAttribute() rather than dynamic property access so phpstan
+            // level 10 can verify the call without Status having declared
+            // @property docblocks (upstream Lovata.OrdersShopaholic model).
+            $mCode = $obStatus->getAttribute('code');
+            $mName = $obStatus->getAttribute('name');
+            if (! is_scalar($mCode) || ! is_scalar($mName)) {
                 continue;
             }
-            $arResult[(string) $obStatus->code] = (string) $obStatus->name;
+            $arResult[(string) $mCode] = (string) $mName;
         }
 
         return $arResult;

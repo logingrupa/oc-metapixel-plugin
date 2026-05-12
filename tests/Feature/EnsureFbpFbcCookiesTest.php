@@ -50,6 +50,14 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
     {
         parent::setUp();
 
+        // Reset Settings + Cache between tests so the CR-01 negative-path
+        // test (`short_circuits_when_settings_toggle_off`) cannot bleed its
+        // `ensure_fbp_fbc_server_side=false` value into preceding test cases.
+        // Mirror BootsWithoutPixelIdTest::setUp() — clearInternalCache +
+        // Cache::flush is the working pattern in this harness (HR-02).
+        Settings::clearInternalCache();
+        \Illuminate\Support\Facades\Cache::flush();
+
         // PluginGuard's container binding (`metapixel.disabled`) was bound by
         // Plugin::boot() during `createApplication()` and resolves to TRUE
         // because the hermetic `system_settings` table has no `pixel_id` row.
@@ -216,13 +224,13 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
         // CR-01 lock: when the operator flips `ensure_fbp_fbc_server_side`
         // OFF, the middleware MUST become a no-op (no cookies set) even
         // when the plugin is otherwise enabled and a fbclid is present.
-        // Provision the system_settings row directly so Settings::get()
-        // returns false. The hermetic `system_settings` table is provisioned
-        // by MetapixelTestCase::createApplication().
-        \DB::table('system_settings')->insert([
-            'item' => Settings::SETTINGS_CODE,
-            'value' => json_encode(['ensure_fbp_fbc_server_side' => false]),
-        ]);
+        //
+        // Use Settings::set/get round-trip rather than raw DB insert: the
+        // Settings model writes through `setSettingsValue` which keeps the
+        // internal cache in sync. Raw DB inserts leave the Cache::remember
+        // entry stale (HR-02). Matches the working pattern in
+        // BootsWithoutPixelIdTest::test_isDisabled_returns_false_when_pixel_id_populated.
+        Settings::set('ensure_fbp_fbc_server_side', false);
         Settings::clearInternalCache();
         \Illuminate\Support\Facades\Cache::flush();
 
