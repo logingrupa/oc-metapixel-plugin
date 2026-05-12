@@ -294,13 +294,19 @@ final class PurchasePixel extends ComponentBase
             return [];
         }
 
-        // Re-key to satisfy phpstan level 10's array<string, mixed> contract —
-        // $mCustom is array<mixed> until proven string-keyed. PHP array keys
-        // are always int|string by language semantics, so we coerce the int
-        // case to string for the typed return.
+        // WR-09 lock: filter explicitly to string-keyed entries — DROP any
+        // integer-keyed entries rather than coercing them via (string) $mKey.
+        // The Meta CAPI envelope's custom_data is documented as a string-
+        // keyed dictionary (order_id, currency, value, num_items, ...). An
+        // integer-keyed entry would be a contract violation and silently
+        // coercing collides with PHP's array key normalisation (e.g. '0'
+        // and 0 coalesce). Skip-and-log preserves the contract.
         $arResult = [];
         foreach ($mCustom as $mKey => $mValue) {
-            $arResult[(string) $mKey] = $mValue;
+            if (! is_string($mKey)) {
+                continue; // integer-keyed entry — not a CAPI custom_data field.
+            }
+            $arResult[$mKey] = $mValue;
         }
 
         return $arResult;

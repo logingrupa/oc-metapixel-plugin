@@ -343,6 +343,39 @@ final class PurchasePixelTest extends MetapixelTestCase
         $this->assertStringContainsString('\u003E', $obComponent->sCustomDataJson, 'angle bracket > MUST be unicode-escaped to \u003E via JSON_HEX_TAG.');
     }
 
+    public function test_extract_custom_data_drops_integer_keys(): void
+    {
+        // WR-09 lock: extractCustomData must filter to string-keyed entries
+        // and DROP integer-keyed entries rather than coercing via (string).
+        // Today's PayloadBuilder produces only string keys; this lock
+        // protects against a future envelope shape change.
+        $obComponent = new PurchasePixel;
+        $obReflect = new \ReflectionMethod(PurchasePixel::class, 'extractCustomData');
+        $obReflect->setAccessible(true);
+
+        $arPayload = [
+            'data' => [
+                [
+                    'custom_data' => [
+                        0 => 'unexpected-int-keyed',
+                        'value' => 49.95,
+                        'currency' => 'EUR',
+                        42 => 'another-int-keyed',
+                    ],
+                ],
+            ],
+        ];
+        $arResult = $obReflect->invoke($obComponent, $arPayload);
+
+        $this->assertIsArray($arResult);
+        $this->assertArrayHasKey('value', $arResult);
+        $this->assertArrayHasKey('currency', $arResult);
+        $this->assertArrayNotHasKey(0, $arResult, 'integer key 0 MUST be dropped, not coerced to "0".');
+        $this->assertArrayNotHasKey('0', $arResult, 'integer key 0 MUST NOT survive as string "0" either.');
+        $this->assertArrayNotHasKey(42, $arResult, 'integer key 42 MUST be dropped.');
+        $this->assertArrayNotHasKey('42', $arResult, 'integer key 42 MUST NOT survive as string "42".');
+    }
+
     public function test_custom_data_matches_capi_envelope_byte_for_byte(): void
     {
         // The dedup contract: Pixel side's custom_data MUST equal the CAPI
