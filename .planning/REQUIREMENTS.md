@@ -36,7 +36,7 @@
 - [ ] **PAY-06**: `classes/meta/PayloadBuilder.php` `buildPurchaseEventPayload(Order, event_id): array` returns Graph API envelope with `data[0] = {event_id, event_time, event_name: 'Purchase', action_source: 'website', event_source_url, user_data, custom_data: {order_id, contents[], value, currency}}`. Preconditions throw (see PAY-09). Contents use `SKU-{product_id}[-{offer_id}]` format (see PAY-13).
 - [ ] **PAY-07**: `classes/meta/UserDataHasher.php` builds hashed user_data (em, ph, fn, ln, external_id, client_ip_address, client_user_agent, fbp, fbc). Phone normalised with `phone_country_code` Settings default (`371`). All PII passes `hash('sha256', mb_strtolower(trim($sValue)))`. Cached per-request via `CCache` tag `meta-pixel-user-hash`, keyed by request id (guest) or `order:{id}` (checkout).
 - [ ] **PAY-08**: Anonymous `external_id` fallback for guest orders = `hash('sha256', $obOrder->secret_key)`. Stable per-order, no User row required.
-- [ ] **PAY-09**: Custom exception hierarchy in `classes/exception/`: `MetaPixelException` (abstract) → `MissingPixelConfigException`, `MissingCapiTokenException`, `OrderHasNoCurrencyException`, `OrderHasNoItemsException`, `InvalidEventIdException`, `MetaApiTransientException` (retryable), `MetaApiPermanentException` (dead-letter). `PayloadBuilder::buildPurchaseEventPayload` throws appropriately on invariant violations (non-persisted order, wrong status, non-UUID event_id, zero total, null currency).
+- [x] **PAY-09**: Custom exception hierarchy in `classes/exception/`: `MetaPixelException` (abstract) → `MissingPixelConfigException`, `MissingCapiTokenException`, `OrderHasNoCurrencyException`, `OrderHasNoItemsException`, `InvalidEventIdException`, `MetaApiTransientException` (retryable), `MetaApiPermanentException` (dead-letter). `PayloadBuilder::buildPurchaseEventPayload` throws appropriately on invariant violations (non-persisted order, wrong status, non-UUID event_id, zero total, null currency). ✓ Plan 03-02 (2026-05-12)
 - [ ] **PAY-10**: Events Manager → Test Events shows Pixel + CAPI dedup ≥ 80 % and EMQ ≥ 8 for `Purchase`, verified end-to-end using `test_event_code` and a real paid order on staging.
 - [ ] **PAY-11**: Bank-transfer and admin-marked-paid orders (previously invisible to Meta because no browser session) fire Purchase via CAPI only. Dedup is not broken (no Pixel twin exists — Meta accepts the single event).
 
@@ -128,7 +128,7 @@
 | PAY-06 | Phase 3 | Pending |
 | PAY-07 | Phase 3 | Pending |
 | PAY-08 | Phase 3 | Pending |
-| PAY-09 | Phase 3 | Pending |
+| PAY-09 | Phase 3 | Plan 03-02 Complete |
 | PAY-10 | Phase 3 | Pending |
 | PAY-11 | Phase 3 | Pending |
 | FUN-01 | Phase 4 | Pending |

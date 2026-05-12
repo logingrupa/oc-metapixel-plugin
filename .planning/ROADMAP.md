@@ -63,7 +63,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. Meta Events Manager → Test Events reports dedup ≥ 80 % and EMQ ≥ 8 for Purchase using `test_event_code`.
 **Plans:** 6 plans
   - [x] 03-01-PLAN.md — Migrations + FailedEvent model (PAY-04, PAY-05) ✓ 2026-05-12
-  - [ ] 03-02-PLAN.md — Exception hierarchy (PAY-09)
+  - [x] 03-02-PLAN.md — Exception hierarchy (PAY-09) ✓ 2026-05-12
   - [ ] 03-03-PLAN.md — MetaClient Guzzle wrapper (PAY-01)
   - [ ] 03-04-PLAN.md — PayloadBuilder + UserDataHasher (PAY-06, PAY-07, PAY-08)
   - [ ] 03-05-PLAN.md — SendCapiEvent queue job (PAY-02)
@@ -106,6 +106,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |---|---|---|---|
 | 1. Tooling | 1/1 | Complete | 2026-05-12 |
 | 2. Skeleton + cookie fix | 4/4 | Complete | 2026-05-12 |
-| 3. Purchase end-to-end | 1/6 | In progress | - |
+| 3. Purchase end-to-end | 2/6 | In progress | - |
 | 4. Funnel completion | 0/- | Not started | - |
 | 5. Hardening + launch | 0/- | Not started | - |
