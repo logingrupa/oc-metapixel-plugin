@@ -8,12 +8,13 @@ parameters:
         - Plugin.php
         - models
         - classes
+        - middleware
         # NOTE: PHPStan v2 paths: does not support the (?) optional-path
         # marker (that syntax only works in excludePaths:). Each subsequent
         # phase MUST reopen this list as new directories land:
         #   Phase 2 Plan 02-01 (SKEL-01/02/06):  add `models` (done).
-        #   Phase 2 Plan 02-02 (SKEL-05):        add `classes` (done — this commit).
-        #   Phase 2 Plan 02-03 (SKEL-03):        add `middleware`.
+        #   Phase 2 Plan 02-02 (SKEL-05):        add `classes` (done).
+        #   Phase 2 Plan 02-03 (SKEL-03):        add `middleware` (done — this commit).
         #   Phase 2 Plan 02-04 (SKEL-04):        add `components`.
         #   Phase 3 (PAY-01..11):      ensure `classes` covers `classes/event`,
         #                              `classes/meta`, `classes/queue`,
