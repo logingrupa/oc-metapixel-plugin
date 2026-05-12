@@ -110,6 +110,16 @@ class EnsureFbpFbcCookies
     {
         $obResponse = $fnNext($obRequest);
 
+        // WR-01 lock: backend path short-circuit lives HERE rather than in
+        // Plugin::boot() so the decision is made against the resolved request
+        // URL (not via boot-time `App::runningInBackend()` which depends on
+        // URL detection that may not have completed during early boot). Path-
+        // based comparison defends against non-default BACKEND_URI deploys.
+        $sBackendUri = (string) config('cms.backendUri', 'backend');
+        if ($sBackendUri !== '' && $obRequest->is(ltrim($sBackendUri, '/').'*')) {
+            return $obResponse;
+        }
+
         // Defense-in-depth: short-circuit when the plugin is disabled.
         // `App::bound(...)` guards against requests that arrive BEFORE
         // Plugin::boot() has run (e.g. early service-provider boot hooks).

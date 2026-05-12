@@ -265,6 +265,25 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
         );
     }
 
+    public function test_short_circuits_on_backend_url(): void
+    {
+        // WR-01 lock: backend-prefixed URLs MUST NOT receive Set-Cookie
+        // headers for tracking cookies. The path-based check inside
+        // handle() reads config('cms.backendUri') against the resolved
+        // request URL — more reliable than App::runningInBackend() at boot.
+        config(['cms.backendUri' => 'backend']);
+        $obResponse = $this->invokeMiddleware('https://nailscosmetics.lv/backend/users');
+
+        $this->assertNull(
+            $this->getResponseCookie($obResponse, '_fbp'),
+            '_fbp must not be set on backend-prefixed URL (WR-01).'
+        );
+        $this->assertNull(
+            $this->getResponseCookie($obResponse, '_fbc'),
+            '_fbc must not be set on backend-prefixed URL (WR-01).'
+        );
+    }
+
     /**
      * Build a synthetic Request and pipe it through EnsureFbpFbcCookies.
      *

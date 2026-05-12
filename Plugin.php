@@ -70,10 +70,14 @@ class Plugin extends PluginBase
      *   1. Prime PluginGuard unconditionally — every context (storefront, backend,
      *      console, queue) MUST see the disabled flag so Phase 3+ handlers can
      *      short-circuit via App::make('metapixel.disabled'). SKEL-05.
-     *   2. Skip middleware registration on backend + console contexts. The
-     *      EnsureFbpFbcCookies middleware is storefront-only: backend routes
-     *      should not poison Set-Cookie headers with tracking cookies, and CLI
-     *      contexts (artisan, queue workers) have no HTTP response at all.
+     *   2. Skip middleware registration on CLI contexts only. CLI (artisan,
+     *      queue workers) has no HTTP response at all so pushing an HTTP
+     *      middleware is meaningless. WR-01 lock: backend-vs-storefront
+     *      discrimination moved into EnsureFbpFbcCookies::handle() itself —
+     *      a path-based check against `config('cms.backendUri')` resolves
+     *      against the actual request URL rather than `App::runningInBackend()`,
+     *      which at boot time depends on URL detection that may not have
+     *      completed yet (especially with non-default BACKEND_URI).
      *   3. Push EnsureFbpFbcCookies via Laravel's HTTP Kernel — October's
      *      PluginBase has no `registerMiddleware()` method (verified at
      *      modules/system/classes/PluginBase.php, lines 40-291). The correct
@@ -89,8 +93,10 @@ class Plugin extends PluginBase
         // 1) Prime PluginGuard in every context (CONTEXT Area 1 Q2-Q3 + SKEL-05).
         PluginGuard::instance();
 
-        // 2) Storefront-only gate: skip middleware push on backend and CLI contexts.
-        if (App::runningInBackend() || App::runningInConsole()) {
+        // 2) CLI-only gate (WR-01): no HTTP response in CLI = nothing to
+        // push to. Backend-vs-storefront discrimination happens inside the
+        // middleware against the actual request URL.
+        if (App::runningInConsole()) {
             return;
         }
 
