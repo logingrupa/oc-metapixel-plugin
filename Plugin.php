@@ -3,7 +3,10 @@
 namespace Logingrupa\Metapixelshopaholic;
 
 use Backend;
+use Illuminate\Contracts\Http\Kernel as HttpKernel;
+use Illuminate\Support\Facades\App;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixelshopaholic\Middleware\EnsureFbpFbcCookies;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use System\Classes\PluginBase;
 
@@ -61,21 +64,39 @@ class Plugin extends PluginBase
     /**
      * Boot method, called right before the request route.
      *
-     * Prime PluginGuard so isDisabled() is computed once per request and the
-     * 'metapixel.disabled' container-singleton bridge is bound for handler
-     * use. Phase 2 keeps boot otherwise minimal per CONTEXT Area 1 Q1 +
-     * Q2-Q3 — registering Event::subscribe handlers for classes that don't
-     * yet exist would make the plugin unbootable.
+     * Order matters:
      *
-     * Middleware push (kernel pushMiddleware) lands in Plan 02-03 (SKEL-03).
-     * Event::subscribe(...) handler registration lands in Phase 3+.
+     *   1. Prime PluginGuard unconditionally — every context (storefront, backend,
+     *      console, queue) MUST see the disabled flag so Phase 3+ handlers can
+     *      short-circuit via App::make('metapixel.disabled'). SKEL-05.
+     *   2. Skip middleware registration on backend + console contexts. The
+     *      EnsureFbpFbcCookies middleware is storefront-only: backend routes
+     *      should not poison Set-Cookie headers with tracking cookies, and CLI
+     *      contexts (artisan, queue workers) have no HTTP response at all.
+     *   3. Push EnsureFbpFbcCookies via Laravel's HTTP Kernel — October's
+     *      PluginBase has no `registerMiddleware()` method (verified at
+     *      modules/system/classes/PluginBase.php, lines 40-291). The correct
+     *      Laravel-native path is `app(HttpKernel::class)->pushMiddleware(...)`
+     *      per Kernel.php:362-369. See PATTERNS.md lines 146-164.
+     *
+     * Event::subscribe(...) handler registration lands in Phase 3+ when the
+     * concrete handler classes ship — registering missing classes would make
+     * the plugin unbootable (CONTEXT Area 1 Q1).
      */
     public function boot(): void
     {
-        // Prime PluginGuard so isDisabled() is computed once per request and the
-        // 'metapixel.disabled' container-singleton bridge is bound for handler use.
-        // CONTEXT Area 1 Q2-Q3 + SKEL-05.
+        // 1) Prime PluginGuard in every context (CONTEXT Area 1 Q2-Q3 + SKEL-05).
         PluginGuard::instance();
+
+        // 2) Storefront-only gate: skip middleware push on backend and CLI contexts.
+        if (App::runningInBackend() || App::runningInConsole()) {
+            return;
+        }
+
+        // 3) Push EnsureFbpFbcCookies onto the global HTTP middleware stack.
+        /** @var HttpKernel $obKernel */
+        $obKernel = $this->app->make(HttpKernel::class);
+        $obKernel->pushMiddleware(EnsureFbpFbcCookies::class);
     }
 
     /**
