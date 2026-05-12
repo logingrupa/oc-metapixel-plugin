@@ -137,17 +137,34 @@ class PluginGuard
         } catch (\Throwable $obException) {
             // Boundary catch: Settings table missing / DB unavailable at boot
             // must NOT cascade through Campaigns/PromoMechanism/Order. SKEL-05.
-            Log::warning(
-                'Metapixel: pixel_id not configured — plugin disabled',
-                ['reason' => 'settings_read_failed', 'exception' => $obException->getMessage()]
-            );
+            //
+            // WR-05 lock: wrap Log::warning in its own try/catch — the whole
+            // point of the boundary catch is to keep boot alive. If the
+            // logging driver itself is broken (storage/logs unwritable, disk
+            // full, misconfigured `daily` rotation), letting the log call
+            // throw would re-cascade the failure we just absorbed.
+            try {
+                Log::warning(
+                    'Metapixel: pixel_id not configured — plugin disabled',
+                    ['reason' => 'settings_read_failed', 'exception' => $obException->getMessage()]
+                );
+            } catch (\Throwable) {
+                // Silent: logging must never break boot. SKEL-05.
+            }
             $this->bIsDisabled = true;
 
             return;
         }
 
         if ($sPixelId === '') {
-            Log::warning('Metapixel: pixel_id not configured — plugin disabled');
+            // WR-05 lock: same logging-failure guard as above. Empty pixel_id
+            // is the standard fresh-install path; a broken logger here must
+            // still surface `disabled = true` without throwing.
+            try {
+                Log::warning('Metapixel: pixel_id not configured — plugin disabled');
+            } catch (\Throwable) {
+                // Silent: logging must never break boot. SKEL-05.
+            }
             $this->bIsDisabled = true;
 
             return;
