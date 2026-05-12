@@ -240,6 +240,14 @@ abstract class MetapixelTestCase extends TestCase
             $obTable->integer('status_id')->nullable();
             $obTable->string('order_number')->nullable();
             $obTable->string('secret_key')->nullable();
+            // Phase 3 plan 03-06: dedup-fence + event_time companion columns.
+            // Both are persisted atomically by OrderStatusWatcher::handleUpdated
+            // via a single saveQuietly() so the browser-side PurchasePixel twin
+            // (components/PurchasePixel.php) reads the SAME event_time as the
+            // server-side CAPI dispatch — required for Meta to dedup Pixel +
+            // CAPI by event_id within its ±10 s event_time window.
+            $obTable->string('meta_purchase_event_id', 36)->nullable()->index();
+            $obTable->unsignedBigInteger('meta_purchase_event_time')->nullable();
             $obTable->decimal('total_price_value', 15, 2)->nullable();
             $obTable->integer('currency_id')->nullable();
             $obTable->string('email')->nullable();
@@ -256,6 +264,16 @@ abstract class MetapixelTestCase extends TestCase
      */
     protected function dropHermeticSchemas(): void
     {
+        // Phase 3 plan 03-06: drop fixture-side hermetic tables (offers,
+        // products, order_positions) provisioned by OrderFixtures, in
+        // reverse-FK order so SQLite is happy even if FK checks are
+        // enabled in a future configuration. SQLite-in-memory currently
+        // runs with `foreign_key_constraints = false` (see createApplication
+        // config block), so ordering is correctness-positive but not yet
+        // load-bearing — kept for portability.
+        Schema::dropIfExists('lovata_orders_shopaholic_order_positions');
+        Schema::dropIfExists('lovata_shopaholic_offers');
+        Schema::dropIfExists('lovata_shopaholic_products');
         Schema::dropIfExists('logingrupa_metapixel_failed_events');
         Schema::dropIfExists('lovata_orders_shopaholic_orders');
         Schema::dropIfExists('lovata_orders_shopaholic_statuses');
