@@ -6,6 +6,7 @@ namespace Logingrupa\Metapixelshopaholic\Classes\Event;
 
 use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\MetaPixelException;
 use Logingrupa\Metapixelshopaholic\Classes\Meta\PayloadBuilder;
@@ -83,12 +84,34 @@ final class OrderStatusWatcher
         // dedup columns so the next back-to-paid flip re-fires. Phase-3
         // default ($bRefire === false) skips this entirely; status flip-flop
         // never re-fires because the fence below stays populated.
+        //
+        // WR-01 lock: write via raw DB::table()->update() rather than
+        // saveQuietly() — we are currently inside the `eloquent.updated`
+        // event chain that the user's original Order::save() initiated, and
+        // a nested saveQuietly issues a second UPDATE statement during the
+        // first UPDATE's event handler chain. The raw DB write skips the
+        // model save lifecycle entirely (no second event chain), and we
+        // sync the in-memory $obOrder attributes via setRawAttributes so a
+        // later read inside this same handler sees the cleared state.
         if ($bRefire && $this->isAwayFromPaid($obOrder, $sPaidCode)) {
-            $obOrder->setAttribute('meta_purchase_event_id', null);
-            $obOrder->setAttribute('meta_purchase_event_time', null);
-            $obOrder->saveQuietly();
+            $iOrderId = $this->intOrZero($obOrder->getAttribute('id'));
+            if ($iOrderId > 0) {
+                DB::table('lovata_orders_shopaholic_orders')
+                    ->where('id', $iOrderId)
+                    ->update([
+                        'meta_purchase_event_id' => null,
+                        'meta_purchase_event_time' => null,
+                    ]);
+            }
+            $obOrder->setRawAttributes(
+                array_merge($obOrder->getAttributes(), [
+                    'meta_purchase_event_id' => null,
+                    'meta_purchase_event_time' => null,
+                ]),
+                true,
+            );
             Log::info('Metapixel: cleared meta_purchase_event_id + event_time on away-transition', [
-                'meta_pixel.order_id' => $this->intOrZero($obOrder->getAttribute('id')),
+                'meta_pixel.order_id' => $iOrderId,
                 'meta_pixel.order_number' => $this->stringOrEmpty($obOrder->getAttribute('order_number')),
             ]);
             // Continue — the same handleUpdated call may also be the
