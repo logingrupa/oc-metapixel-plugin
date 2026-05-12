@@ -4,14 +4,16 @@ namespace Logingrupa\Metapixelshopaholic\Tests\Feature;
 
 require_once __DIR__.'/../MetapixelTestCase.php';
 // Migration filenames are snake_case (October Updates Manager convention) — not PSR-4 discoverable.
-// Manually require the two Phase 3 migrations so `(new ClassName)->up()` resolves.
+// Manually require the Phase 3 migrations so `(new ClassName)->up()` resolves.
 require_once __DIR__.'/../../updates/add_meta_purchase_event_id_to_orders_table.php';
 require_once __DIR__.'/../../updates/create_table_failed_events.php';
+require_once __DIR__.'/../../updates/add_unique_index_to_failed_events.php';
 
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
 use Logingrupa\Metapixelshopaholic\Updates\AddMetaPurchaseEventIdToOrdersTable;
+use Logingrupa\Metapixelshopaholic\Updates\AddUniqueIndexToFailedEvents;
 use Logingrupa\Metapixelshopaholic\Updates\CreateTableFailedEvents;
 use Symfony\Component\Yaml\Yaml;
 
@@ -126,6 +128,7 @@ final class MigrationsBootTest extends MetapixelTestCase
         $this->assertIsArray($arVersions);
         $this->assertArrayHasKey('1.0.1', $arVersions, 'version.yaml must register PAY-04 migration under 1.0.1.');
         $this->assertArrayHasKey('1.0.2', $arVersions, 'version.yaml must register PAY-05 migration under 1.0.2.');
+        $this->assertArrayHasKey('1.0.3', $arVersions, 'version.yaml must register WR-07 migration under 1.0.3.');
         $this->assertContains(
             'add_meta_purchase_event_id_to_orders_table.php',
             $arVersions['1.0.1'],
@@ -136,5 +139,50 @@ final class MigrationsBootTest extends MetapixelTestCase
             $arVersions['1.0.2'],
             '1.0.2 must list the create_table_failed_events migration filename.'
         );
+        $this->assertContains(
+            'add_unique_index_to_failed_events.php',
+            $arVersions['1.0.3'],
+            '1.0.3 must list the add_unique_index_to_failed_events migration filename.'
+        );
+    }
+
+    public function test_failed_events_unique_index_prevents_duplicate_rows(): void
+    {
+        // WR-07 lock: confirm the unique index on (event_id, http_status) is
+        // applied — a second insert with the same pair MUST raise (and our
+        // silent catch in writeFailedEvent absorbs it).
+        (new CreateTableFailedEvents)->up();
+        (new AddUniqueIndexToFailedEvents)->up();
+
+        \DB::table('logingrupa_metapixel_failed_events')->insert([
+            'event_id' => 'wr07-uuid-001',
+            'event_name' => 'Purchase',
+            'payload' => '{}',
+            'graph_error' => 'first',
+            'http_status' => 400,
+            'attempts' => 1,
+            'created_at' => '2026-05-12 00:00:00',
+            'updated_at' => '2026-05-12 00:00:00',
+        ]);
+
+        $bDuplicateRaised = false;
+        try {
+            \DB::table('logingrupa_metapixel_failed_events')->insert([
+                'event_id' => 'wr07-uuid-001',
+                'event_name' => 'Purchase',
+                'payload' => '{}',
+                'graph_error' => 'second',
+                'http_status' => 400,
+                'attempts' => 1,
+                'created_at' => '2026-05-12 00:00:00',
+                'updated_at' => '2026-05-12 00:00:00',
+            ]);
+        } catch (\Throwable $obException) {
+            $bDuplicateRaised = true;
+        }
+
+        $this->assertTrue($bDuplicateRaised, 'WR-07: unique index MUST raise on duplicate (event_id, http_status).');
+        $iCount = \DB::table('logingrupa_metapixel_failed_events')->where('event_id', 'wr07-uuid-001')->count();
+        $this->assertSame(1, $iCount, 'WR-07: only ONE row may exist for the same (event_id, http_status) pair.');
     }
 }

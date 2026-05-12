@@ -5,6 +5,7 @@ namespace Logingrupa\Metapixelshopaholic\Tests\Feature;
 require_once __DIR__.'/../MetapixelTestCase.php';
 // Migration filenames are snake_case (October Updates Manager convention) — not PSR-4 discoverable.
 require_once __DIR__.'/../../updates/create_table_failed_events.php';
+require_once __DIR__.'/../../updates/add_unique_index_to_failed_events.php';
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
@@ -19,6 +20,7 @@ use Logingrupa\Metapixelshopaholic\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixelshopaholic\Models\FailedEvent;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
+use Logingrupa\Metapixelshopaholic\Updates\AddUniqueIndexToFailedEvents;
 use Logingrupa\Metapixelshopaholic\Updates\CreateTableFailedEvents;
 use Mockery;
 use Ramsey\Uuid\Uuid;
@@ -63,6 +65,10 @@ final class SendCapiEventTest extends MetapixelTestCase
         // Provision failed_events table via the canonical Phase-3 migration so
         // FailedEvent::create() round-trips through the real schema.
         (new CreateTableFailedEvents)->up();
+        // WR-07: layer the unique index migration so the double-write
+        // test (test_handle_then_failed_does_not_double_write_failed_event)
+        // exercises the production schema.
+        (new AddUniqueIndexToFailedEvents)->up();
     }
 
     protected function tearDown(): void
@@ -269,6 +275,36 @@ final class SendCapiEventTest extends MetapixelTestCase
 
         $this->assertSame('CustomEventName', $obJob->sEventName, 'Constructor must store sEventName on a readonly property.');
         $this->assertSame($arPayload, $obJob->arPayload, 'Constructor must store arPayload on a readonly property.');
+    }
+
+    public function test_handle_then_failed_does_not_double_write_failed_event(): void
+    {
+        // WR-07 lock: both SendCapiEvent::handle()'s permanent-catch path
+        // and Laravel's failed() exhaustion hook call writeFailedEvent on
+        // the same arPayload. Today's flow guarantees single-write per
+        // logical failure (handle()'s catch doesn't re-throw, so failed()
+        // doesn't fire). But a future log-driver-fail-during-dead-letter
+        // edge case could fire BOTH paths.
+        // The unique index on (event_id, http_status) makes the second
+        // INSERT silently no-op at the DB level — the second create() call
+        // raises a constraint violation which our silent catch absorbs.
+        $this->primeSettings();
+        $sUuid = Uuid::uuid4()->toString();
+        $arPayload = $this->makePayload($sUuid);
+        $obException = new \Logingrupa\Metapixelshopaholic\Classes\Exception\MetaApiPermanentException(
+            'simulated permanent failure',
+            ['http_status' => 400, 'attempts' => 3],
+        );
+
+        $obJob = new SendCapiEvent('Purchase', $arPayload);
+        // Simulate the BOTH paths firing: handle's permanent-catch goes
+        // first (writes row), then Laravel's failed() hook fires (second
+        // write — must NOT create a duplicate row).
+        $obJob->failed($obException);
+        $obJob->failed($obException);
+
+        $iCount = FailedEvent::where('event_id', $sUuid)->count();
+        $this->assertSame(1, $iCount, 'WR-07: double-fire MUST NOT produce two FailedEvent rows for the same (event_id, http_status).');
     }
 
     /**
