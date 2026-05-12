@@ -7,10 +7,17 @@ on:
     paths:
       - 'plugins/logingrupa/metapixelshopaholic/**'
 
+# Least-privilege: this is a read-only QA gate. Override the default
+# GITHUB_TOKEN scope so a compromised step cannot push refs or releases.
+permissions:
+  contents: read
+
 jobs:
   qa:
     name: composer qa (PHP 8.4)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
