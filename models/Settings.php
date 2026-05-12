@@ -64,6 +64,24 @@ class Settings extends CommonSettings
     ];
 
     /**
+     * Validation rules — backend Settings form save MUST conform.
+     *
+     * Phase 3 plan 03-06 PH-01 retro-fit (T-04-01 mitigation): Meta Pixel
+     * IDs are numeric, 6–20 digits per Meta's documented pixel-create
+     * flow (https://developers.facebook.com/docs/meta-pixel/get-started).
+     * The regex is defence-in-depth against stored-XSS in
+     * components/pixelhead/default.htm AND components/purchasepixel/default.htm
+     * where the pixel_id is inlined into a `<script>` string. Backend
+     * Settings is auth-gated; this rule protects against a compromised
+     * admin account or SQL injection elsewhere in the chain.
+     *
+     * @var array<string, string>
+     */
+    public $rules = [
+        'pixel_id' => 'nullable|regex:/^\d{6,20}$/',
+    ];
+
+    /**
      * Dropdown options for the `paid_status_code` field. Auto-invoked by
      * October's form builder via `options: getPaidStatusCodeOptions` in
      * fields.yaml.

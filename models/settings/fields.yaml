@@ -10,6 +10,13 @@
 
 tabs:
     fields:
+        # T-04-01 mitigation: pixel_id must be a 6-20 digit numeric
+        # Meta-issued ID. Prevents <script> string break-out via stored
+        # XSS in components/pixelhead/default.htm AND
+        # components/purchasepixel/default.htm where the pixel_id is
+        # inlined as a JS string literal. Hard enforcement is in
+        # Settings.php::$rules; this YAML attribute is a backend UI hint
+        # (October's form builder reads `pattern:` for client-side validation).
         pixel_id:
             label: 'logingrupa.metapixelshopaholic::lang.field.pixel_id'
             commentAbove: 'logingrupa.metapixelshopaholic::lang.field.pixel_id_comment'
@@ -18,6 +25,7 @@ tabs:
             span: left
             required: true
             translatable: true
+            pattern: '^\d{6,20}$'
 
         capi_access_token:
             label: 'logingrupa.metapixelshopaholic::lang.field.capi_access_token'
