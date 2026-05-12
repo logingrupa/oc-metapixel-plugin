@@ -78,12 +78,23 @@ class PixelHead extends ComponentBase
             return;
         }
 
+        // CR-05 defense-in-depth: Meta Pixel IDs are numeric per
+        // https://developers.facebook.com/docs/meta-pixel/get-started. Reject
+        // anything else fail-fast — Settings-injection vectors (operator
+        // typo, future migrated value with whitespace, attacker with backend
+        // write access) MUST NOT reach the Twig <script> block. Pair with
+        // CR-05 JS-context escaping for defense in depth.
+        $sPixelId = (string) $obGuard->getPixelId();
+        if (preg_match('/^\d+$/', $sPixelId) !== 1) {
+            return;
+        }
+
         $this->page['arMetaEvent'] = [
             'event_id' => Uuid::uuid4()->toString(),
             'event_time' => time(),
             'event_name' => 'PageView',
             'custom_data' => [],
         ];
-        $this->page['sMetaPixelId'] = $obGuard->getPixelId();
+        $this->page['sMetaPixelId'] = $sPixelId;
     }
 }
