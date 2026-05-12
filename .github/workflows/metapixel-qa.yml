@@ -1,0 +1,29 @@
+name: metapixel-qa
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    paths:
+      - 'plugins/logingrupa/metapixelshopaholic/**'
+
+jobs:
+  qa:
+    name: composer qa (PHP 8.4)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP 8.4
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          tools: composer
+
+      - name: composer install (repo root)
+        run: composer install --no-progress --prefer-dist --no-interaction
+
+      - name: composer qa (plugin)
+        working-directory: plugins/logingrupa/metapixelshopaholic
+        run: composer qa
