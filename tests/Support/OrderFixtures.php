@@ -53,6 +53,18 @@ final class OrderFixtures
      */
     public static function provisionHermeticOfferProductTables(): void
     {
+        // Lovata.BaseCode's ExtendOrderFieldsHandler adds `one_c_status_id` to
+        // the Order fillable; its OrderModelHandler::beforeCreate writes a
+        // default. The MetapixelTestCase::bootOrdersTable() hermetic schema
+        // does NOT include this column (out of scope for the test case base).
+        // Patch the column in here so Order::save() does not error on insert.
+        if (Schema::hasTable('lovata_orders_shopaholic_orders') &&
+            ! Schema::hasColumn('lovata_orders_shopaholic_orders', 'one_c_status_id')) {
+            Schema::table('lovata_orders_shopaholic_orders', function (Blueprint $obTable): void {
+                $obTable->integer('one_c_status_id')->nullable()->index();
+            });
+        }
+
         if (! Schema::hasTable('lovata_shopaholic_products')) {
             Schema::create('lovata_shopaholic_products', function (Blueprint $obTable): void {
                 $obTable->increments('id');
@@ -69,12 +81,23 @@ final class OrderFixtures
                 $obTable->string('name')->nullable();
                 $obTable->decimal('price', 15, 2)->nullable();
                 $obTable->boolean('active')->default(true);
+                // Lovata.Shopaholic Offer has a default orderBy('sort_order')
+                // scope on its model — every query needs this column.
+                $obTable->integer('sort_order')->default(0);
                 $obTable->timestamps();
+                // Lovata.Shopaholic Offer uses the SoftDelete trait — every
+                // Offer::where() query auto-appends `deleted_at IS NULL`.
+                $obTable->softDeletes();
             });
         }
 
         if (! Schema::hasTable('lovata_orders_shopaholic_order_positions')) {
             Schema::create('lovata_orders_shopaholic_order_positions', function (Blueprint $obTable): void {
+                // Mirrors plugins/lovata/ordersshopaholic/updates/table_create_order_positions.php
+                // — column is `price` (decimal) — Lovata.Toolbox PriceHelperTrait
+                // dynamically adds `getPriceValueAttribute` which returns
+                // `$obElement->attributes['price']`. Hermetic schemas that name
+                // the column `price_value` cause the accessor to return 0.
                 $obTable->increments('id');
                 $obTable->unsignedInteger('order_id')->index();
                 $obTable->unsignedInteger('item_id')->nullable();
@@ -82,7 +105,8 @@ final class OrderFixtures
                 $obTable->unsignedInteger('offer_id')->index();
                 $obTable->unsignedInteger('product_id')->nullable();
                 $obTable->unsignedInteger('quantity')->default(1);
-                $obTable->decimal('price_value', 15, 2)->default(0);
+                $obTable->decimal('price', 15, 2)->default(0);
+                $obTable->decimal('old_price', 15, 2)->nullable();
                 $obTable->string('currency_code', 3)->nullable();
                 $obTable->timestamps();
             });
@@ -123,7 +147,7 @@ final class OrderFixtures
             'status_id' => 5,
             'order_number' => '260512-9001',
             'secret_key' => 'test-secret-aaaaaaaaa',
-            'currency_id' => 1,
+            'currency_id' => null,
             'email' => 'guest@example.com',
             'phone' => '+371 20 000 000',
             'name' => 'Test',
@@ -135,18 +159,22 @@ final class OrderFixtures
         DB::table('lovata_orders_shopaholic_order_positions')->insert([
             [
                 'order_id' => $obOrder->id,
+                'item_id' => self::SINGLE_OFFER_ID,
+                'item_type' => 'Lovata\\Shopaholic\\Models\\Offer',
                 'offer_id' => self::SINGLE_OFFER_ID,
                 'product_id' => self::SINGLE_OFFER_PRODUCT_ID,
                 'quantity' => 2,
-                'price_value' => 19.95,
+                'price' => 19.95,
                 'currency_code' => 'EUR',
             ],
             [
                 'order_id' => $obOrder->id,
+                'item_id' => self::MULTI_OFFER_ID,
+                'item_type' => 'Lovata\\Shopaholic\\Models\\Offer',
                 'offer_id' => self::MULTI_OFFER_ID,
                 'product_id' => self::MULTI_OFFER_PRODUCT_ID,
                 'quantity' => 1,
-                'price_value' => 10.05,
+                'price' => 10.05,
                 'currency_code' => 'EUR',
             ],
         ]);
@@ -168,7 +196,7 @@ final class OrderFixtures
             'status_id' => 5,
             'order_number' => '260512-9002',
             'secret_key' => 'test-secret-bbbbbbbbb',
-            'currency_id' => 1,
+            'currency_id' => null,
             'email' => 'multi@example.com',
             'phone' => '+371 20 000 001',
             'name' => 'Multi',
@@ -180,18 +208,22 @@ final class OrderFixtures
         DB::table('lovata_orders_shopaholic_order_positions')->insert([
             [
                 'order_id' => $obOrder->id,
+                'item_id' => self::MULTI_OFFER_ID,
+                'item_type' => 'Lovata\\Shopaholic\\Models\\Offer',
                 'offer_id' => self::MULTI_OFFER_ID,
                 'product_id' => self::MULTI_OFFER_PRODUCT_ID,
                 'quantity' => 1,
-                'price_value' => 10.00,
+                'price' => 10.00,
                 'currency_code' => 'EUR',
             ],
             [
                 'order_id' => $obOrder->id,
+                'item_id' => self::MULTI_OFFER_SECOND_ID,
+                'item_type' => 'Lovata\\Shopaholic\\Models\\Offer',
                 'offer_id' => self::MULTI_OFFER_SECOND_ID,
                 'product_id' => self::MULTI_OFFER_PRODUCT_ID,
                 'quantity' => 2,
-                'price_value' => 10.00,
+                'price' => 10.00,
                 'currency_code' => 'EUR',
             ],
         ]);
@@ -213,7 +245,7 @@ final class OrderFixtures
             'status_id' => 5,
             'order_number' => '260512-9003',
             'secret_key' => 'test-secret-ccccccccc',
-            'currency_id' => 1,
+            'currency_id' => null,
             'email' => null,
             'phone' => null,
             'name' => null,
@@ -225,10 +257,12 @@ final class OrderFixtures
         DB::table('lovata_orders_shopaholic_order_positions')->insert([
             [
                 'order_id' => $obOrder->id,
+                'item_id' => self::SINGLE_OFFER_ID,
+                'item_type' => 'Lovata\\Shopaholic\\Models\\Offer',
                 'offer_id' => self::SINGLE_OFFER_ID,
                 'product_id' => self::SINGLE_OFFER_PRODUCT_ID,
                 'quantity' => 1,
-                'price_value' => 19.95,
+                'price' => 19.95,
                 'currency_code' => 'EUR',
             ],
         ]);

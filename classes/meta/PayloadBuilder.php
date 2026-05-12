@@ -191,10 +191,19 @@ class PayloadBuilder
         $iNumItems = 0;
 
         foreach ($arPositions as $obPosition) {
-            $iProductId = $this->intOrZero($obPosition->getAttribute('product_id'));
-            $iOfferId = $this->intOrZero($obPosition->getAttribute('offer_id'));
+            // OrderPosition is polymorphic — `item_type = Offer::class, item_id = {offerId}`.
+            // Read item_id directly (the `offer_id` accessor returns null if
+            // item_type != Offer; raw `item_id` is type-stable).
+            $iOfferId = $this->intOrZero($obPosition->getRawOriginal('item_id'));
+            $iProductId = $this->resolveProductIdForOffer($iOfferId);
             $iQuantity = $this->intOrZero($obPosition->getAttribute('quantity'));
-            $fPriceValue = $this->floatOrZero($obPosition->getAttribute('price_value'));
+            // Lovata.OrdersShopaholic OrderPosition stores the unit price as
+            // the `price` decimal column. The PriceHelperTrait dynamic accessor
+            // `getPriceAttribute` reformats this via PriceHelper::format using
+            // the `decimals` Setting (default 0 = whole-number rounding) which
+            // would silently lose the cents. `getRawOriginal('price')` reads
+            // the raw DB column bypassing the formatter.
+            $fPriceValue = $this->floatOrZero($obPosition->getRawOriginal('price'));
 
             $arContents[] = [
                 'id' => $this->buildSkuId($iProductId, $iOfferId),
@@ -222,6 +231,23 @@ class PayloadBuilder
         $iOfferCount = Offer::where('product_id', $iProductId)->count();
 
         return $iOfferCount <= 1 ? 'SKU-'.$iProductId : 'SKU-'.$iProductId.'-'.$iOfferId;
+    }
+
+    /**
+     * Resolve product_id from an Offer row. OrderPosition stores the polymorphic
+     * `item_id` (Offer.id) — Offer.product_id is the BelongsTo FK to Product.
+     * Returns 0 when the offer can't be resolved (deleted offer, hermetic test
+     * gap) — buildSkuId then emits `SKU-0` rather than throwing, preserving
+     * envelope integrity for downstream Meta validation.
+     */
+    private function resolveProductIdForOffer(int $iOfferId): int
+    {
+        if ($iOfferId <= 0) {
+            return 0;
+        }
+        $mProductId = Offer::where('id', $iOfferId)->value('product_id');
+
+        return $this->intOrZero($mProductId);
     }
 
     /**
