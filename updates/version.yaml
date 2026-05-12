@@ -3,3 +3,6 @@
 1.0.1:
     - 'Add meta_purchase_event_id + meta_purchase_event_time columns to orders table for Purchase CAPI idempotency + Pixel dedup.'
     - add_meta_purchase_event_id_to_orders_table.php
+1.0.2:
+    - 'Create failed_events dead-letter table for permanently-failed CAPI events.'
+    - create_table_failed_events.php
