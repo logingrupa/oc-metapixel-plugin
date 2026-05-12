@@ -13,6 +13,15 @@ return [
         'name'        => 'Pixel Head',
         'description' => 'Renders fbq() init + PageView with server-generated event_id. Coexists with the theme\'s facebook_pixel.htm partial.',
     ],
+    'exception' => [
+        'missing_pixel_config'   => 'Meta Pixel ID is not configured in plugin settings.',
+        'missing_capi_token'     => 'Meta CAPI access token is not configured in plugin settings.',
+        'order_has_no_currency'  => 'Order has no currency — cannot build Purchase event payload.',
+        'order_has_no_items'     => 'Order has no items — cannot build Purchase event payload.',
+        'invalid_event_id'       => 'Event ID is not a valid UUID v4.',
+        'meta_api_transient'     => 'Meta CAPI request failed with a transient error and will be retried.',
+        'meta_api_permanent'     => 'Meta CAPI request failed permanently and was dead-lettered.',
+    ],
     'tab' => [
         'tracking'   => 'Tracking',
         'compliance' => 'Compliance',
