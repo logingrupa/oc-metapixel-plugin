@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Logingrupa\Metapixelshopaholic\Classes\Meta;
 
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\Request;
 use Kharanenka\Helper\CCache;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Lovata\OrdersShopaholic\Models\Order;
-use Throwable;
 
 /**
  * Build hashed `user_data` for Meta CAPI events from a persisted Order.
@@ -168,17 +168,20 @@ class UserDataHasher
     /**
      * Resolve the current Request from the container if available. Queue
      * workers + CLI scripts have no Request — return null.
+     *
+     * WR-06 lock: narrow catch from \Throwable to
+     * BindingResolutionException — the only way `app(Request::class)` fails
+     * is container resolution. Catching Throwable would silently swallow
+     * unrelated bugs.
      */
     private function readRequest(): ?Request
     {
         try {
-            $obRequest = app(Request::class);
-        } catch (Throwable) {
+            return app(Request::class);
+        } catch (BindingResolutionException) {
             // silent: no request available (queue worker / CLI context).
             return null;
         }
-
-        return $obRequest;
     }
 
     private function readCookie(?Request $obRequest, string $sCookieName): ?string

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Logingrupa\Metapixelshopaholic\Classes\Meta;
 
+use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\Request;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\InvalidEventIdException;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\OrderHasNoCurrencyException;
@@ -14,7 +15,6 @@ use Lovata\OrdersShopaholic\Models\OrderPosition;
 use Lovata\Shopaholic\Models\Offer;
 use Ramsey\Uuid\Rfc4122\FieldsInterface as Rfc4122FieldsInterface;
 use Ramsey\Uuid\Uuid;
-use Throwable;
 
 /**
  * Build the Meta Graph API v20 Purchase event envelope from a paid Order.
@@ -286,17 +286,24 @@ class PayloadBuilder
     /**
      * `request()->fullUrl()` when a Request is bound; null inside a queue
      * worker / CLI context with no request. Single silent catch with reason.
+     *
+     * WR-06 lock: narrow catch from \Throwable to
+     * BindingResolutionException — the only way `app(Request::class)` fails
+     * is container resolution. Catching Throwable would silently swallow
+     * unrelated bugs (e.g. a future fullUrl() side-effect throw from a
+     * Symfony Route resolver). The URL extraction is INSIDE the try so any
+     * fullUrl() failure is also covered (defense-in-depth).
      */
     private function resolveEventSourceUrl(): ?string
     {
         try {
             $obRequest = app(Request::class);
-        } catch (Throwable) {
+
+            return $obRequest->fullUrl();
+        } catch (BindingResolutionException) {
             // silent: no request in queue worker / CLI context.
             return null;
         }
-
-        return $obRequest->fullUrl();
     }
 
     private function stringOrEmpty(mixed $mValue): string
