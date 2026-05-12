@@ -12,6 +12,7 @@ use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Lovata\OrdersShopaholic\Models\Order;
 use Lovata\OrdersShopaholic\Models\OrderPosition;
 use Lovata\Shopaholic\Models\Offer;
+use Ramsey\Uuid\Rfc4122\FieldsInterface as Rfc4122FieldsInterface;
 use Ramsey\Uuid\Uuid;
 use Throwable;
 
@@ -121,7 +122,15 @@ class PayloadBuilder
             );
         }
 
-        if (Uuid::fromString($sEventId)->getFields()->getVersion() !== 4) {
+        $obFields = Uuid::fromString($sEventId)->getFields();
+        // phpstan-strict narrowing: UuidInterface::getFields() returns the
+        // generic FieldsInterface which does NOT expose getVersion(). The
+        // concrete Rfc4122 / Nonstandard / Guid Fields subclasses all
+        // implement Rfc4122\FieldsInterface. instanceof gates the version
+        // lookup; if a UUID's fields don't extend the Rfc4122 contract (Nil
+        // UUID, broken implementation, future ramsey/uuid major), we treat
+        // that as a contract violation and throw.
+        if (! $obFields instanceof Rfc4122FieldsInterface || $obFields->getVersion() !== 4) {
             throw new InvalidEventIdException(
                 'event_id is not a valid UUIDv4',
                 ['event_id' => $sEventId, 'order_id' => $iOrderId],
