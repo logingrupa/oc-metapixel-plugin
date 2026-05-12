@@ -14,12 +14,22 @@ use Throwable;
  * Build hashed `user_data` for Meta CAPI events from a persisted Order.
  *
  * Per Meta CAPI spec:
- *   - PII fields (em, ph, fn, ln, external_id) are sha256(mb_strtolower(trim($value))).
+ *   - PII fields (em, ph, fn, ln) are sha256(mb_strtolower(trim($value))).
+ *   - external_id is sha256(trim($value)) — Meta's CAPI documentation
+ *     explicitly does NOT include lowercase/trim in the normalisation step
+ *     for external_id ("any unique identifier from the advertiser; hashing
+ *     is optional but recommended"). WR-02 lock: lowercasing breaks the
+ *     user-resolution / EMQ score when the same identifier appears in
+ *     different cases across two events. Today's secret_key is lowercase
+ *     ASCII (Lovata OrderProcessor::generateSecretKey via Str::random) so
+ *     the production output is unchanged, but the contract is now correct
+ *     for any future column source (UUIDv4 hex, base64 token, mixed-case ID).
  *   - Request-derived fields (client_ip_address, client_user_agent, fbp, fbc)
  *     are PLAINTEXT (cookie ids are opaque server-side).
  *   - Phone normalisation strips non-digits and prepends `phone_country_code`
  *     Setting (default `371` for Latvia; multi-site operators override).
- *   - Guest external_id = sha256(secret_key) per CONTEXT Area 3 Q3 + PAY-08.
+ *   - Guest external_id = sha256(trim(secret_key)) per CONTEXT Area 3 Q3 + PAY-08
+ *     (WR-02 correction: NOT lowercased per Meta's external_id spec).
  *
  * Memoization: results cached forever per request via CCache tag
  * `meta-pixel-user-hash` keyed by `meta-pixel-user-hash:order:{$iOrderId}`.
@@ -108,7 +118,10 @@ class UserDataHasher
             'ph' => $sNormalisedPhone !== null ? hash('sha256', $sNormalisedPhone) : null,
             'fn' => $sName !== null ? $this->hashLower($sName) : null,
             'ln' => $sLastName !== null ? $this->hashLower($sLastName) : null,
-            'external_id' => $this->hashLower($sSecretKey),
+            // WR-02: external_id is NOT lowercased per Meta CAPI spec —
+            // hashing-only (trim is fine; lowercase corrupts user-resolution
+            // for mixed-case identifiers).
+            'external_id' => $sSecretKey !== '' ? hash('sha256', trim($sSecretKey)) : null,
             'client_ip_address' => $obRequest?->ip(),
             'client_user_agent' => $obRequest?->userAgent(),
             'fbp' => $this->readCookie($obRequest, '_fbp'),

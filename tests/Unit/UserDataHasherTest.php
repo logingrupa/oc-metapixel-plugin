@@ -75,8 +75,14 @@ final class UserDataHasherTest extends MetapixelTestCase
         $this->assertNull($arData['em']);
     }
 
-    public function test_external_id_is_sha256_of_lowercase_trimmed_secret_key(): void
+    public function test_external_id_is_sha256_of_trimmed_secret_key(): void
     {
+        // WR-02 lock: Meta CAPI spec does NOT include mb_strtolower in the
+        // normalisation step for external_id (PII fields em/ph/fn/ln do).
+        // Lowercasing corrupts cross-event user-resolution when the same
+        // identifier reaches CAPI with different cases. Today's secret_key
+        // happens to be lowercase (Lovata Str::random) so the production
+        // output is unchanged; the next test asserts mixed-case preservation.
         $obOrder = OrderFixtures::makePaidOrder();
 
         $arData = (new UserDataHasher)->forOrder($obOrder);
@@ -84,7 +90,32 @@ final class UserDataHasherTest extends MetapixelTestCase
         $this->assertSame(
             hash('sha256', 'test-secret-aaaaaaaaa'),
             $arData['external_id'],
-            'PAY-08: guest external_id must be sha256(mb_strtolower(trim(secret_key))).',
+            'PAY-08 (WR-02 corrected): guest external_id must be sha256(trim(secret_key)) — NOT lowercased.',
+        );
+    }
+
+    public function test_external_id_preserves_case_in_mixed_case_secret_key(): void
+    {
+        // WR-02 regression: feed a mixed-case secret_key and assert the
+        // hash equals sha256 of the EXACT input, NOT sha256 of the
+        // lowercased form. The two hashes must be distinct (proves the
+        // lowercase step is not silently re-introduced).
+        $obOrder = OrderFixtures::makePaidOrder();
+        $sMixed = 'MixedCaseSECRET';
+        $obOrder->forceFill(['secret_key' => $sMixed])->save();
+        $obOrder = $obOrder->fresh();
+
+        $arData = (new UserDataHasher)->forOrder($obOrder);
+
+        $this->assertSame(
+            hash('sha256', $sMixed),
+            $arData['external_id'],
+            'WR-02: external_id must hash the secret_key without lowercasing.',
+        );
+        $this->assertNotSame(
+            hash('sha256', mb_strtolower($sMixed)),
+            $arData['external_id'],
+            'WR-02 negative-space: lowercased hash MUST NOT match the produced external_id.',
         );
     }
 
