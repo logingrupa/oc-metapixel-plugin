@@ -11,6 +11,9 @@
         }
     },
     "exclude": [
-        "updates"
+        "updates",
+        "lang",
+        "partials",
+        "tests"
     ]
 }
