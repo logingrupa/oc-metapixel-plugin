@@ -1,9 +1,11 @@
 ---
 phase: 1
 plan: 1
-status: human_needed
+status: passed
 date: 2026-05-12
 ---
+
+**2026-05-12 update:** `php8.4-pcov` + `php8.3-pcov` installed via apt. `composer qa` exits 0 from plugin root in a clean shell — no `PHP_INI_SCAN_DIR` shim required. Coverage driver (pcov) loads on both CLI PHP versions. Status promoted from `human_needed` → `passed`.
 
 # Phase 1 / Plan 1 — Tooling scaffold: Verification
 
