@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixelshopaholic\Components;
 
 use Cms\Classes\ComponentBase;
+use Illuminate\Http\Response;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
 use Ramsey\Uuid\Uuid;
 
@@ -67,7 +68,7 @@ class PixelHead extends ComponentBase
      * critical dispatch failure). Matches sibling-plugin precedent
      * `LazyPromoBlockLoader::onRun()`.
      *
-     * @return void|\Illuminate\Http\Response
+     * @return void|Response
      */
     #[\Override]
     public function onRun()
