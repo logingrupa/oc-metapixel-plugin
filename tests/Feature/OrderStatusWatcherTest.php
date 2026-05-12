@@ -64,6 +64,11 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         Cache::flush();
         Settings::clearInternalCache();
         PluginGuard::flush();
+        // WR-08: flush the in-process status_id → code cache so each test
+        // sees the freshly-bootstrapped Status seed, not a stale entry from
+        // a prior test (SQLite in-memory wipes the table between tests
+        // but the static cache would survive).
+        OrderStatusWatcher::flushStatusCache();
 
         // Register the watcher manually (Plugin::boot doesn't run in the
         // test harness — autoRegister=false in MetapixelTestCase). Use the
@@ -293,6 +298,32 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
 
         $this->assertNull($obOrder->fresh()->meta_purchase_event_id, 'away-transition must clear event_id atomically.');
         $this->assertNull($obOrder->fresh()->meta_purchase_event_time, 'away-transition must clear event_time atomically.');
+    }
+
+    public function test_status_cache_flush_resets_cache(): void
+    {
+        // WR-08 lock: flushStatusCache() empties the in-process map. This
+        // is the test hook tearDown / cross-test isolation depends on. The
+        // direct query-count instrumentation is out of scope (heavy harness)
+        // — we lock the flush semantics here and the rest of OrderStatusWatcher's
+        // existing assertion suite covers behavior parity with the pre-cache code.
+        OrderStatusWatcher::flushStatusCache();
+
+        // Trigger one lookup to populate the cache.
+        $obOrder = $this->makeOrderAtPendingStatus();
+        $obOrder->status_id = 5;
+        $obOrder->save();
+
+        // Flush + verify the static property is empty.
+        OrderStatusWatcher::flushStatusCache();
+
+        $obReflect = new \ReflectionClass(OrderStatusWatcher::class);
+        $obCacheProp = $obReflect->getProperty('arStatusCodeCache');
+        $obCacheProp->setAccessible(true);
+        $arCache = $obCacheProp->getValue();
+
+        $this->assertIsArray($arCache);
+        $this->assertSame([], $arCache, 'flushStatusCache() must empty the in-process map.');
     }
 
     public function test_event_time_is_within_two_seconds_of_now(): void

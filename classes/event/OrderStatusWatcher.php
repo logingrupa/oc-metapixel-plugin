@@ -55,6 +55,23 @@ use Throwable;
 final class OrderStatusWatcher
 {
     /**
+     * WR-08 lock: in-process status_id → code cache. Each handleUpdated may
+     * fire up to 2 Status::where('id', $id)->value('code') queries (current +
+     * original via isAwayFromPaid), plus the disabled flag lookup. On a bulk-
+     * admin save of N orders this becomes 2N status table queries.
+     *
+     * Caching at the class-static level (request-scoped) collapses the
+     * lookups to 1 query per distinct status_id per request. Status table is
+     * a very small bounded set (Lovata ships < 10 codes by default; .lv
+     * operator adds a handful). The map is reset between requests because
+     * PHP-FPM workers reset class statics on shutdown; tests can call
+     * flushStatusCache() in tearDown.
+     *
+     * @var array<int, string>
+     */
+    private static array $arStatusCodeCache = [];
+
+    /**
      * Bind `eloquent.updated` + `eloquent.created` on the Order model.
      *
      * Plugin::boot() calls `Event::subscribe(OrderStatusWatcher::class)`;
@@ -65,6 +82,31 @@ final class OrderStatusWatcher
     {
         $obEvents->listen('eloquent.updated: '.Order::class, [$this, 'handleUpdated']);
         $obEvents->listen('eloquent.created: '.Order::class, [$this, 'handleCreated']);
+    }
+
+    /**
+     * Reset the in-process status_id → code cache. Test hook (tearDown).
+     */
+    public static function flushStatusCache(): void
+    {
+        self::$arStatusCodeCache = [];
+    }
+
+    /**
+     * Look up a status code from status_id, caching the result per-request.
+     * Returns '' when the status_id has no matching row (orphan reference).
+     */
+    private function lookupStatusCode(int $iStatusId): string
+    {
+        if ($iStatusId <= 0) {
+            return '';
+        }
+        if (! isset(self::$arStatusCodeCache[$iStatusId])) {
+            $mCode = Status::where('id', $iStatusId)->value('code');
+            self::$arStatusCodeCache[$iStatusId] = is_scalar($mCode) ? (string) $mCode : '';
+        }
+
+        return self::$arStatusCodeCache[$iStatusId];
     }
 
     /**
@@ -247,8 +289,9 @@ final class OrderStatusWatcher
 
     /**
      * Resolve the Order's current status code. Prefers the eager-loaded
-     * `status` relation when available; falls back to a direct query on
-     * `status_id` to keep the test harness (no eager-load chain) green.
+     * `status` relation when available; falls back to the cached status_id
+     * lookup (WR-08) to keep the test harness (no eager-load chain) green
+     * AND avoid N+1 queries on bulk admin saves.
      */
     private function isAtPaidStatus(Order $obOrder, string $sPaidCode): bool
     {
@@ -261,13 +304,8 @@ final class OrderStatusWatcher
         }
 
         $iStatusId = $this->intOrZero($obOrder->getAttribute('status_id'));
-        if ($iStatusId <= 0) {
-            return false;
-        }
 
-        $sCode = $this->stringOrEmpty(Status::where('id', $iStatusId)->value('code'));
-
-        return $sCode === $sPaidCode;
+        return $this->lookupStatusCode($iStatusId) === $sPaidCode;
     }
 
     /**
@@ -287,8 +325,7 @@ final class OrderStatusWatcher
             return false;
         }
 
-        $sOriginalCode = $this->stringOrEmpty(Status::where('id', $iOriginalStatusId)->value('code'));
-        if ($sOriginalCode !== $sPaidCode) {
+        if ($this->lookupStatusCode($iOriginalStatusId) !== $sPaidCode) {
             return false;
         }
 
