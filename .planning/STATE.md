@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0.0
 milestone_name: milestone
 status: in-progress
-stopped_at: "Plan 03-03 complete (PAY-01 — MetaClient Guzzle 7 wrapper: 198-LOC HTTP boundary class + 14-test MetaClientTest with MockHandler-backed Guzzle + 100% MetaClient.php coverage). Next: plan 03-04 (PAY-06 — PayloadBuilder)."
-last_updated: "2026-05-12T22:03:00Z"
-last_activity: 2026-05-12 -- Plan 03-03 shipped (composer qa green, 69 tests / 230 assertions / 0 skipped / 92.7 % coverage / MetaClient.php 100 %). Phase 3 3/6 plans done.
+stopped_at: "Plan 03-04 complete (PAY-06 + PAY-07 + PAY-08 — PayloadBuilder Purchase envelope + UserDataHasher CCache memoization + OrderFixtures real-DB factory: 5 files / 94 tests / 289 assertions / 90.0% total / PayloadBuilder.php 84.1% / UserDataHasher.php 90.3%). Next: plan 03-05 (PAY-02 — SendCapiEvent queue job)."
+last_updated: "2026-05-12T22:26:07Z"
+last_activity: 2026-05-12 -- Plan 03-04 shipped (composer qa green, 94 tests / 289 assertions / 0 skipped / 90.0 % coverage / PayloadBuilder.php 84.1 % / UserDataHasher.php 90.3 %). Phase 3 4/6 plans done.
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 6
-  completed_plans: 3
-  percent: 50
+  completed_plans: 4
+  percent: 66
 ---
 
 # Project State
@@ -26,17 +26,19 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 ## Current Position
 
 Phase: 03 (purchase-end-to-end) — in progress
-Plan: 3 of 6 (03-01 + 03-02 + 03-03 shipped — PAY-04 + PAY-05 + PAY-09 + PAY-01 done)
-Status: Phase 03 wave 2 in progress — plans 03-01 + 03-02 + 03-03 done. Next: plan 03-04 (PAY-06, wave 2 — PayloadBuilder).
-Last activity: 2026-05-12 -- Plan 03-03 shipped: classes/meta/MetaClient.php (198 LOC) — single HTTP boundary to Meta Graph API v20.0 /events with constructor-injectable `?ClientInterface $obClient`, public const string GRAPH_VERSION = 'v20.0', private const array TRANSIENT_STATUS_CODES = [408, 429, 500, 502, 503, 504], 'http_errors' => false on default Client (single getStatusCode switch as decision point), 5-second timeout (T-03-15 worker-block cap), lazy Settings reads in send() (pixel_id/capi_access_token/test_event_code), four typed-exception throw sites (MissingPixelConfigException, MissingCapiTokenException, MetaApiTransientException, MetaApiPermanentException), Log::warning/error breadcrumbs without access token (T-03-12). tests/Unit/MetaClientTest.php — 14 test methods locking the 7 send-time invariants + transient-status sweep (408/429/500/502/503/504) + permanent-status sweep (400/401/403/404/422) + ConnectException → transient + RequestException catch coverage (defense-in-depth) + decodeResponseBody non-array guard + GRAPH_VERSION constant. 3 task commits + summary commit. composer qa green (69 tests / 230 assertions / 0 skipped / 92.7% coverage / MetaClient.php 100% / total 86.3% → 92.7% +6.4pp). 5 deviations: Rule 1 HR-02 multi-Settings::set flap (switched to reflection-priming via Settings::instance()->setAttribute — plan explicitly anticipated this), Rule 3 Pest 4 @dataProvider on class-style tests (replaced with inline foreach), Rule 1 array-destructure breaks by-ref (switched to explicit by-ref parameter), Rule 1 phpstan level 10 json_decode→array<mixed> narrowing (extracted decodeResponseBody helper with explicit key-iteration), Rule 3 phpmd CyclomaticComplexity = 10 hit (extracted classifyResponse helper).
+Plan: 4 of 6 (03-01 + 03-02 + 03-03 + 03-04 shipped — PAY-01 + PAY-04 + PAY-05 + PAY-06 + PAY-07 + PAY-08 + PAY-09 done)
+Status: Phase 03 wave 2 complete — plans 03-01 + 03-02 + 03-03 + 03-04 done. Next: plan 03-05 (PAY-02, wave 3 — SendCapiEvent queue job).
+Last activity: 2026-05-12 -- Plan 03-04 shipped: classes/meta/PayloadBuilder.php (303 LOC) — Graph API v20 Purchase envelope with 4-step currency fallback (relation → field → Settings → throw per CONTEXT.md Specifics line 158), byte-for-byte content_ids contract (StoreExtender::CartComponentHandler::buildSkuId), all 3 PAY-09 precondition throws (InvalidEventIdException, OrderHasNoCurrencyException, OrderHasNoItemsException), constructor-injected UserDataHasher with lazy default, custom_data.order_id = order_number (NOT id) per FUN-14, resolveProductIdForOffer helper (Offer::where('id', $iOfferId)->value('product_id')) — handles OrderPosition polymorphic schema (item_id + item_type), getRawOriginal('price') bypasses PriceHelperTrait formatter. classes/meta/UserDataHasher.php (195 LOC) — sha256(mb_strtolower(trim)) for em/ph/fn/ln/external_id, plaintext request metadata (client_ip/UA/fbp/fbc), phone normalisation honouring Settings phone_country_code (default 371 LV; multi-site .no=47), guest external_id = sha256(secret_key) per PAY-08, CCache memoization (tag 'meta-pixel-user-hash', key 'meta-pixel-user-hash:order:{id}'). tests/Support/OrderFixtures.php — 3 named factory methods (makePaidOrder / makeMultiOfferOrder / makeGuestOrderWithoutEmail) + 6 typed constants (EXPECTED_SINGLE_SKU = 'SKU-10', EXPECTED_MULTI_SKU = 'SKU-11-102', etc.) + hermetic offer/product/order_position table provisioning + one_c_status_id column patch (Lovata.BaseCode dependency). tests/Unit/PayloadBuilderTest.php — 14 test methods locking envelope shape + content_ids + custom_data + 3 PAY-09 preconditions + REVISED 4-step currency fallback (2 tests: settings-fallback NO-throw path + all-3-sources-empty THROW path per BLOCKER 1 resolution). tests/Unit/UserDataHasherTest.php — 11 test methods locking PII hashing + phone normalisation 3 paths + cache memoization + determinism. 5 task commits + 1 phpstan auto-fix commit + summary commit. composer qa green: 94 tests / 289 assertions / 0 skipped / **90.0% coverage** (PayloadBuilder 84.1% / UserDataHasher 90.3% / MetaClient 100% / Exceptions 100% / FailedEvent 100%). 7 deviations: Rule 1 phpstan level 10 11-error narrowing (added stringOrEmpty/intOrZero/floatOrZero/stringOrNull/narrowCachedArray helpers, replaced instanceof Request with try/return-on-throw, replaced relation access with getRelationValue + is_object + method_exists guard); Rule 1 OrderPosition polymorphic (resolveProductIdForOffer + getRawOriginal('item_id')); Rule 1 price column not price_value (getRawOriginal('price') bypasses PriceHelper::format); Rule 3 one_c_status_id Lovata.BaseCode dependency (OrderFixtures patches column into bootOrdersTable schema); Rule 3 currency_id = null in fixtures (no hermetic currency table); Rule 3 Offer SoftDelete + orderBy('sort_order') (added columns in OrderFixtures); Rule 1 pint cosmetic (4 fixers applied).
+
+Plan-checker BLOCKER 1 resolved: resolveCurrency 4-step fallback chain (relation → field → Settings → throw) per CONTEXT.md Specifics line 158, locked by 2 unit tests (NO-throw fallback path + THROW last-line-of-defence path).
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 8 (Phase 1 + Plans 02-01..04 + Plans 03-01..03)
-- Average duration: ~19 min (Plans 02-01 + 02-02 + 02-03 + 02-04 + 03-01 + 03-02 + 03-03: ~94+9+10+5+14 ≈ ~132 min / 7 plans = ~19 min); Phase 1 not timed
-- Total execution time: ~2.2 hours
+- Total plans completed: 9 (Phase 1 + Plans 02-01..04 + Plans 03-01..04)
+- Average duration: ~21 min (Plans 02-01 + 02-02 + 02-03 + 02-04 + 03-01 + 03-02 + 03-03 + 03-04: ~94+9+10+5+14+39 ≈ ~171 min / 8 plans = ~21 min); Phase 1 not timed
+- Total execution time: ~2.85 hours
 
 **By Phase:**
 
@@ -44,12 +46,12 @@ Last activity: 2026-05-12 -- Plan 03-03 shipped: classes/meta/MetaClient.php (19
 |---|---|---|---|
 | 1. Tooling | 1 | — | — |
 | 2. Skeleton+cookie | 4/4 | ~103 min | 26 min |
-| 3. Purchase end-to-end | 3/6 | ~29 min | 10 min |
+| 3. Purchase end-to-end | 4/6 | ~68 min | 17 min |
 
 **Recent Trend:**
 
-- Last 8 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01..04 (all passed), 03-purchase/03-01-PLAN + 03-02-PLAN + 03-03-PLAN (passed).
-- Trend: Plan 03-03 = 3 task commits + 1 summary commit, 5 deviations (Rule 1 HR-02 multi-Settings::set flap → reflection priming, Rule 3 Pest 4 dataProvider → inline foreach, Rule 1 array-destructure by-ref → explicit by-ref param, Rule 1 phpstan json_decode narrowing → decodeResponseBody extraction, Rule 3 phpmd CyclomaticComplexity = 10 → classifyResponse extraction). composer qa green / 69 tests / 230 assertions / 0 skipped / 92.7 % coverage (was 89.3 %; +3.4pp) / **MetaClient.php at 100 %**. **Phase 3 wave 2 in progress — PAY-01 shipped on top of wave 1 (PAY-04 + PAY-05 + PAY-09). 3 plans / 7 requirements (PAY-02 + PAY-03 + PAY-06..08 + PAY-10..11) still pending.**
+- Last 9 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01..04 (all passed), 03-purchase/03-01-PLAN + 03-02-PLAN + 03-03-PLAN + 03-04-PLAN (passed).
+- Trend: Plan 03-04 = 5 task commits + 1 phpstan auto-fix follow-up + 1 summary commit, 7 deviations (Rule 1 phpstan level 10 11-error narrowing, Rule 1 OrderPosition polymorphic schema discovery, Rule 1 price column not price_value, Rule 3 one_c_status_id Lovata.BaseCode, Rule 3 hermetic Currency table absent, Rule 3 Offer SoftDelete + orderBy, Rule 1 pint cosmetic). composer qa green / 94 tests / 289 assertions / 0 skipped / **90.0 % coverage** (was 92.7 %; -2.7pp, explained by +700 LOC new production code) / **PayloadBuilder.php 84.1 %** / **UserDataHasher.php 90.3 %**. **Phase 3 wave 2 COMPLETE — PAY-06 + PAY-07 + PAY-08 shipped on top of wave 1 (PAY-01 + PAY-04 + PAY-05 + PAY-09). 4 plans / 4 requirements (PAY-02 + PAY-03 + PAY-10..11) still pending.**
 
 *Updated after each plan completion*
 
@@ -109,7 +111,19 @@ New from Plan 03-02 execution:
 - **EH-03** `composer qa` total coverage 76.1% → 89.3% (+13.2pp) — driven by FailedEvent jumping 0% → 100% (the 3 previously-skipped factory tests now run) + all 8 new exception classes at 100%. The "is FailedEvent really 0%?" doubt from plan 03-01's SUMMARY is resolved: it WAS only because the factory was untested, not because of pcov trait-attribution. The trait-attribution explanation was wrong; the static factory was simply unreached by Phase 2 baseline tests.
 - **EH-04** `jsonContext([])` returns the JSON-array literal `'[]'`, NOT `'{}'` (the `'{}'` literal is the encode-failure fallback only — verified with stream resources in ExceptionHierarchyTest::test_jsonContext_returns_compact_json). The GoodsReceivedException analog has identical behavior. Forward-impact: any Phase-3 plan that wants `'{}'` for empty input must wrap with `$ar === [] ? '{}' : self::jsonContext($ar)`.
 
-New from Plan 03-03 execution:
+New from Plan 03-04 execution:
+
+- **PB-01** PayloadBuilder pattern: stateless single-shot transform with constructor-injected `?UserDataHasher = null` (lazy default). Test mock-surface = pass `new PayloadBuilder($obFakeHasher)`. Forward-impact: Phase 4 funnel-event specialisations (`buildViewContentPayload`, `buildAddToCartPayload`, etc.) add public methods to the same class — `wrapEnvelope(array): array` extraction lands when the second public method ships.
+- **PB-02** 4-step currency fallback per CONTEXT.md Specifics line 158: relation → currency_code → Settings::get('currency_code', 'EUR') → throw OrderHasNoCurrencyException. Last-line-of-defence throw — only triggers when ALL THREE sources empty. Two tests lock the NO-throw fallback path AND the THROW exhaustion path. Pattern reusable for any multi-source field resolution (Phase 4 lead form_data, etc.).
+- **PB-03** OrderPosition is POLYMORPHIC (item_id + item_type → MorphTo). `offer_id` is a dynamic getter that returns item_id when item_type = Offer::class. `product_id` is NOT a column. PayloadBuilder reads getRawOriginal('item_id') and resolves product_id via Offer::where('id', $iOfferId)->value('product_id'). Documentation drift in plan's <interfaces> block — corrected during execution.
+- **PB-04** OrderPosition `price` (decimal column) ≠ `price_value` (PriceHelperTrait dynamic accessor returning PriceHelper::format result, rounds per Settings.decimals). Use getRawOriginal('price') to preserve cents. Pattern locked for any future OrderPosition price/currency read.
+- **PB-05** Hermetic SQLite fixture patches: lovata_orders_shopaholic_orders needs one_c_status_id column (Lovata.BaseCode ExtendOrderFieldsHandler dependency); lovata_shopaholic_offers needs sort_order + softDeletes (default orderBy + SoftDelete trait); lovata_orders_shopaholic_order_positions needs item_id + item_type + price (polymorphic + decimal price). All patches live in OrderFixtures (not MetapixelTestCase — files_modified discipline).
+- **UDH-01** UserDataHasher CCache key contract: `meta-pixel-user-hash:order:{$iOrderId}` (Phase 3 Purchase). Phase 4 will add `:lead:{$sRequestId}` (form submission) and `:request:{$sRequestId}` (bare request). Cache tag `meta-pixel-user-hash` is plugin-scoped and tag-purgeable in test tearDown.
+- **UDH-02** Guest external_id derivation per PAY-08: `hash('sha256', mb_strtolower(trim((string) $obOrder->secret_key)))`. Lovata.OrdersShopaholic guarantees secret_key on every persisted order — never null. Pattern reusable for Phase 4 Lead `external_id` from form_data.email.
+- **UDH-03** Phone normalisation: preg_replace('/\D+/', '') strips non-digits; prepend Settings::get('phone_country_code', '371') if not already prefixed. Multi-site operator override: .no=47 / .lt=370. The `str_starts_with($sDigits, $sCountryCode)` guard dedupes — already-prefixed phones stay unchanged.
+- **PHPSTAN-01** Universal-object-crates do NOT cover Lovata.OrdersShopaholic Order/OrderPosition or Lovata.Shopaholic Offer/Product. Phpstan level 10 + treatPhpDocTypesAsCertain raises `cast.int`, `cast.string`, `property.notFound`, `method.nonObject`, `instanceof.alwaysTrue`, `nullCoalesce.expr` against direct accessors. Mitigation pattern: `getAttribute(...)` + narrowing helpers (intOrZero/floatOrZero/stringOrEmpty/stringOrNull). instanceof Request check → try/return-on-throw pattern. Relation access → `getRelationValue($name)` + `is_object` + `method_exists`. Pattern locked for plans 03-05 + 03-06.
+
+Carried forward from Plan 03-03 execution:
 
 - **MC-01** HTTP-boundary pattern: constructor-injectable `?ClientInterface $obClient = null` is the canonical testable HTTP-client shape for this plugin. Default Guzzle Client built with `'http_errors' => false` so status-code-based classification flows through a SINGLE switch (no parallel try/catch shapes). Reusable for any future Logingrupa.Metapixelshopaholic third-party-HTTP class (e.g. Phase 5 HARD-03's optional Slack/Telegram dead-letter alerter).
 - **MC-02** HR-02 confirmed reproducible under multi-Settings::set load. The `Settings::set + clearInternalCache + Cache::flush` round-trip flaps when ≥ 2 fields are primed per test (every MetaClient test sets pixel_id + capi_access_token, some also test_event_code). The reliable workaround is the reflection-priming pattern (`Settings::instance()->setAttribute(...)`) — identical shape to `PixelHeadTest::primePluginGuardEnabled`. Pattern locked for plans 03-04..03-06.
@@ -139,7 +153,7 @@ None. All 5 open questions resolved via codebase evidence (see `.planning/answer
 
 ## Session Continuity
 
-Last activity: 2026-05-12 — Plan 03-03 (MetaClient Guzzle 7 wrapper — PAY-01) shipped end-to-end. 3 task commits + 1 summary commit. composer qa green: 69 tests / 230 assertions / 0 skipped / **92.7 % coverage** (PixelHead 94.4 % / middleware 96.1 % / PluginGuard 93.5 % / Settings 92.9 % / Plugin 52.0 % / FailedEvent 100% / all 8 exception classes 100% / **MetaClient 100 %**). PAY-01 + PAY-04 + PAY-05 + PAY-09 complete. **Phase 3: 3 / 6 plans done — wave 2 in progress (PAY-01 done, PAY-06..08 + PAY-02..03 + PAY-10..11 pending).**
+Last activity: 2026-05-12 — Plan 03-04 (PayloadBuilder + UserDataHasher + OrderFixtures — PAY-06 + PAY-07 + PAY-08) shipped end-to-end. 5 task commits + 1 phpstan auto-fix commit + 1 summary commit. composer qa green: 94 tests / 289 assertions / 0 skipped / **90.0 % coverage** (PixelHead 94.4 % / middleware 96.1 % / PluginGuard 93.5 % / Settings 92.9 % / Plugin 52.0 % / FailedEvent 100% / all 8 exception classes 100% / MetaClient 100 % / **PayloadBuilder 84.1 %** / **UserDataHasher 90.3 %**). PAY-01 + PAY-04 + PAY-05 + PAY-06 + PAY-07 + PAY-08 + PAY-09 complete. **Phase 3: 4 / 6 plans done — wave 2 COMPLETE (PAY-06 + PAY-07 + PAY-08 shipped on top of PAY-01 + PAY-04 + PAY-05 + PAY-09). 2 plans / 4 requirements (PAY-02 + PAY-03 + PAY-10..11) pending.**
 Last session: 2026-05-12
-Stopped at: Plan 03-03 complete. MetaClient HTTP boundary in place. Next: plan 03-04 (PAY-06 — PayloadBuilder, wave 2). The MetaClient::send(array): array contract is now the consumer surface for plan 03-05 SendCapiEvent (PAY-02) — `handle(MetaClient $obClient): void` will resolve via Laravel container.
-Resume file: `.planning/phases/03-purchase-end-to-end/03-04-PLAN.md`
+Stopped at: Plan 03-04 complete. PayloadBuilder + UserDataHasher transform layer in place. Next: plan 03-05 (PAY-02 — SendCapiEvent queue job). The PayloadBuilder.buildPurchaseEventPayload + UserDataHasher.forOrder contracts are the consumer surfaces for SendCapiEvent (which calls MetaClient::send with the built envelope) and OrderStatusWatcher (which dispatches SendCapiEvent with the order_id + event_id + event_time tuple).
+Resume file: `.planning/phases/03-purchase-end-to-end/03-05-PLAN.md`

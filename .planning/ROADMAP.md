@@ -65,7 +65,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 03-01-PLAN.md — Migrations + FailedEvent model (PAY-04, PAY-05) ✓ 2026-05-12
   - [x] 03-02-PLAN.md — Exception hierarchy (PAY-09) ✓ 2026-05-12
   - [x] 03-03-PLAN.md — MetaClient Guzzle wrapper (PAY-01) ✓ 2026-05-12
-  - [ ] 03-04-PLAN.md — PayloadBuilder + UserDataHasher (PAY-06, PAY-07, PAY-08)
+  - [x] 03-04-PLAN.md — PayloadBuilder + UserDataHasher (PAY-06, PAY-07, PAY-08) ✓ 2026-05-12
   - [ ] 03-05-PLAN.md — SendCapiEvent queue job (PAY-02)
   - [ ] 03-06-PLAN.md — OrderStatusWatcher + Plugin::boot + manual staging verification (PAY-03, PAY-10, PAY-11)
 
