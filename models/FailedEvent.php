@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Logingrupa\Metapixelshopaholic\Models;
 
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\MetaPixelException;
 use Model;
 use October\Rain\Database\Builder;
@@ -87,10 +88,35 @@ class FailedEvent extends Model
         $arFirstEvent = self::extractFirstEvent($arPayload);
         $arContext = $obException->arContext;
 
+        // WR-04 lock: surface malformed payloads via sentinel placeholders +
+        // a critical log rather than silently losing the dead-letter row to
+        // the model `rules` `required` validator (and then to the silent
+        // catch in SendCapiEvent::writeFailedEvent). The placeholders pass
+        // validation (`required|string|max:N`) while remaining clearly-
+        // distinguishable in the backend list controller so the operator
+        // sees a malformed row instead of nothing.
+        $sEventId = self::extractStringField($arFirstEvent, 'event_id');
+        if ($sEventId === '') {
+            $sEventId = 'unknown:'.substr(sha1($obException->getMessage()), 0, 8);
+            Log::critical('Metapixel: FailedEvent payload missing event_id — substituted sentinel', [
+                'meta_pixel.exception' => get_class($obException),
+                'meta_pixel.message' => $obException->getMessage(),
+                'meta_pixel.sentinel_event_id' => $sEventId,
+            ]);
+        }
+        $sEventName = self::extractStringField($arFirstEvent, 'event_name');
+        if ($sEventName === '') {
+            $sEventName = '__unknown__';
+            Log::critical('Metapixel: FailedEvent payload missing event_name — substituted sentinel', [
+                'meta_pixel.exception' => get_class($obException),
+                'meta_pixel.sentinel_event_name' => $sEventName,
+            ]);
+        }
+
         /** @var self $obFailed */
         $obFailed = self::create([
-            'event_id' => self::extractStringField($arFirstEvent, 'event_id'),
-            'event_name' => self::extractStringField($arFirstEvent, 'event_name'),
+            'event_id' => $sEventId,
+            'event_name' => $sEventName,
             'payload' => self::encodePayload($arPayload),
             'graph_error' => $obException->getMessage(),
             'http_status' => self::extractHttpStatus($arContext),

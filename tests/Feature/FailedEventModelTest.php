@@ -156,6 +156,47 @@ final class FailedEventModelTest extends MetapixelTestCase
         $this->assertNull($obFailed->http_status);
     }
 
+    public function test_create_from_payload_handles_missing_event_id_with_sentinel(): void
+    {
+        // WR-04 lock: a malformed payload (missing event_id key) must NOT
+        // silently lose the dead-letter row. Previously extractStringField
+        // returned '' which failed the `event_id => required` validator,
+        // and SendCapiEvent::writeFailedEvent silently caught the
+        // ModelException — operator visibility went to zero.
+        // Factory now substitutes a deterministic sentinel + logs critical.
+        $this->skipIfMetaPixelExceptionMissing();
+
+        $obException = $this->makeMetaPixelExceptionDouble('boom payload missing event_id', []);
+        $obFailed = FailedEvent::createFromPayloadAndException(
+            ['data' => [['event_name' => 'Purchase']]], // no event_id key
+            $obException,
+        );
+
+        $this->assertNotNull($obFailed->id, 'row must persist (sentinel satisfies required-validator).');
+        $this->assertStringStartsWith('unknown:', $obFailed->event_id);
+        $this->assertSame(
+            'unknown:'.substr(sha1('boom payload missing event_id'), 0, 8),
+            $obFailed->event_id,
+            'sentinel must be deterministic for the same exception message.',
+        );
+        $this->assertSame('Purchase', $obFailed->event_name);
+    }
+
+    public function test_create_from_payload_handles_missing_event_name_with_sentinel(): void
+    {
+        $this->skipIfMetaPixelExceptionMissing();
+
+        $obException = $this->makeMetaPixelExceptionDouble('boom missing event_name', []);
+        $obFailed = FailedEvent::createFromPayloadAndException(
+            ['data' => [['event_id' => 'abc-123']]], // no event_name key
+            $obException,
+        );
+
+        $this->assertNotNull($obFailed->id);
+        $this->assertSame('abc-123', $obFailed->event_id);
+        $this->assertSame('__unknown__', $obFailed->event_name);
+    }
+
     /**
      * Skip the current test if MetaPixelException has not yet been declared.
      * Once plan 03-02 ships the abstract base + concrete subclasses, this
