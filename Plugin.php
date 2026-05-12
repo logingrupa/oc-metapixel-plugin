@@ -3,13 +3,12 @@
 namespace Logingrupa\Metapixelshopaholic;
 
 use Backend;
-use Illuminate\Support\Facades\App;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use System\Classes\PluginBase;
 
 /**
  * Class Plugin
- * @package Logingrupa\Metapixelshopaholic
+ *
  * @author Logingrupa
  *
  * Plugin entry point. Phase 2 surface (SKEL-01):
@@ -50,11 +49,11 @@ class Plugin extends PluginBase
     public function pluginDetails(): array
     {
         return [
-            'name'        => 'logingrupa.metapixelshopaholic::lang.plugin.name',
+            'name' => 'logingrupa.metapixelshopaholic::lang.plugin.name',
             'description' => 'logingrupa.metapixelshopaholic::lang.plugin.description',
-            'author'      => 'Logingrupa',
-            'icon'        => 'icon-shopping-cart',
-            'homepage'    => 'https://logingrupa.lv',
+            'author' => 'Logingrupa',
+            'icon' => 'icon-shopping-cart',
+            'homepage' => 'https://logingrupa.lv',
         ];
     }
 
@@ -81,12 +80,12 @@ class Plugin extends PluginBase
     {
         return [
             'logingrupa-metapixelshopaholic-settings' => [
-                'label'       => 'logingrupa.metapixelshopaholic::lang.settings.label',
+                'label' => 'logingrupa.metapixelshopaholic::lang.settings.label',
                 'description' => 'logingrupa.metapixelshopaholic::lang.settings.description',
-                'category'    => 'lovata.shopaholic::lang.tab.settings',
-                'icon'        => 'icon-shopping-cart',
-                'class'       => Settings::class,
-                'order'       => 500,
+                'category' => 'lovata.shopaholic::lang.tab.settings',
+                'icon' => 'icon-shopping-cart',
+                'class' => Settings::class,
+                'order' => 500,
             ],
         ];
     }
