@@ -27,6 +27,13 @@ use October\Rain\Support\Traits\Singleton;
  *   instance and the container binding.
  *
  * @author Logingrupa
+ *
+ * The October\Rain Singleton trait exposes a final static `instance()` method
+ * with no return type declaration. The @method declaration below makes the
+ * trait's actual contract visible to phpstan (level 10 requires it for any
+ * caller that chains an instance method onto `PluginGuard::instance()`).
+ *
+ * @method static self instance()
  */
 class PluginGuard
 {
