@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Logingrupa\Metapixelshopaholic\Updates;
 
 use October\Rain\Database\Schema\Blueprint;
