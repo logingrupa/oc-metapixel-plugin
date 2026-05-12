@@ -76,11 +76,19 @@ class PluginGuard
     /**
      * Reset both the Singleton-trait instance and the container singleton bridge.
      * Intended for test teardown — flushes the disabled-flag memo between tests.
+     *
+     * CR-04 lock: `App::forgetInstance()` only clears the resolved-instance
+     * cache; the BINDING closure survives. We must also unset the binding via
+     * `App::offsetUnset()` — the public Container API for `unset($bindings[$k])`
+     * verified at vendor/laravel/framework/src/Illuminate/Container/Container.php
+     * offsetUnset(). Combined with `init()` re-binding via a `self::instance()`
+     * lookup closure (no `$this` capture), subsequent
+     * `App::make('metapixel.disabled')` calls always resolve a fresh PluginGuard.
      */
     public static function flush(): void
     {
         if (App::bound('metapixel.disabled')) {
-            App::forgetInstance('metapixel.disabled');
+            App::offsetUnset('metapixel.disabled');
         }
 
         self::forgetInstance();
@@ -89,12 +97,20 @@ class PluginGuard
     /**
      * Auto-invoked by the Singleton trait on the first instance() call.
      * Primes the memo and binds the `metapixel.disabled` container singleton.
+     *
+     * CR-04 lock: the closure resolves `self::instance()` on each call rather
+     * than capturing `$this`. After `flush()` rebuilds the Singleton-trait
+     * instance, subsequent container lookups read the fresh PluginGuard
+     * instead of an orphan reference to the flushed object.
      */
     protected function init(): void
     {
         $this->prime();
 
-        App::singleton('metapixel.disabled', fn (): bool => $this->isDisabled());
+        App::singleton(
+            'metapixel.disabled',
+            fn (): bool => self::instance()->isDisabled()
+        );
     }
 
     /**
