@@ -149,6 +149,45 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         Queue::assertPushed(SendCapiEvent::class, 2);
     }
 
+    public function test_refire_clear_path_short_circuits_when_plugin_disabled_mid_flight(): void
+    {
+        // CR-05 lock: with refire=ON, if the plugin is disabled AFTER a paid
+        // event has fired (UUID + event_time persisted) but BEFORE the next
+        // away-transition save reaches handleUpdated, the disabled
+        // short-circuit at the top of handleUpdated must run FIRST — the
+        // away-clear branch must NOT execute. Otherwise audit data (the
+        // original UUID + event_time) is destroyed silently and manual
+        // replay (Phase 5 HARD-02) becomes impossible because there is no
+        // event_id to look up in the FailedEvent / dispatch logs.
+        Settings::set('refire_purchase_on_status_flip', true);
+        Cache::flush();
+        Settings::clearInternalCache();
+
+        $obOrder = $this->makeOrderAtPendingStatus();
+        $obOrder->status_id = 5;
+        $obOrder->save();
+        $obFresh = $obOrder->fresh();
+        $sUuid = $obFresh->meta_purchase_event_id;
+        $iEventTime = $obFresh->meta_purchase_event_time;
+        $this->assertNotNull($sUuid, 'pre-condition: paid flip must persist the UUID.');
+        $this->assertNotNull($iEventTime, 'pre-condition: paid flip must persist event_time.');
+
+        // Disable the plugin AFTER the paid flip; the watcher MUST observe
+        // the disabled flag on the NEXT save and short-circuit before the
+        // away-clear branch runs. Audit-trail preservation.
+        $this->primePluginGuardDisabled();
+
+        $obOrder = $obOrder->fresh();
+        $obOrder->status_id = 4; // away-from-paid
+        $obOrder->save();
+
+        $obAfter = $obOrder->fresh();
+        $this->assertSame($sUuid, $obAfter->meta_purchase_event_id,
+            'disabled plugin MUST NOT clear meta_purchase_event_id on away-transition (audit-trail).');
+        $this->assertSame((int) $iEventTime, (int) $obAfter->meta_purchase_event_time,
+            'disabled plugin MUST NOT clear meta_purchase_event_time on away-transition (audit-trail).');
+    }
+
     public function test_plugin_disabled_does_not_dispatch(): void
     {
         $this->primePluginGuardDisabled();
