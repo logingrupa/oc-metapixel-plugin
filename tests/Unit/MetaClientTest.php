@@ -6,6 +6,7 @@ require_once __DIR__.'/../MetapixelTestCase.php';
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\ConnectException;
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
@@ -270,6 +271,63 @@ final class MetaClientTest extends MetapixelTestCase
         $this->assertSame('v20.0', MetaClient::GRAPH_VERSION, 'GRAPH_VERSION constant must be locked to v20.0 per PROJECT.md out-of-scope.');
     }
 
+    public function test_send_returns_empty_array_when_response_body_is_not_json_object(): void
+    {
+        // Graph API success payloads are always JSON objects, but the
+        // defensive `is_array` guard in decodeResponseBody must return
+        // empty `[]` for a JSON `null` / `true` / `1` body. Locks the
+        // negative-space branch (lines 136-137 of MetaClient.php).
+        $this->setSetting('pixel_id', '2291486191076331');
+        $this->setSetting('capi_access_token', 'EAA-test-token');
+        $obClient = $this->makeClientWithMockResponses([
+            new Response(200, [], 'null'),
+        ]);
+
+        $arResult = $obClient->send(['data' => [['event_id' => 'abc']]]);
+
+        $this->assertSame([], $arResult, 'JSON `null` body must surface as empty array (defensive decode guard).');
+    }
+
+    public function test_send_classifies_request_exception_transient_when_http_errors_enabled(): void
+    {
+        // If a middleware in the stack re-enables `http_errors` (or any
+        // other path raises a RequestException with a response carrying a
+        // transient status code), MetaClient::classifyException must
+        // surface it as MetaApiTransientException. Covers lines 91-100 +
+        // 158-166 of MetaClient.php (the RequestException catch + the
+        // transient branch of classifyException).
+        $this->setSetting('pixel_id', '2291486191076331');
+        $this->setSetting('capi_access_token', 'EAA-test-token');
+        $obClient = $this->makeRequestExceptionThrowingClient(503);
+
+        $bThrown = false;
+        try {
+            $obClient->send(['data' => [['event_id' => 'abc']]]);
+        } catch (MetaApiTransientException $obException) {
+            $bThrown = true;
+            $this->assertSame(503, $obException->arContext['http_status']);
+        }
+        $this->assertTrue($bThrown, 'RequestException with 503 response must classify transient.');
+    }
+
+    public function test_send_classifies_request_exception_permanent_for_non_transient_status(): void
+    {
+        // Symmetric to the test above — RequestException with a 400 response
+        // must classify permanent. Covers lines 168-172 of MetaClient.php.
+        $this->setSetting('pixel_id', '2291486191076331');
+        $this->setSetting('capi_access_token', 'EAA-test-token');
+        $obClient = $this->makeRequestExceptionThrowingClient(400);
+
+        $bThrown = false;
+        try {
+            $obClient->send(['data' => [['event_id' => 'abc']]]);
+        } catch (MetaApiPermanentException $obException) {
+            $bThrown = true;
+            $this->assertSame(400, $obException->arContext['http_status']);
+        }
+        $this->assertTrue($bThrown, 'RequestException with 400 response must classify permanent.');
+    }
+
     /**
      * Prime the Settings model's in-memory instance directly via reflection
      * — sidesteps HR-02 (the SQLite-Multisite round-trip flaps when multiple
@@ -300,6 +358,28 @@ final class MetaClientTest extends MetapixelTestCase
         $obMock = new MockHandler($arResponses);
         $obStack = HandlerStack::create($obMock);
         $obStack->push(Middleware::history($arHistory));
+        $obGuzzle = new Client(['handler' => $obStack, 'http_errors' => false]);
+
+        return new MetaClient($obGuzzle);
+    }
+
+    /**
+     * Build a MetaClient whose underlying Client throws a `RequestException`
+     * (carrying a Response of the requested status) before the MockHandler's
+     * response reaches the consumer. Simulates a middleware that re-enables
+     * `http_errors` or any rare middleware-level rethrow — exercises the
+     * `catch (RequestException ...)` branch in MetaClient::send().
+     */
+    private function makeRequestExceptionThrowingClient(int $iStatus): MetaClient
+    {
+        $obMock = new MockHandler([
+            new RequestException(
+                'simulated middleware-level failure',
+                new Request('POST', '/'),
+                new Response($iStatus, [], 'bad'),
+            ),
+        ]);
+        $obStack = HandlerStack::create($obMock);
         $obGuzzle = new Client(['handler' => $obStack, 'http_errors' => false]);
 
         return new MetaClient($obGuzzle);
