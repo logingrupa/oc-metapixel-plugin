@@ -139,9 +139,24 @@ abstract class MetapixelTestCase extends TestCase
         // Article::extend() callbacks that query Settings::getValue() →
         // dropping system_settings first would error here.
         $this->flushModelEventListeners();
+        $this->flushPluginSingletons();
         $this->dropHermeticSchemas();
         parent::tearDown();
         unset($this->app);
+    }
+
+    /**
+     * Reset plugin-owned singletons between tests so the PluginGuard
+     * disabled-flag memo does not bleed across tests. Mirrors
+     * GoodsReceivedTestCase::flushPluginSingletons() per Plan 02-02 (S2).
+     *
+     * Each new singleton (Stores, Caches, Helpers) MUST add a static
+     * flush() method and a corresponding line here. Subsequent Phase 2-5
+     * plans MAY add lines but MUST NOT remove PluginGuard::flush().
+     */
+    protected function flushPluginSingletons(): void
+    {
+        \Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard::flush();
     }
 
     /**
