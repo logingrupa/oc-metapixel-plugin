@@ -80,19 +80,16 @@ class FailedEvent extends Model
      * @param  array<string,mixed>  $arPayload  Raw envelope sent to Meta (`['data' => [['event_id' => ..., 'event_name' => ..., ...]]]`).
      * @param  MetaPixelException  $obException  Permanent exception with `arContext` containing `http_status` + `attempts`.
      */
-    // @phpstan-ignore-next-line class.notFound (wave-1 forward reference; resolved by plan 03-02)
     public static function createFromPayloadAndException(array $arPayload, MetaPixelException $obException): self
     {
         $arFirstEvent = self::extractFirstEvent($arPayload);
-        // @phpstan-ignore-next-line class.notFound (wave-1 forward reference; resolved by plan 03-02)
-        $arContext = is_array($obException->arContext) ? $obException->arContext : [];
+        $arContext = $obException->arContext;
 
         /** @var self $obFailed */
         $obFailed = self::create([
             'event_id' => self::extractStringField($arFirstEvent, 'event_id'),
             'event_name' => self::extractStringField($arFirstEvent, 'event_name'),
             'payload' => self::encodePayload($arPayload),
-            // @phpstan-ignore-next-line class.notFound (wave-1 forward reference; MetaPixelException extends \RuntimeException — resolved by plan 03-02)
             'graph_error' => $obException->getMessage(),
             'http_status' => self::extractHttpStatus($arContext),
             'attempts' => self::extractAttempts($arContext),

@@ -170,24 +170,24 @@ final class FailedEventModelTest extends MetapixelTestCase
 
     /**
      * Build an anonymous-class subclass of MetaPixelException with a known
-     * message + arContext for factory tests. Returned as `object` because
-     * MetaPixelException is a wave-1 forward reference at static-analysis time.
+     * message + arContext for factory tests. Returned as the abstract base
+     * type so callers can treat it polymorphically.
      *
-     * Anonymous-class parents are bound at runtime — this method is only
-     * reachable after the skip-guard confirms MetaPixelException exists.
+     * The anonymous class forwards $arContext through `parent::__construct`
+     * (the readonly property is set once by constructor promotion and
+     * cannot be reassigned — T-03-06 immutability lock). It implements the
+     * abstract `isRetryable()` returning false (matches the "permanent"
+     * dead-letter contract exercised by the factory under test).
      *
      * @param  array<string,mixed>  $arContext
      */
-    private function makeMetaPixelExceptionDouble(string $sMessage, array $arContext): object
+    private function makeMetaPixelExceptionDouble(string $sMessage, array $arContext): \Logingrupa\Metapixelshopaholic\Classes\Exception\MetaPixelException
     {
-        // @phpstan-ignore-next-line class.notFound (wave-1 forward reference; reachable only after class_exists guard)
         return new class($sMessage, $arContext) extends \Logingrupa\Metapixelshopaholic\Classes\Exception\MetaPixelException
         {
-            /** @param array<string,mixed> $arContext */
-            public function __construct(string $sMessage, array $arContext)
+            public function isRetryable(): bool
             {
-                parent::__construct($sMessage);
-                $this->arContext = $arContext;
+                return false;
             }
         };
     }
