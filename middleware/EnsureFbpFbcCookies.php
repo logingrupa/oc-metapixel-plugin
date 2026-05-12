@@ -92,11 +92,11 @@ class EnsureFbpFbcCookies
      * @var array<string, int>
      */
     private const HOST_INDEX_MAP = [
-        'nailscosmetics.no'     => 1,
+        'nailscosmetics.no' => 1,
         'www.nailscosmetics.no' => 2,
-        'nailscosmetics.lv'     => 1,
+        'nailscosmetics.lv' => 1,
         'www.nailscosmetics.lv' => 2,
-        'nailscosmetics.lt'     => 1,
+        'nailscosmetics.lt' => 1,
         'www.nailscosmetics.lt' => 2,
     ];
 
