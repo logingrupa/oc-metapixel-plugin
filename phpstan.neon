@@ -7,11 +7,11 @@ parameters:
     paths:
         - Plugin.php
     excludePaths:
-        - tests
-        - updates
-        - lang
-        - partials
-        - .github
+        - tests (?)
+        - updates (?)
+        - lang (?)
+        - partials (?)
+        - .github (?)
     tmpDir: ../../../storage/temp/phpstan/metapixel
 
     reportUnmatchedIgnoredErrors: true

@@ -6,7 +6,7 @@ use Rector\Config\RectorConfig;
 
 return RectorConfig::configure()
     ->withPaths([
-        __DIR__ . '/Plugin.php',
+        __DIR__.'/Plugin.php',
     ])
     ->withPhpSets(php84: true)
     ->withPreparedSets(
@@ -16,9 +16,9 @@ return RectorConfig::configure()
         earlyReturn: true,
     )
     ->withSkip([
-        __DIR__ . '/lang',
-        __DIR__ . '/updates',
-        __DIR__ . '/tests',
-        __DIR__ . '/partials',
-        __DIR__ . '/.github',
+        __DIR__.'/lang',
+        __DIR__.'/updates',
+        __DIR__.'/tests',
+        __DIR__.'/partials',
+        __DIR__.'/.github',
     ]);

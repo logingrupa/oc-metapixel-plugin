@@ -2,6 +2,8 @@
 
 namespace Logingrupa\Metapixelshopaholic;
 
+use System\Classes\PluginBase;
+
 /**
  * Minimal plugin shell so October recognises the plugin during Pest boot.
  *
@@ -9,15 +11,18 @@ namespace Logingrupa\Metapixelshopaholic;
  * The pluginDetails() method is the single contract October's PluginManager
  * relies on to enumerate this plugin during migrateModules() in the test harness.
  */
-class Plugin extends \System\Classes\PluginBase
+class Plugin extends PluginBase
 {
+    /**
+     * @return array{name: string, description: string, author: string, icon: string}
+     */
     public function pluginDetails(): array
     {
         return [
-            'name'        => 'Metapixel Shopaholic',
+            'name' => 'Metapixel Shopaholic',
             'description' => 'Meta Pixel + CAPI server-deduplicated tracking for Lovata Shopaholic.',
-            'author'      => 'Logingrupa',
-            'icon'        => 'icon-shopping-cart',
+            'author' => 'Logingrupa',
+            'icon' => 'icon-shopping-cart',
         ];
     }
 }
