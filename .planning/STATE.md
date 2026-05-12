@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0.0
 milestone_name: milestone
 status: executing
-stopped_at: "Plan 02-01 complete (SKEL-01 metadata layer + SKEL-02 + SKEL-06). Next: Plan 02-02 (PluginGuard helper, SKEL-05)."
-last_updated: "2026-05-12T16:25:00.000Z"
-last_activity: 2026-05-12 -- Plan 02-01 shipped (composer qa green, 6 tests / 45 assertions)
+stopped_at: "Plan 02-02 complete (PluginGuard + SKEL-05). Next: Plan 02-03 (EnsureFbpFbcCookies middleware, SKEL-03)."
+last_updated: "2026-05-12T16:33:00.000Z"
+last_activity: 2026-05-12 -- Plan 02-02 shipped (composer qa green, 9 tests / 52 assertions / 85.7 % coverage)
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 5
-  completed_plans: 1
-  percent: 20
+  completed_plans: 2
+  percent: 40
 ---
 
 # Project State
@@ -26,29 +26,29 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 ## Current Position
 
 Phase: 02 (skeleton-cookie-fix) — EXECUTING
-Plan: 2 of 4 (Plan 02-01 shipped, Plan 02-02 next)
+Plan: 3 of 4 (Plans 02-01 + 02-02 shipped, Plan 02-03 next)
 Status: Executing Phase 02
-Last activity: 2026-05-12 -- Plan 02-01 shipped: Plugin.php rewrite + Settings model + fields.yaml + lang scaffolding + SettingsRegistrationTest. composer qa green (6 tests / 45 assertions / 73.3 % coverage).
+Last activity: 2026-05-12 -- Plan 02-02 shipped: PluginGuard Singleton helper + boot-time disabled flag + MetapixelTestCase flush hook + BootsWithoutPixelIdTest. composer qa green (9 tests / 52 assertions / 85.7 % coverage). SKEL-05 complete.
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 2 (Phase 1 plan + Plan 02-01)
-- Average duration: ~41 min (Plan 02-01) — Phase 1 not timed
-- Total execution time: ~0.7 hours
+- Total plans completed: 3 (Phase 1 plan + Plan 02-01 + Plan 02-02)
+- Average duration: ~33 min (Plans 02-01 + 02-02 averaged); Phase 1 not timed
+- Total execution time: ~1.1 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |---|---|---|---|
 | 1. Tooling | 1 | — | — |
-| 2. Skeleton+cookie | 1/4 | ~41 min | 41 min |
+| 2. Skeleton+cookie | 2/4 | ~66 min | 33 min |
 
 **Recent Trend:**
 
-- Last 5 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01-PLAN (passed)
-- Trend: Plan 02-01 = 8 tasks, 8 commits, 5 auto-fixed deviations (2 pre-existing harness leaks fixed: dotenv overrides phpunit env, SQLite migration chain too slow). composer qa green / 6 tests passing / 73.3 % coverage.
+- Last 5 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01-PLAN (passed), 02-skeleton/02-02-PLAN (passed)
+- Trend: Plan 02-02 = 5 tasks, 5 commits, 2 auto-fixed deviations (1 Rule 2 boundary-catch on Settings read failure; 1 Rule 3 pint normalize). composer qa green / 9 tests / 52 assertions / 85.7 % coverage / PluginGuard 100%.
 
 *Updated after each plan completion*
 
@@ -83,6 +83,11 @@ New from Plan 02-01 execution:
 
 - **HR-02** Pre-existing test-harness leak: Laravel's dotenv loader overrides `phpunit.xml <env force=true>` directives, silently routing tests to production MySQL. Worked around in Plan 02-01 via `createApplication()` programmatic config override. A repo-level fix (root-level `.env.testing` file, or a `Tests\BootsTestEnvironment` trait shared across all Logingrupa plugins) should land in Phase 5. Plugin-side workaround is acceptable for v1.
 
+New from Plan 02-02 execution:
+
+- **PG-01** PluginGuard's Throwable-catch in `prime()` is structural, not a workaround: it materially strengthens SKEL-05 by extending the "boot never throws" guarantee from "empty pixel_id only" to "any Settings read failure" (covers DB outage, missing system_settings table on fresh install, dotenv-leak misroutes). The catch is reason-documented and logs a structured context array distinguishing settings_read_failed from the empty-pixel_id path. No further action — accepted as the canonical PluginGuard contract.
+- **PG-02** Container-singleton bridge `App::make('metapixel.disabled')` is now the canonical handler short-circuit contract for Phases 3-5. Documented in PluginGuard class-level PHPDoc + the Plan 02-02 SUMMARY's "API Surface" section. Every Phase 3+ event handler MUST start with `if (App::make('metapixel.disabled')) { return; }`.
+
 ### Blockers/Concerns
 
 None. All 5 open questions resolved via codebase evidence (see `.planning/answers/`).
@@ -95,7 +100,7 @@ None. All 5 open questions resolved via codebase evidence (see `.planning/answer
 
 ## Session Continuity
 
-Last activity: 2026-05-12 — Plan 02-01 (Phase 2 plugin skeleton + Settings) shipped end-to-end. 8 task commits + final SUMMARY commit. composer qa green: 6 tests / 45 assertions / 73.3 % coverage on Plugin.php + models/Settings.php. SKEL-01 (metadata layer), SKEL-02, SKEL-06 marked complete.
+Last activity: 2026-05-12 — Plan 02-02 (PluginGuard Singleton helper + boot-time disabled flag — SKEL-05) shipped end-to-end. 5 task commits. composer qa green: 9 tests / 52 assertions / 85.7 % coverage (PluginGuard 100 % / Settings 91.7 % / Plugin 61.1 %). SKEL-05 complete.
 Last session: 2026-05-12
-Stopped at: Plan 02-01 complete. Next: Plan 02-02 (PluginGuard helper + boot-time disabled flag — SKEL-05).
-Resume file: `.planning/phases/02-skeleton-cookie-fix/02-02-PLAN.md`
+Stopped at: Plan 02-02 complete. Next: Plan 02-03 (EnsureFbpFbcCookies middleware — SKEL-03).
+Resume file: `.planning/phases/02-skeleton-cookie-fix/02-03-PLAN.md`

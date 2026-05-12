@@ -23,7 +23,7 @@
 - [x] **SKEL-02**: `models/Settings.php` extends `Lovata\Toolbox\Models\CommonSettings` with `settingsCode = 'logingrupa_metapixelshopaholic_settings'` and `models/settings/fields.yaml` defining: `pixel_id` (text, translatable), `capi_access_token` (password), `test_event_code` (text), `currency_code` (text, default `EUR`), `phone_country_code` (text, default `371`), `send_hashed_pii` (switch, default on), `queue_connection` (dropdown: redis/database/sync, default `database`), `paid_status_code` (dropdown from `Status::lists('name','code')`, default `new-payment-received`), `refire_purchase_on_status_flip` (switch, default off), `ensure_fbp_fbc_server_side` (switch, default on). `getPaidStatusCodeOptions()` lists all Shopaholic statuses.
 - [ ] **SKEL-03**: `middleware/EnsureFbpFbcCookies.php` at plugin root sets `_fbp` / `_fbc` cookies server-side when missing, using Meta-spec format (`fb.{subdomain-index}.{creation-timestamp}.{random}`). Registered via `Plugin::boot()` → `$this->registerMiddleware([...])`.
 - [ ] **SKEL-04**: Plugin extends the theme's existing `facebook_pixel.htm` partial (via component `PixelHead` rendered on layout) without replacing it. Twig consumes `arMetaEvent` (event_id, event_time, event_name, custom_data) to emit `fbq('track', name, Object.assign({event_time}, data), {eventID})`.
-- [ ] **SKEL-05**: Boot-time missing `pixel_id` triggers `Log::warning('Metapixel: pixel_id not configured — plugin disabled')` and sets a plugin-wide disabled flag. Event handlers short-circuit while the flag is true. Does NOT throw at boot (would cascade break Campaigns/PromoMechanism). Verified by feature test booting with empty Settings.
+- [x] **SKEL-05**: Boot-time missing `pixel_id` triggers `Log::warning('Metapixel: pixel_id not configured — plugin disabled')` and sets a plugin-wide disabled flag. Event handlers short-circuit while the flag is true. Does NOT throw at boot (would cascade break Campaigns/PromoMechanism). Verified by feature test booting with empty Settings.
 - [x] **SKEL-06**: `lang/{en,lv,ru}/lang.php` RainLab.Translate-compatible scaffolding for Settings labels (content left empty or stubbed; full translations in Phase 5).
 
 ### Purchase end-to-end (Phase 3)
@@ -118,7 +118,7 @@
 | SKEL-02 | Phase 2 | Plan 02-01 Complete |
 | SKEL-03 | Phase 2 | Pending (Plan 02-03) |
 | SKEL-04 | Phase 2 | Pending (Plan 02-04) |
-| SKEL-05 | Phase 2 | Pending (Plan 02-02) |
+| SKEL-05 | Phase 2 | Plan 02-02 Complete |
 | SKEL-06 | Phase 2 | Plan 02-01 Complete |
 | PAY-01 | Phase 3 | Pending |
 | PAY-02 | Phase 3 | Pending |
