@@ -1,0 +1,31 @@
+includes:
+    - ../../../vendor/larastan/larastan/extension.neon
+    - ../../../vendor/spaze/phpstan-disallowed-calls/extension.neon
+
+parameters:
+    level: 10
+    paths:
+        - Plugin.php
+    excludePaths:
+        - tests
+        - updates
+        - lang
+        - partials
+        - .github
+    tmpDir: ../../../storage/temp/phpstan/metapixel
+
+    reportUnmatchedIgnoredErrors: true
+    treatPhpDocTypesAsCertain: true
+    checkUninitializedProperties: true
+
+    universalObjectCratesClasses:
+        - Lovata\Toolbox\Classes\Item\ElementItem
+        - Lovata\Toolbox\Classes\Collection\ElementCollection
+
+    disallowedFunctionCalls:
+        -
+            function: 'assert()'
+            message: 'use throw — assert() is a silent no-op when zend.assertions=0 (production default)'
+        -
+            function: '@'
+            message: 'no @ suppression — handle errors explicitly'
