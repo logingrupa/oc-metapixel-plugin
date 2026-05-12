@@ -6,6 +6,7 @@ use Backend;
 use Illuminate\Contracts\Http\Kernel as HttpKernel;
 use Illuminate\Support\Facades\App;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixelshopaholic\Components\PixelHead;
 use Logingrupa\Metapixelshopaholic\Middleware\EnsureFbpFbcCookies;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use System\Classes\PluginBase;
@@ -116,6 +117,24 @@ class Plugin extends PluginBase
                 'class' => Settings::class,
                 'order' => 500,
             ],
+        ];
+    }
+
+    /**
+     * Register Phase 2 components.
+     *
+     * pixelHead — emits fbq('init') + fbq('track', 'PageView', ..., {eventID})
+     * with a server-generated UUIDv4 eventID. Renders alongside the theme's
+     * existing partials/facebook_pixel.htm per SKEL-04 / CONTEXT Area 2 Q1.
+     * Phase 4 FUN-01 will dispatch the CAPI twin from onRun().
+     *
+     * @return array<class-string, string>
+     */
+    #[\Override]
+    public function registerComponents(): array
+    {
+        return [
+            PixelHead::class => 'pixelHead',
         ];
     }
 }
