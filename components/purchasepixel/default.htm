@@ -1,0 +1,30 @@
+{# @var arMetaEvent array{event_id: string, event_time: int, event_name: string, custom_data: array}|null #}
+
+{#
+    Phase 3 plan 03-06 — browser-side Meta Pixel twin for the thank-you page.
+
+    Mirrors the PixelHead Twig partial's defence-in-depth: every
+    interpolation inside <script> uses the e('js') escaper for JS-string-
+    context escaping. event_id is server-generated UUIDv4 from
+    OrderStatusWatcher and is provably alphanumeric+dash — the escaper
+    is a no-op today but is the T-04-02 / T-03-33 mitigation against a
+    future regression that lets attacker-controlled strings reach the
+    column.
+
+    custom_data is rendered via |json_encode|raw — json_encode produces
+    a syntactically-safe JS object literal.
+
+    No render when arMetaEvent is null (any guard failure in
+    PurchasePixel::onRun — disabled / order-not-found / non-paid /
+    missing event_id / missing event_time). The fbq('init', ...) call
+    is owned by PixelHead — this component only fires the Purchase
+    track event with the persisted eventID.
+#}
+{% if __SELF__.arMetaEvent is not null %}
+<!-- Metapixel — server-deduplicated Purchase Pixel twin -->
+<script>
+    if (typeof fbq === 'function') {
+        fbq('track', 'Purchase', Object.assign({event_time: {{ __SELF__.arMetaEvent.event_time }} }, {{ __SELF__.arMetaEvent.custom_data|json_encode|raw }}), { eventID: '{{ __SELF__.arMetaEvent.event_id|e('js') }}' });
+    }
+</script>
+{% endif %}
