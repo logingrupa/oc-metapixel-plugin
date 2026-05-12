@@ -1,0 +1,125 @@
+<?php
+
+namespace Logingrupa\Metapixelshopaholic\Classes\Helper;
+
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Log;
+use Logingrupa\Metapixelshopaholic\Models\Settings;
+use October\Rain\Support\Traits\Singleton;
+
+/**
+ * Single source of truth for Logingrupa.Metapixelshopaholic boot-time disabled state.
+ *
+ * SKEL-05 contract:
+ *   - Missing `pixel_id` in Settings = log Warning + return isDisabled() === true.
+ *   - Never throws at boot (would cascade through Campaigns/PromoMechanism/Order).
+ *
+ * Container-singleton bridge:
+ *   Every Phase 3+ event handler MUST short-circuit via:
+ *
+ *     if (App::make('metapixel.disabled')) { return; }
+ *
+ *   at the top of its handler body. The bridge is bound by init() and resolves
+ *   to the memoized isDisabled() boolean for the lifetime of the request.
+ *
+ * Testing:
+ *   Call PluginGuard::flush() in tearDown() to reset both the Singleton-trait
+ *   instance and the container binding.
+ *
+ * @author Logingrupa
+ */
+class PluginGuard
+{
+    use Singleton;
+
+    /**
+     * Memoized disabled flag. `null` = unprimed, `true`/`false` after prime().
+     *
+     * @var bool|null
+     */
+    protected $bIsDisabled = null;
+
+    /**
+     * Memoized pixel_id. Populated by prime() when Settings returns a non-empty value.
+     *
+     * @var string|null
+     */
+    protected $sPixelId = null;
+
+    /**
+     * Return the memoized disabled flag.
+     *
+     * @return bool
+     */
+    public function isDisabled(): bool
+    {
+        $this->prime();
+
+        return (bool) $this->bIsDisabled;
+    }
+
+    /**
+     * Return the memoized pixel_id (null when disabled).
+     *
+     * @return string|null
+     */
+    public function getPixelId(): ?string
+    {
+        $this->prime();
+
+        return $this->sPixelId;
+    }
+
+    /**
+     * Reset both the Singleton-trait instance and the container singleton bridge.
+     * Intended for test teardown — flushes the disabled-flag memo between tests.
+     *
+     * @return void
+     */
+    public static function flush(): void
+    {
+        if (App::bound('metapixel.disabled')) {
+            App::forgetInstance('metapixel.disabled');
+        }
+
+        self::forgetInstance();
+    }
+
+    /**
+     * Auto-invoked by the Singleton trait on the first instance() call.
+     * Primes the memo and binds the `metapixel.disabled` container singleton.
+     *
+     * @return void
+     */
+    protected function init(): void
+    {
+        $this->prime();
+
+        App::singleton('metapixel.disabled', fn (): bool => $this->isDisabled());
+    }
+
+    /**
+     * Read Settings::get('pixel_id') once, log a warning when empty, set the
+     * memoized $bIsDisabled flag. Idempotent — early-returns when already primed.
+     *
+     * @return void
+     */
+    protected function prime(): void
+    {
+        if ($this->bIsDisabled !== null) {
+            return;
+        }
+
+        $mPixelId = Settings::get('pixel_id', '');
+        $sPixelId = is_scalar($mPixelId) ? (string) $mPixelId : '';
+        if ($sPixelId === '') {
+            Log::warning('Metapixel: pixel_id not configured — plugin disabled');
+            $this->bIsDisabled = true;
+
+            return;
+        }
+
+        $this->sPixelId = $sPixelId;
+        $this->bIsDisabled = false;
+    }
+}
