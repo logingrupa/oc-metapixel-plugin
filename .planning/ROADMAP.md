@@ -44,7 +44,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. On a fresh browser session, `_fbp` and `_fbc` cookies are set server-side by `EnsureFbpFbcCookies` middleware within the first request (no cookie = middleware sets one; cookie exists = middleware no-ops).
   4. Booting with empty `pixel_id` logs `Log::warning('Metapixel: pixel_id not configured — plugin disabled')` and does NOT throw. Verified by feature test.
   5. The theme's existing `facebook_pixel.htm` partial renders unchanged when no `arMetaEvent` is set (no regression), and renders event metadata + `fbq('track', ..., {eventID})` when it IS set.
-**Plans:** TBD
+**Plans:** 4 plans
+  - [ ] 02-01-PLAN.md — Plugin boot + Settings + lang scaffolding (SKEL-01, SKEL-02, SKEL-06)
+  - [ ] 02-02-PLAN.md — PluginGuard helper + boot-time disabled flag (SKEL-05)
+  - [ ] 02-03-PLAN.md — EnsureFbpFbcCookies middleware + global registration (SKEL-03)
+  - [ ] 02-04-PLAN.md — PixelHead component alongside theme partial (SKEL-04)
 
 ### Phase 3: Purchase end-to-end
 
