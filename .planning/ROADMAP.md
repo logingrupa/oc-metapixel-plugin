@@ -12,7 +12,7 @@ Five sequential phases (S0→S4 in PLAN.md terms) ship a production-grade Meta P
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Tooling** — `composer qa` green on empty plugin (composer.json, phpstan lvl 10 + larastan + universalObjectCrates, phpmd copy of Toolbox, pint, rector, Pest 4 + MetapixelTestCase, CI).
+- [x] **Phase 1: Tooling** — `composer qa` green on empty plugin (composer.json, phpstan lvl 10 + larastan + universalObjectCrates, phpmd copy of Toolbox, pint, rector, Pest 4 + MetapixelTestCase, CI). ✓ 2026-05-12
 - [ ] **Phase 2: Skeleton + cookie fix** — Plugin.php, Settings extending CommonSettings, `EnsureFbpFbcCookies` middleware. Fixes live empty-cookie bug.
 - [ ] **Phase 3: Purchase end-to-end** — MetaClient, SendCapiEvent queue job, OrderStatusWatcher, idempotency via `meta_purchase_event_id` column, PayloadBuilder + UserDataHasher + custom exception hierarchy. Dedup verified ≥ 80 % / EMQ ≥ 8 in Test Events.
 - [ ] **Phase 4: Funnel completion** — PageView, ViewContent, ViewCategory, Search, AddToCart, AddToWishlist, InitiateCheckout, AddPaymentInfo, Lead, CompleteRegistration, Contact. All share event_id + event_time. content_ids format locked to Facebook Catalog feed.
@@ -94,7 +94,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |---|---|---|---|
-| 1. Tooling | 0/- | Not started | - |
+| 1. Tooling | 1/1 | Complete | 2026-05-12 |
 | 2. Skeleton + cookie fix | 0/- | Not started | - |
 | 3. Purchase end-to-end | 0/- | Not started | - |
 | 4. Funnel completion | 0/- | Not started | - |
