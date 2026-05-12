@@ -32,8 +32,9 @@ use Throwable;
  *    multi-offer → `SKU-{product_id}-{offer_id}`.
  *  - `custom_data.order_id` = `$obOrder->order_number` (e.g. '260512-0002'),
  *    NOT `$obOrder->id` (FUN-14 prerequisite).
- *  - Currency: 4-step fallback per CONTEXT.md Specifics line 158 — relation
- *    → direct property → Settings::get('currency_code', 'EUR') → throw.
+ *  - Currency: 3-source fallback chain + fail-fast per CONTEXT.md Specifics
+ *    line 158 — relation → direct property → Settings::get('currency_code',
+ *    'EUR'); if all three sources are empty, throw OrderHasNoCurrencyException.
  *
  * Class file ≤ 250 LOC; phpstan level 10 strict; Hungarian notation throughout.
  */
@@ -139,13 +140,20 @@ class PayloadBuilder
     }
 
     /**
-     * 4-step currency fallback chain per CONTEXT.md Specifics line 158:
+     * 3-source currency fallback chain + fail-fast per CONTEXT.md Specifics
+     * line 158. WR-03 lock: docblock corrected from "4-step" — the throw is
+     * the fail-fast terminator after the 3 sources are exhausted, not a 4th
+     * source. To add a real 4th source (e.g. Lovata\Shopaholic\Models\Currency
+     * ::getDefault()) would require updating tests + CONTEXT; we keep the
+     * Phase-3-locked 3-source contract.
+     *
      *   1. $obOrder->currency relation populated (Currency::$code)
      *   2. $obOrder->currency_code accessor (denormalised — same path in
      *      current Lovata.OrdersShopaholic but kept for forward-compat)
      *   3. Settings::get('currency_code', 'EUR') — global multi-site fallback
      *      (default EUR; .no operator overrides to NOK)
-     *   4. Throw OrderHasNoCurrencyException — LAST line of defence
+     *   → Throw OrderHasNoCurrencyException if all three sources are empty
+     *     (fail-fast terminator, not a 4th source).
      *
      * @throws OrderHasNoCurrencyException
      */
