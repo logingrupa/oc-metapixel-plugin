@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0.0
 milestone_name: milestone
 status: in-progress
-stopped_at: "Plan 03-04 complete (PAY-06 + PAY-07 + PAY-08 — PayloadBuilder Purchase envelope + UserDataHasher CCache memoization + OrderFixtures real-DB factory: 5 files / 94 tests / 289 assertions / 90.0% total / PayloadBuilder.php 84.1% / UserDataHasher.php 90.3%). Next: plan 03-05 (PAY-02 — SendCapiEvent queue job)."
-last_updated: "2026-05-12T22:26:07Z"
-last_activity: 2026-05-12 -- Plan 03-04 shipped (composer qa green, 94 tests / 289 assertions / 0 skipped / 90.0 % coverage / PayloadBuilder.php 84.1 % / UserDataHasher.php 90.3 %). Phase 3 4/6 plans done.
+stopped_at: "Plan 03-05 complete (PAY-02 — SendCapiEvent Laravel 12 ShouldQueue queue job: 3 files / 106 tests / 318 assertions / 90.9% total / SendCapiEvent.php 100.0%). Next: plan 03-06 (PAY-03 — OrderStatusWatcher dispatch site)."
+last_updated: "2026-05-12T22:39:12Z"
+last_activity: 2026-05-12 -- Plan 03-05 shipped (composer qa green, 106 tests / 318 assertions / 0 skipped / 90.9 % coverage / SendCapiEvent.php 100.0 %). Phase 3 5/6 plans done.
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 6
-  completed_plans: 4
-  percent: 66
+  completed_plans: 5
+  percent: 83
 ---
 
 # Project State
@@ -26,19 +26,17 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 ## Current Position
 
 Phase: 03 (purchase-end-to-end) — in progress
-Plan: 4 of 6 (03-01 + 03-02 + 03-03 + 03-04 shipped — PAY-01 + PAY-04 + PAY-05 + PAY-06 + PAY-07 + PAY-08 + PAY-09 done)
-Status: Phase 03 wave 2 complete — plans 03-01 + 03-02 + 03-03 + 03-04 done. Next: plan 03-05 (PAY-02, wave 3 — SendCapiEvent queue job).
-Last activity: 2026-05-12 -- Plan 03-04 shipped: classes/meta/PayloadBuilder.php (303 LOC) — Graph API v20 Purchase envelope with 4-step currency fallback (relation → field → Settings → throw per CONTEXT.md Specifics line 158), byte-for-byte content_ids contract (StoreExtender::CartComponentHandler::buildSkuId), all 3 PAY-09 precondition throws (InvalidEventIdException, OrderHasNoCurrencyException, OrderHasNoItemsException), constructor-injected UserDataHasher with lazy default, custom_data.order_id = order_number (NOT id) per FUN-14, resolveProductIdForOffer helper (Offer::where('id', $iOfferId)->value('product_id')) — handles OrderPosition polymorphic schema (item_id + item_type), getRawOriginal('price') bypasses PriceHelperTrait formatter. classes/meta/UserDataHasher.php (195 LOC) — sha256(mb_strtolower(trim)) for em/ph/fn/ln/external_id, plaintext request metadata (client_ip/UA/fbp/fbc), phone normalisation honouring Settings phone_country_code (default 371 LV; multi-site .no=47), guest external_id = sha256(secret_key) per PAY-08, CCache memoization (tag 'meta-pixel-user-hash', key 'meta-pixel-user-hash:order:{id}'). tests/Support/OrderFixtures.php — 3 named factory methods (makePaidOrder / makeMultiOfferOrder / makeGuestOrderWithoutEmail) + 6 typed constants (EXPECTED_SINGLE_SKU = 'SKU-10', EXPECTED_MULTI_SKU = 'SKU-11-102', etc.) + hermetic offer/product/order_position table provisioning + one_c_status_id column patch (Lovata.BaseCode dependency). tests/Unit/PayloadBuilderTest.php — 14 test methods locking envelope shape + content_ids + custom_data + 3 PAY-09 preconditions + REVISED 4-step currency fallback (2 tests: settings-fallback NO-throw path + all-3-sources-empty THROW path per BLOCKER 1 resolution). tests/Unit/UserDataHasherTest.php — 11 test methods locking PII hashing + phone normalisation 3 paths + cache memoization + determinism. 5 task commits + 1 phpstan auto-fix commit + summary commit. composer qa green: 94 tests / 289 assertions / 0 skipped / **90.0% coverage** (PayloadBuilder 84.1% / UserDataHasher 90.3% / MetaClient 100% / Exceptions 100% / FailedEvent 100%). 7 deviations: Rule 1 phpstan level 10 11-error narrowing (added stringOrEmpty/intOrZero/floatOrZero/stringOrNull/narrowCachedArray helpers, replaced instanceof Request with try/return-on-throw, replaced relation access with getRelationValue + is_object + method_exists guard); Rule 1 OrderPosition polymorphic (resolveProductIdForOffer + getRawOriginal('item_id')); Rule 1 price column not price_value (getRawOriginal('price') bypasses PriceHelper::format); Rule 3 one_c_status_id Lovata.BaseCode dependency (OrderFixtures patches column into bootOrdersTable schema); Rule 3 currency_id = null in fixtures (no hermetic currency table); Rule 3 Offer SoftDelete + orderBy('sort_order') (added columns in OrderFixtures); Rule 1 pint cosmetic (4 fixers applied).
-
-Plan-checker BLOCKER 1 resolved: resolveCurrency 4-step fallback chain (relation → field → Settings → throw) per CONTEXT.md Specifics line 158, locked by 2 unit tests (NO-throw fallback path + THROW last-line-of-defence path).
+Plan: 5 of 6 (03-01 + 03-02 + 03-03 + 03-04 + 03-05 shipped — PAY-01 + PAY-02 + PAY-04 + PAY-05 + PAY-06 + PAY-07 + PAY-08 + PAY-09 done)
+Status: Phase 03 wave 3 partial — plans 03-01..03-05 done. Next: plan 03-06 (PAY-03, wave 4 — OrderStatusWatcher dispatch site + PAY-10..11 manual staging verification).
+Last activity: 2026-05-12 -- Plan 03-05 shipped: classes/queue/SendCapiEvent.php (181 LOC) — Laravel 12 ShouldQueue queue job (final class) with 4 traits (Dispatchable, InteractsWithQueue, Queueable, SerializesModels), public int $tries = 3, public array $backoff = [1, 4, 16], constructor-promoted readonly properties (public readonly string $sEventName, public readonly array $arPayload), container-injected handle(MetaClient $obClient): void with 3-branch try/catch: success → Log::info, MetaApiTransientException → Log::warning + RETHROW for Laravel retry, multi-catch MetaApiPermanentException | MissingPixelConfigException | MissingCapiTokenException → writeFailedEvent + Log::error + no rethrow (CONTEXT Area 1 Q2 dead-letter contract). failed(Throwable $obException): void hook for $tries-exhausted dead-letter — wraps non-Meta exceptions as MetaApiPermanentException to preserve FailedEvent type contract. Private writeFailedEvent helper with documented silent catch (T-03-22 worker-park mitigation). buildLogContext helper namespaces all keys under meta_pixel.* (CONTEXT Discretion #9). tests/Feature/SendCapiEventTest.php (320 LOC, 12 test methods, 29 assertions): success-on-200, transient rethrow, $tries-exhausted failed() hook, permanent (400) no-rethrow, missing pixel_id, missing capi_access_token, $tries/$backoff lock, DB-write failure absorbed, ShouldQueue reflection check, Mockery payload-passthrough spy, failed() non-Meta wrap, readonly property propagation. dispatchSync runs handle()/failed() synchronously; $this->app->instance(MetaClient::class, $obMock) binds mock into container. Mockery first plugin use. 3 task commits + 1 summary commit. composer qa green: 106 tests / 318 assertions / 0 skipped / **90.9% coverage** (SendCapiEvent.php 100.0% / MetaClient.php 100% / PayloadBuilder 84.1% / UserDataHasher 90.3% / Exceptions 100% / FailedEvent 100%). 4 deviations: Rule 1 pint cosmetic (3 fixers — types_spaces no-space-around-pipe in multi-catch + single_line_empty_body + phpdoc_align); Rule 1 PHPUnit risky-test for Log::shouldHaveReceived (rewrote to state assertion on readonly properties); Rule 1 PHPUnit risky-test for Mockery::on closure (added captured-by-reference buffer + assertSame); Rule 1 unused MetaApiPermanentException import cleanup.
 
 ## Performance Metrics
 
 **Velocity:**
 
-- Total plans completed: 9 (Phase 1 + Plans 02-01..04 + Plans 03-01..04)
-- Average duration: ~21 min (Plans 02-01 + 02-02 + 02-03 + 02-04 + 03-01 + 03-02 + 03-03 + 03-04: ~94+9+10+5+14+39 ≈ ~171 min / 8 plans = ~21 min); Phase 1 not timed
-- Total execution time: ~2.85 hours
+- Total plans completed: 10 (Phase 1 + Plans 02-01..04 + Plans 03-01..05)
+- Average duration: ~20 min (Plans 02-01 + 02-02 + 02-03 + 02-04 + 03-01 + 03-02 + 03-03 + 03-04 + 03-05: ~94+9+10+5+14+39+6 ≈ ~177 min / 9 plans = ~20 min); Phase 1 not timed
+- Total execution time: ~2.95 hours
 
 **By Phase:**
 
@@ -46,12 +44,12 @@ Plan-checker BLOCKER 1 resolved: resolveCurrency 4-step fallback chain (relation
 |---|---|---|---|
 | 1. Tooling | 1 | — | — |
 | 2. Skeleton+cookie | 4/4 | ~103 min | 26 min |
-| 3. Purchase end-to-end | 4/6 | ~68 min | 17 min |
+| 3. Purchase end-to-end | 5/6 | ~74 min | 15 min |
 
 **Recent Trend:**
 
-- Last 9 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01..04 (all passed), 03-purchase/03-01-PLAN + 03-02-PLAN + 03-03-PLAN + 03-04-PLAN (passed).
-- Trend: Plan 03-04 = 5 task commits + 1 phpstan auto-fix follow-up + 1 summary commit, 7 deviations (Rule 1 phpstan level 10 11-error narrowing, Rule 1 OrderPosition polymorphic schema discovery, Rule 1 price column not price_value, Rule 3 one_c_status_id Lovata.BaseCode, Rule 3 hermetic Currency table absent, Rule 3 Offer SoftDelete + orderBy, Rule 1 pint cosmetic). composer qa green / 94 tests / 289 assertions / 0 skipped / **90.0 % coverage** (was 92.7 %; -2.7pp, explained by +700 LOC new production code) / **PayloadBuilder.php 84.1 %** / **UserDataHasher.php 90.3 %**. **Phase 3 wave 2 COMPLETE — PAY-06 + PAY-07 + PAY-08 shipped on top of wave 1 (PAY-01 + PAY-04 + PAY-05 + PAY-09). 4 plans / 4 requirements (PAY-02 + PAY-03 + PAY-10..11) still pending.**
+- Last 10 plans: 01-tooling/01-PLAN (passed), 02-skeleton/02-01..04 (all passed), 03-purchase/03-01-PLAN + 03-02-PLAN + 03-03-PLAN + 03-04-PLAN + 03-05-PLAN (passed).
+- Trend: Plan 03-05 = 3 task commits + 1 summary commit, 4 deviations (all Rule 1 cosmetic / test hygiene — pint multi-catch types_spaces, PHPUnit risky-test on Log spy, PHPUnit risky-test on Mockery::on, unused import). composer qa green / 106 tests / 318 assertions / 0 skipped / **90.9 % coverage** (was 90.0 %; +0.9pp) / **SendCapiEvent.php 100.0 %**. Plan duration ~6 min (fastest Phase 3 plan; benefits from established patterns — Settings reflection priming, MockHandler test infra, FailedEvent factory contract all reused verbatim from prior plans). **Phase 3 wave 3 PARTIAL — PAY-02 shipped. 1 plan / 3 requirements (PAY-03 + PAY-10..11) still pending.**
 
 *Updated after each plan completion*
 
@@ -111,6 +109,18 @@ New from Plan 03-02 execution:
 - **EH-03** `composer qa` total coverage 76.1% → 89.3% (+13.2pp) — driven by FailedEvent jumping 0% → 100% (the 3 previously-skipped factory tests now run) + all 8 new exception classes at 100%. The "is FailedEvent really 0%?" doubt from plan 03-01's SUMMARY is resolved: it WAS only because the factory was untested, not because of pcov trait-attribution. The trait-attribution explanation was wrong; the static factory was simply unreached by Phase 2 baseline tests.
 - **EH-04** `jsonContext([])` returns the JSON-array literal `'[]'`, NOT `'{}'` (the `'{}'` literal is the encode-failure fallback only — verified with stream resources in ExceptionHierarchyTest::test_jsonContext_returns_compact_json). The GoodsReceivedException analog has identical behavior. Forward-impact: any Phase-3 plan that wants `'{}'` for empty input must wrap with `$ar === [] ? '{}' : self::jsonContext($ar)`.
 
+New from Plan 03-05 execution:
+
+- **SCE-01** Laravel 12 ShouldQueue queue-job shape — first plugin use of the modern pattern (`PATTERNS.md` flagged "No analog found" — only legacy October-3 `fire($obJob, $arData)` precedents). Final shape: `final class SendCapiEvent implements ShouldQueue` + 4 traits (Dispatchable, InteractsWithQueue, Queueable, SerializesModels) + readonly constructor promotion + container-injected `handle(MetaClient $obClient): void` + `failed(Throwable): void` hook + private writeFailedEvent + buildLogContext helpers. Pattern locked for Phase 4 funnel jobs — they dispatch a NEW SendCapiEvent instance per handler, no subclassing (final class enforces).
+- **SCE-02** Multi-catch routes `MetaApiPermanentException | MissingPixelConfigException | MissingCapiTokenException` to a single dead-letter branch. All three return `isRetryable() === false` from the 03-02 exception hierarchy; separating into three catch branches would double catch-block surface for negligible gain. **Forward-impact:** any future MetaPixelException subclass that should dead-letter MUST be added to this multi-catch.
+- **SCE-03** Constructor signature `(string $sEventName, array $arPayload)` — flat positional args; $sEventName FIRST so the call reads left-to-right as a typed action: "send EVENT_NAME with PAYLOAD". Locked for plans 03-06 + Phase 4 dispatch sites.
+- **SCE-04** `failed()` hook else-branch wraps non-Meta exceptions as MetaApiPermanentException. Laravel may call failed() with any Throwable (DB outage, container resolution failure, SerializesModels rehydration error). The wrap preserves `FailedEvent::createFromPayloadAndException(MetaPixelException)` type contract. Test `test_failed_hook_wraps_non_meta_exception_as_permanent` locks the contract.
+- **SCE-05** PHPUnit 12 risky-test pitfall: `Log::shouldHaveReceived(...)` and `Mockery::on(closure)` assertions are NOT counted by PHPUnit because they validate in `Mockery::close()`/`tearDown`, not via `$this->assert*()`. Fix: always assert state directly via `$this->assertSame(...)` — for Mockery use a captured-by-reference buffer (`$arCaptured`) inside the closure and assert against it post-dispatch. Pattern locked for any future Mockery test in this plugin.
+- **SCE-06** Test infra: `bindMetaClientWithMockResponses(array $arResponses): void` binds a MockHandler-backed MetaClient into the container via `$this->app->instance(MetaClient::class, ...)`. SendCapiEvent::dispatchSync resolves MetaClient from the container in `handle(MetaClient)` — auto-resolution picks up the bound mock. No Queue::fake required.
+- **SCE-07** Tiger-Style silent catch in `writeFailedEvent` — DB-write failure during dead-letter logs critical only; rethrowing would cause Laravel to retry an already-permanent failure or cascade a DB outage. T-03-22 mitigation. Locked by `test_db_write_failure_during_dead_letter_does_not_cascade` (drops failed_events table → dispatchSync does NOT throw).
+- **SCE-08** `public readonly array $arPayload` locks payload immutability across retries (T-03-23 mitigation). PHP 8.4 readonly enforcement means the same payload bytes go to Meta on every retry → idempotent at the Meta side via event_id.
+- **SCE-09** No `ShouldBeUniqueUntilProcessing` dep. Idempotency lives at the dispatch site (plan 03-06 OrderStatusWatcher's `meta_purchase_event_id IS NULL` fence on `lovata_orders_shopaholic_orders`), not the job level. CONTEXT Area 1 Q3 lock.
+
 New from Plan 03-04 execution:
 
 - **PB-01** PayloadBuilder pattern: stateless single-shot transform with constructor-injected `?UserDataHasher = null` (lazy default). Test mock-surface = pass `new PayloadBuilder($obFakeHasher)`. Forward-impact: Phase 4 funnel-event specialisations (`buildViewContentPayload`, `buildAddToCartPayload`, etc.) add public methods to the same class — `wrapEnvelope(array): array` extraction lands when the second public method ships.
@@ -153,7 +163,7 @@ None. All 5 open questions resolved via codebase evidence (see `.planning/answer
 
 ## Session Continuity
 
-Last activity: 2026-05-12 — Plan 03-04 (PayloadBuilder + UserDataHasher + OrderFixtures — PAY-06 + PAY-07 + PAY-08) shipped end-to-end. 5 task commits + 1 phpstan auto-fix commit + 1 summary commit. composer qa green: 94 tests / 289 assertions / 0 skipped / **90.0 % coverage** (PixelHead 94.4 % / middleware 96.1 % / PluginGuard 93.5 % / Settings 92.9 % / Plugin 52.0 % / FailedEvent 100% / all 8 exception classes 100% / MetaClient 100 % / **PayloadBuilder 84.1 %** / **UserDataHasher 90.3 %**). PAY-01 + PAY-04 + PAY-05 + PAY-06 + PAY-07 + PAY-08 + PAY-09 complete. **Phase 3: 4 / 6 plans done — wave 2 COMPLETE (PAY-06 + PAY-07 + PAY-08 shipped on top of PAY-01 + PAY-04 + PAY-05 + PAY-09). 2 plans / 4 requirements (PAY-02 + PAY-03 + PAY-10..11) pending.**
+Last activity: 2026-05-12 — Plan 03-05 (SendCapiEvent Laravel 12 ShouldQueue queue job — PAY-02) shipped end-to-end. 3 task commits + 1 summary commit. composer qa green: 106 tests / 318 assertions / 0 skipped / **90.9 % coverage** (PixelHead 94.4 % / middleware 96.1 % / PluginGuard 93.5 % / Settings 92.9 % / Plugin 52.0 % / FailedEvent 100% / all 8 exception classes 100% / MetaClient 100 % / PayloadBuilder 84.1 % / UserDataHasher 90.3 % / **SendCapiEvent 100.0 %**). PAY-01 + PAY-02 + PAY-04 + PAY-05 + PAY-06 + PAY-07 + PAY-08 + PAY-09 complete. **Phase 3: 5 / 6 plans done — wave 3 PARTIAL (PAY-02 shipped). 1 plan / 3 requirements (PAY-03 + PAY-10..11) pending.**
 Last session: 2026-05-12
-Stopped at: Plan 03-04 complete. PayloadBuilder + UserDataHasher transform layer in place. Next: plan 03-05 (PAY-02 — SendCapiEvent queue job). The PayloadBuilder.buildPurchaseEventPayload + UserDataHasher.forOrder contracts are the consumer surfaces for SendCapiEvent (which calls MetaClient::send with the built envelope) and OrderStatusWatcher (which dispatches SendCapiEvent with the order_id + event_id + event_time tuple).
-Resume file: `.planning/phases/03-purchase-end-to-end/03-05-PLAN.md`
+Stopped at: Plan 03-05 complete. SendCapiEvent queue boundary in place. Next: plan 03-06 (PAY-03 — OrderStatusWatcher dispatch site + PAY-10..11 manual staging verification). The SendCapiEvent::dispatch('Purchase', $arPayload) contract is the consumer surface for OrderStatusWatcher — argument order is `(string $sEventName, array $arPayload)` per SCE-03 lock. OrderStatusWatcher must generate UUIDv4 + saveQuietly to meta_purchase_event_id + dispatch SendCapiEvent, all fenced by `meta_purchase_event_id IS NULL` per CONTEXT Area 2 Q4.
+Resume file: `.planning/phases/03-purchase-end-to-end/03-06-PLAN.md`
