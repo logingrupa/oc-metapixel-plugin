@@ -31,8 +31,8 @@
 - [ ] **PAY-01**: `classes/meta/MetaClient.php` wraps Guzzle (`guzzlehttp/guzzle ^7.8`) targeting Graph API v20 `/events` endpoint. Constructor-injectable `ClientInterface` for test mocking. Reads `pixel_id`, `capi_access_token`, `test_event_code` from Settings. Exponential-backoff retry 3× on transient errors (HTTP 429/5xx), throws `MetaApiTransientException`. Permanent errors (4xx except 429) throw `MetaApiPermanentException`.
 - [ ] **PAY-02**: `classes/queue/SendCapiEvent.php` queue job accepting `(event_id, event_time, event_name, custom_data, user_data, action_source, event_source_url)`. Retries 3× on `MetaApiTransientException`. On `MetaApiPermanentException` → `FailedEvent::createFromPayloadAndException` + no rethrow (dead-lettered). Logs at each stage with context array.
 - [ ] **PAY-03**: `classes/event/OrderStatusWatcher.php` listens on `Order::model.afterUpdate`. When `$obOrder->status->code === Settings::get('paid_status_code', 'new-payment-received')` AND `meta_purchase_event_id` is NULL, it generates a UUID v4, `saveQuietly` to the column, and dispatches `SendCapiEvent::dispatch(...)`. Idempotent by DB-level guard.
-- [ ] **PAY-04**: `updates/add_meta_purchase_event_id_to_orders_table.php` adds `meta_purchase_event_id VARCHAR(36) NULL` + index, positioned after the existing `secret_key` column on `lovata_orders_shopaholic_orders`. Reversible `down()`.
-- [ ] **PAY-05**: `updates/create_table_failed_events.php` creates `logingrupa_metapixel_failed_events` table (id, event_id UUID, event_name, payload JSON, graph_error TEXT, http_status INT, attempts INT, created_at, updated_at). `models/FailedEvent.php` = plain `October\Rain\Database\Model` + `Validation` trait.
+- [x] **PAY-04**: `updates/add_meta_purchase_event_id_to_orders_table.php` adds `meta_purchase_event_id VARCHAR(36) NULL` + index, positioned after the existing `secret_key` column on `lovata_orders_shopaholic_orders`. Reversible `down()`. ✓ Plan 03-01 (also adds `meta_purchase_event_time BIGINT UNSIGNED NULL` for Pixel + CAPI event_time dedup matching)
+- [x] **PAY-05**: `updates/create_table_failed_events.php` creates `logingrupa_metapixel_failed_events` table (id, event_id UUID, event_name, payload JSON, graph_error TEXT, http_status INT, attempts INT, created_at, updated_at). `models/FailedEvent.php` = plain `October\Rain\Database\Model` + `Validation` trait. ✓ Plan 03-01 (payload column is LONGTEXT per CONTEXT Area 4 Q1; factory `createFromPayloadAndException(array, MetaPixelException): self` shipped)
 - [ ] **PAY-06**: `classes/meta/PayloadBuilder.php` `buildPurchaseEventPayload(Order, event_id): array` returns Graph API envelope with `data[0] = {event_id, event_time, event_name: 'Purchase', action_source: 'website', event_source_url, user_data, custom_data: {order_id, contents[], value, currency}}`. Preconditions throw (see PAY-09). Contents use `SKU-{product_id}[-{offer_id}]` format (see PAY-13).
 - [ ] **PAY-07**: `classes/meta/UserDataHasher.php` builds hashed user_data (em, ph, fn, ln, external_id, client_ip_address, client_user_agent, fbp, fbc). Phone normalised with `phone_country_code` Settings default (`371`). All PII passes `hash('sha256', mb_strtolower(trim($sValue)))`. Cached per-request via `CCache` tag `meta-pixel-user-hash`, keyed by request id (guest) or `order:{id}` (checkout).
 - [ ] **PAY-08**: Anonymous `external_id` fallback for guest orders = `hash('sha256', $obOrder->secret_key)`. Stable per-order, no User row required.
@@ -123,8 +123,8 @@
 | PAY-01 | Phase 3 | Pending |
 | PAY-02 | Phase 3 | Pending |
 | PAY-03 | Phase 3 | Pending |
-| PAY-04 | Phase 3 | Pending |
-| PAY-05 | Phase 3 | Pending |
+| PAY-04 | Phase 3 | Plan 03-01 Complete |
+| PAY-05 | Phase 3 | Plan 03-01 Complete |
 | PAY-06 | Phase 3 | Pending |
 | PAY-07 | Phase 3 | Pending |
 | PAY-08 | Phase 3 | Pending |
