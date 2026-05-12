@@ -50,7 +50,7 @@ class PayloadBuilder
 
     public function __construct(?UserDataHasher $obHasher = null)
     {
-        $this->obHasher = $obHasher ?? new UserDataHasher();
+        $this->obHasher = $obHasher ?? new UserDataHasher;
     }
 
     /**
@@ -58,17 +58,18 @@ class PayloadBuilder
      *
      * @return array<string, mixed>
      *
-     * @throws InvalidEventIdException     when event_id is empty or not a valid UUID
+     * @throws InvalidEventIdException when event_id is empty or not a valid UUID
      * @throws OrderHasNoCurrencyException when relation + currency_code + Settings all empty
-     * @throws OrderHasNoItemsException    when order_position is empty
+     * @throws OrderHasNoItemsException when order_position is empty
      */
     public function buildPurchaseEventPayload(Order $obOrder, string $sEventId, int $iEventTime): array
     {
-        $this->assertValidEventId($sEventId, $obOrder);
+        $iOrderId = $this->intOrZero($obOrder->getAttribute('id'));
+        $this->assertValidEventId($sEventId, $iOrderId);
 
-        $sCurrency = $this->resolveCurrency($obOrder);
+        $sCurrency = $this->resolveCurrency($obOrder, $iOrderId);
 
-        $arPositions = $this->resolveOrderPositions($obOrder);
+        $arPositions = $this->resolveOrderPositions($obOrder, $iOrderId);
 
         $arContentsAggregate = $this->buildContents($arPositions);
         $arContents = $arContentsAggregate['contents'];
@@ -88,7 +89,7 @@ class PayloadBuilder
             'event_source_url' => $sEventSourceUrl,
             'user_data' => $arUserData,
             'custom_data' => [
-                'order_id' => (string) $obOrder->getAttribute('order_number'),
+                'order_id' => $this->stringOrEmpty($obOrder->getAttribute('order_number')),
                 'currency' => $sCurrency,
                 'value' => $fTotalValue,
                 'num_items' => $iNumItems,
@@ -102,20 +103,20 @@ class PayloadBuilder
     /**
      * @throws InvalidEventIdException
      */
-    private function assertValidEventId(string $sEventId, Order $obOrder): void
+    private function assertValidEventId(string $sEventId, int $iOrderId): void
     {
         if ($sEventId === '' || ! Uuid::isValid($sEventId)) {
             throw new InvalidEventIdException(
                 'event_id is not a valid UUID',
-                ['event_id' => $sEventId, 'order_id' => (int) $obOrder->id],
+                ['event_id' => $sEventId, 'order_id' => $iOrderId],
             );
         }
     }
 
     /**
      * 4-step currency fallback chain per CONTEXT.md Specifics line 158:
-     *   1. $obOrder->currency?->code (Currency BelongsTo populated)
-     *   2. $obOrder->currency_code (denormalised accessor — same path in
+     *   1. $obOrder->currency relation populated (Currency::$code)
+     *   2. $obOrder->currency_code accessor (denormalised — same path in
      *      current Lovata.OrdersShopaholic but kept for forward-compat)
      *   3. Settings::get('currency_code', 'EUR') — global multi-site fallback
      *      (default EUR; .no operator overrides to NOK)
@@ -123,11 +124,14 @@ class PayloadBuilder
      *
      * @throws OrderHasNoCurrencyException
      */
-    private function resolveCurrency(Order $obOrder): string
+    private function resolveCurrency(Order $obOrder, int $iOrderId): string
     {
-        $sFromRelation = $this->stringOrEmpty($obOrder->currency?->code ?? null);
-        if ($sFromRelation !== '') {
-            return $sFromRelation;
+        $mCurrency = $obOrder->getRelationValue('currency');
+        if (is_object($mCurrency) && method_exists($mCurrency, 'getAttribute')) {
+            $sCode = $this->stringOrEmpty($mCurrency->getAttribute('code'));
+            if ($sCode !== '') {
+                return $sCode;
+            }
         }
 
         $sFromField = $this->stringOrEmpty($obOrder->getAttribute('currency_code'));
@@ -143,8 +147,8 @@ class PayloadBuilder
         throw new OrderHasNoCurrencyException(
             'Order has no currency: relation, currency_code, and Settings fallback all empty',
             [
-                'order_id' => (int) $obOrder->id,
-                'order_number' => (string) $obOrder->getAttribute('order_number'),
+                'order_id' => $iOrderId,
+                'order_number' => $this->stringOrEmpty($obOrder->getAttribute('order_number')),
             ],
         );
     }
@@ -154,20 +158,22 @@ class PayloadBuilder
      *
      * @throws OrderHasNoItemsException
      */
-    private function resolveOrderPositions(Order $obOrder): array
+    private function resolveOrderPositions(Order $obOrder, int $iOrderId): array
     {
-        $obCollection = $obOrder->order_position;
+        $mCollection = $obOrder->getRelationValue('order_position');
         $arPositions = [];
-        foreach ($obCollection as $obPosition) {
-            if ($obPosition instanceof OrderPosition) {
-                $arPositions[] = $obPosition;
+        if (is_iterable($mCollection)) {
+            foreach ($mCollection as $obPosition) {
+                if ($obPosition instanceof OrderPosition) {
+                    $arPositions[] = $obPosition;
+                }
             }
         }
 
         if ($arPositions === []) {
             throw new OrderHasNoItemsException(
                 'Order has no positions — CAPI Purchase requires at least one item in contents[]',
-                ['order_id' => (int) $obOrder->id],
+                ['order_id' => $iOrderId],
             );
         }
 
@@ -185,10 +191,10 @@ class PayloadBuilder
         $iNumItems = 0;
 
         foreach ($arPositions as $obPosition) {
-            $iProductId = (int) $obPosition->product_id;
-            $iOfferId = (int) $obPosition->offer_id;
-            $iQuantity = (int) $obPosition->quantity;
-            $fPriceValue = (float) $obPosition->price_value;
+            $iProductId = $this->intOrZero($obPosition->getAttribute('product_id'));
+            $iOfferId = $this->intOrZero($obPosition->getAttribute('offer_id'));
+            $iQuantity = $this->intOrZero($obPosition->getAttribute('quantity'));
+            $fPriceValue = $this->floatOrZero($obPosition->getAttribute('price_value'));
 
             $arContents[] = [
                 'id' => $this->buildSkuId($iProductId, $iOfferId),
@@ -226,12 +232,12 @@ class PayloadBuilder
     {
         try {
             $obRequest = app(Request::class);
-
-            return $obRequest instanceof Request ? $obRequest->fullUrl() : null;
         } catch (Throwable) {
             // silent: no request in queue worker / CLI context.
             return null;
         }
+
+        return $obRequest->fullUrl();
     }
 
     private function stringOrEmpty(mixed $mValue): string
@@ -244,5 +250,35 @@ class PayloadBuilder
         }
 
         return (string) $mValue;
+    }
+
+    private function intOrZero(mixed $mValue): int
+    {
+        if (is_int($mValue)) {
+            return $mValue;
+        }
+        if (is_string($mValue) && is_numeric($mValue)) {
+            return (int) $mValue;
+        }
+        if (is_float($mValue)) {
+            return (int) $mValue;
+        }
+
+        return 0;
+    }
+
+    private function floatOrZero(mixed $mValue): float
+    {
+        if (is_float($mValue)) {
+            return $mValue;
+        }
+        if (is_int($mValue)) {
+            return (float) $mValue;
+        }
+        if (is_string($mValue) && is_numeric($mValue)) {
+            return (float) $mValue;
+        }
+
+        return 0.0;
     }
 }

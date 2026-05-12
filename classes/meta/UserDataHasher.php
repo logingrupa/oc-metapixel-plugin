@@ -46,17 +46,44 @@ class UserDataHasher
      */
     public function forOrder(Order $obOrder): array
     {
-        $sCacheKey = self::CACHE_KEY_PREFIX_ORDER.(int) $obOrder->id;
+        $mOrderId = $obOrder->getAttribute('id');
+        $iOrderId = is_int($mOrderId) || (is_string($mOrderId) && is_numeric($mOrderId)) ? (int) $mOrderId : 0;
+        $sCacheKey = self::CACHE_KEY_PREFIX_ORDER.$iOrderId;
         $mCached = CCache::get([self::CACHE_TAG], $sCacheKey);
         if (is_array($mCached) && $mCached !== []) {
-            /** @var array<string, string|null> $mCached */
-            return $mCached;
+            return $this->narrowCachedArray($mCached);
         }
 
         $arData = $this->compute($obOrder);
-        CCache::forever([self::CACHE_TAG], $sCacheKey, $arData);
+        // CCache::forever accepts the value by-reference (`&$arValue`) — phpstan
+        // level 10 widens $arData to `mixed` post-call as the helper might mutate.
+        // Pass a throwaway buffer so the return-type contract is preserved.
+        $arCacheBuffer = $arData;
+        CCache::forever([self::CACHE_TAG], $sCacheKey, $arCacheBuffer);
 
         return $arData;
+    }
+
+    /**
+     * Narrow a cache-hit `array<mixed>` to `array<string, string|null>` —
+     * required because phpstan level 10 cannot infer string-keyed shape
+     * from `CCache::get` (mixed return). Mirrors MetaClient::decodeResponseBody
+     * narrowing pattern (MC-05 deviation, plan 03-03).
+     *
+     * @param  array<mixed>  $mCached
+     * @return array<string, string|null>
+     */
+    private function narrowCachedArray(array $mCached): array
+    {
+        $arResult = [];
+        foreach ($mCached as $mKey => $mValue) {
+            if (! is_string($mKey)) {
+                continue;
+            }
+            $arResult[$mKey] = is_string($mValue) ? $mValue : null;
+        }
+
+        return $arResult;
     }
 
     /**
@@ -72,7 +99,8 @@ class UserDataHasher
         $sPhone = $this->stringOrNull($obOrder->getAttribute('phone'));
         $sName = $this->stringOrNull($obOrder->getAttribute('name'));
         $sLastName = $this->stringOrNull($obOrder->getAttribute('last_name'));
-        $sSecretKey = (string) $obOrder->getAttribute('secret_key');
+        $mSecretKey = $obOrder->getAttribute('secret_key');
+        $sSecretKey = is_scalar($mSecretKey) ? (string) $mSecretKey : '';
         $sNormalisedPhone = $this->normalisePhone($sPhone);
 
         return [
@@ -132,12 +160,12 @@ class UserDataHasher
     {
         try {
             $obRequest = app(Request::class);
-
-            return $obRequest instanceof Request ? $obRequest : null;
         } catch (Throwable) {
             // silent: no request available (queue worker / CLI context).
             return null;
         }
+
+        return $obRequest;
     }
 
     private function readCookie(?Request $obRequest, string $sCookieName): ?string
