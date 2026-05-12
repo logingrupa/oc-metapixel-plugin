@@ -251,6 +251,42 @@ final class PurchasePixelTest extends MetapixelTestCase
         $this->assertNull($obComponent->arMetaEvent, 'empty orderSlug MUST render nothing.');
     }
 
+    /**
+     * CR-03 lock: runtime slug validation. October's defineProperties
+     * validationPattern is backend-edit only; the runtime guard in
+     * resolveOrder() must reject malformed inputs before they reach the DB
+     * query. Each input is a documented attacker shape: oversized payload,
+     * shell metachars, path traversal, control char, trailing newline.
+     *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    public static function malformedSlugProvider(): array
+    {
+        return [
+            'too-short' => ['ab', 'length < 8'],
+            'oversized-129-chars' => [str_repeat('a', 129), 'length > 128'],
+            'shell-metachar' => ['valid-but$injected', '$ is not in regex set'],
+            'path-traversal' => ['../etc/passwd', '. and / not allowed'],
+            'space-injection' => ['has space here', 'whitespace not allowed'],
+            'trailing-newline' => ["valid-slug-aaa\n", 'trailing newline must not match anchored regex'],
+            'unicode-payload' => ['valid-slug-äöü', 'non-ASCII rejected'],
+            'sql-quote' => ["valid'or'1=1", 'single-quote not in regex (parameterized anyway)'],
+        ];
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('malformedSlugProvider')]
+    public function test_resolve_order_rejects_malformed_slug(string $sSlug, string $sReason): void
+    {
+        OrderFixtures::makePaidOrder();
+        $obComponent = $this->makeComponent($sSlug);
+        $obComponent->onRun();
+
+        $this->assertNull(
+            $obComponent->arMetaEvent,
+            sprintf('runtime validator MUST reject slug (%s).', $sReason),
+        );
+    }
+
     public function test_payload_builder_exception_logs_warning_and_renders_nothing(): void
     {
         // The PayloadBuilder catch branch in onRun() — exercises the boundary

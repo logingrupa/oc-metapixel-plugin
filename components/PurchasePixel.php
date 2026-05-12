@@ -205,11 +205,39 @@ final class PurchasePixel extends ComponentBase
         }
     }
 
+    /**
+     * Resolve the persisted Order by the route-bound `secret_key`.
+     *
+     * CR-03 lock: October's `defineProperties.validationPattern` enforces the
+     * regex ONLY at backend-form-edit time. At runtime — the canonical bind
+     * is `{{ :slug }}` from the page route — there is no validation at all,
+     * and `$this->property('orderSlug')` returns whatever the URL produced.
+     *
+     * The DB query IS parameterized so this is not SQL injection. The guard
+     * here exists to: (1) bound the input (Tiger-Style); (2) make the
+     * documented validator actually execute on the hot path rather than be
+     * safety theater; (3) reject early so the DB index lookup is skipped on
+     * obviously-malformed slugs (DoS surface narrowing on /checkout/{slug}).
+     *
+     * The pattern `\A[A-Za-z0-9_-]{8,128}\z` matches Lovata's secret_key
+     * shape (Str::random produces ASCII alphanumerics) with a generous upper
+     * bound; the {1,n} cap is Tiger-Style bounded-loop discipline.
+     */
     private function resolveOrder(): ?Order
     {
         $mSlug = $this->property('orderSlug');
         $sSlug = $this->stringOrEmpty($mSlug);
         if ($sSlug === '') {
+            return null;
+        }
+
+        // Anchored with \A / \z (not /^…$/) so trailing newlines cannot match
+        // — PHP preg_match's default $ allows a single trailing \n.
+        if (preg_match('/\A[A-Za-z0-9_-]{8,128}\z/', $sSlug) !== 1) {
+            Log::debug('Metapixel: PurchasePixel slug rejected by runtime validator', [
+                'meta_pixel.slug_length' => strlen($sSlug),
+            ]);
+
             return null;
         }
 
