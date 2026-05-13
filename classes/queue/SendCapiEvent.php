@@ -44,10 +44,10 @@ use Throwable;
  *     — also writes a FailedEvent row (transient-exhausted case).
  *
  * Idempotency / race-fence (Phase 3.1 REFAC-06): the legacy column-CAS on
- * `lovata_orders_shopaholic_orders.meta_purchase_event_id` is GONE. The race
- * fence now lives on the plugin-owned `logingrupa_metapixel_event_log` table
- * via the 5-column UNIQUE constraint (subject_type, subject_id, event_name,
- * channel, site_id). `handle()` calls `EventLogWriter::record(...)` BEFORE
+ * Lovata's `orders` table is GONE. The race fence now lives on the
+ * plugin-owned `logingrupa_metapixel_event_log` table via the 5-column
+ * UNIQUE constraint (subject_type, subject_id, event_name, channel,
+ * site_id). `handle()` calls `EventLogWriter::record(...)` BEFORE
  * `MetaClient::send`. `insertOrIgnore` returns 1 = race winner (proceed
  * with POST) or 0 = race loser (peer already POSTed — log INFO + return,
  * no HTTP traffic).
@@ -122,8 +122,8 @@ final class SendCapiEvent implements ShouldQueue
      */
     public function handle(MetaClient $obClient): void
     {
-        // Phase 3.1 REFAC-06: race-fence moves from the deleted
-        // `meta_purchase_event_id` column to the event_log table's
+        // Phase 3.1 REFAC-06: race-fence moves from the deleted legacy
+        // column on Lovata's orders table to the event_log table's
         // 5-col UNIQUE constraint. `EventLogWriter::record` returns:
         //   - true  → this job's INSERT created the row (race winner) → POST.
         //   - false → UNIQUE blocked OR DB error (race loser) → no POST.
