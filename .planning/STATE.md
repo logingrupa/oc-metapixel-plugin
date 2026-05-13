@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0.0
 milestone_name: milestone
-status: phase-3.1-inserted-awaiting-plan
-stopped_at: "Phase 3.1 (event-log refactor) INSERTED 2026-05-13. Supersedes Phase 3 idempotency-column mechanism. Phase 3 Task 9 manual staging checkpoint DEFERRED — column mechanism being torn out, staging verification will roll forward to Phase 3.1 completion. BRIEF.md committed at .planning/phases/03.1-event-log-refactor/BRIEF.md. Next action: operator runs `/gsd-plan-phase 3.1` to produce PLAN.md from BRIEF.md."
-last_updated: "2026-05-13T00:00:00Z"
-last_activity: 2026-05-13 -- Phase 3.1 INSERTED. ROADMAP.md + PROJECT.md Key Decisions + STATE.md cursor updated. BRIEF.md captures the v2 refactor spec verbatim (11 atomic commits REFAC-01..REFAC-11). Plugin-owned multi-site logingrupa_metapixel_event_log table will replace the foreign-schema lovata_orders_shopaholic_orders columns. Plugin version bumps to v1.1.0 on Phase 3.1 completion.
+status: executing
+stopped_at: "Plan 03-05 complete. SendCapiEvent queue boundary in place. Next: plan 03-06 (PAY-03 — OrderStatusWatcher dispatch site + PAY-10..11 manual staging verification). The SendCapiEvent::dispatch('Purchase', $arPayload) contract is the consumer surface for OrderStatusWatcher — argument order is `(string $sEventName, array $arPayload)` per SCE-03 lock. OrderStatusWatcher must generate UUIDv4 + saveQuietly to meta_purchase_event_id + dispatch SendCapiEvent, all fenced by `meta_purchase_event_id IS NULL` per CONTEXT Area 2 Q4."
+last_updated: "2026-05-13T20:51:27.835Z"
+last_activity: 2026-05-13
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 6
-  completed_plans: 5.5
-  percent: 76
+  total_plans: 16
+  completed_plans: 10
+  percent: 33
 ---
 
 # Project State
@@ -27,14 +27,14 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 
 Phase: 3.1 (event-log refactor — INSERTED) — BRIEF.md committed, awaiting `/gsd-plan-phase 3.1`
 Plan: 0 of N — to be produced from `.planning/phases/03.1-event-log-refactor/BRIEF.md`
-Status: Phase 3 wave 4 superseded — column-based idempotency mechanism being replaced by plugin-owned `logingrupa_metapixel_event_log` table. Phase 3 Task 9 manual staging checkpoint DEFERRED — verification rolls forward to Phase 3.1 completion (acceptance criteria 2 in BRIEF.md preserves all original Phase 3 staging scenarios). Plugin will bump to v1.1.0 on Phase 3.1 completion.
+Status: Ready to execute
 
 ### Prior Phase Cursor (preserved for history)
 
 Phase: 03 (purchase-end-to-end) — automated tasks complete, awaiting Task-9 manual staging verification
 Plan: 6 of 6 tasks 1-8 done (03-06 — PAY-03 + PAY-10/11 plumbing shipped). Task 9 (BLOCKING manual checkpoint) PENDING — superseded by Phase 3.1.
 Status: Phase 03 wave 4 partial — production code + automated tests green; staging verification of PAY-10 + PAY-11 acceptance criteria deferred to Phase 3.1 completion.
-Last activity: 2026-05-12 -- Plan 03-06 tasks 1-8 shipped: classes/event/OrderStatusWatcher.php (301 LOC) — final class dispatching Purchase via CAPI on Order eloquent.updated/created with refire-flip + status + idempotency fences and atomic saveQuietly of BOTH meta_purchase_event_id AND meta_purchase_event_time (Pixel-twin contract); components/PurchasePixel.php (245 LOC) — browser-side Pixel twin reading both persisted columns and emitting fbq('track','Purchase',custom_data,{eventID}); components/purchasepixel/default.htm Twig partial with e('js') defence-in-depth; Plugin.php now Event::subscribe(OrderStatusWatcher::class) BEFORE the CLI gate so backend admin (PAY-11) AND queue worker contexts see model events, and registerComponents adds PurchasePixel as 'purchasePixel'; tests/MetapixelTestCase.php bootOrdersTable provisions BOTH new columns + dropHermeticSchemas cleans fixture tables; models/Settings.php public $rules + fields.yaml pattern shipping the PH-01 retro-fit regex /^\d{6,20}$/ for pixel_id (T-04-01 mitigation); tests/Feature/OrderStatusWatcherTest.php (10 methods locking PAY-03 invariants — fresh-paid, same-status-noop, refire=off flip-flop, refire=on flip-flop, plugin-disabled, admin-created path, event_id + event_time persistence, refire=on clears BOTH columns, event_time-within-2-seconds); tests/Feature/PurchasePixelTest.php (13 methods locking the dedup-contract round-trip from DB through component to fbq(), including the byte-for-byte custom_data === CAPI custom_data dedup-contract test). 8 task commits. composer qa green: 126 tests / 365 assertions / 0 skipped / **89.6% coverage** (OrderStatusWatcher.php 90.3% / PurchasePixel.php 83.3% / SendCapiEvent.php 100% / MetaClient.php 100% / PayloadBuilder 84.1% / UserDataHasher 90.3% / Exceptions 100% / FailedEvent 100%). 9 deviations: 7 Rule-1 phpstan-level-10 narrowing fixes (setAttribute/getAttribute for the new columns; intOrZero helper for mixed→int casts; void@return instead of void|Response; Order|null instanceof narrowing; array<string,mixed> re-key on extractCustomData; test fixture idempotency-column clear so eloquent.updated fires fresh; admin-created-path positions-before-order ordering); 1 Rule-2 coverage gap (PurchasePixelTest 66.7% → 83.3% via 6 added tests); 1 Rule-3 commit order swap (Task 4 PurchasePixel files committed BEFORE Task 3 Plugin.php so each commit independently passes composer analyse). **Task 9 (BLOCKING manual): operator must deploy to staging, configure pixel_id + test_event_code, integrate `[purchasePixel] orderSlug = "{{ :slug }}"` block on order-complete.htm, place a real PayPal order, observe Meta Events Manager Test Events to verify dedup ≥ 80% AND EMQ ≥ 8 (PAY-10), then flip a bank-transfer order to paid in backend admin to verify single-channel CAPI (PAY-11), then flip the same order canceled→paid to verify status flip-flop no-refire (PAY-03 success criterion 3). Edit 03-06-SUMMARY.md's "Task 9 staging-verification results" section in place with recorded findings.**
+Last activity: 2026-05-13
 
 ## Performance Metrics
 
