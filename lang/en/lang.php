@@ -45,7 +45,7 @@ return [
         'paid_status_code'                      => 'Paid Status Code',
         'paid_status_code_comment'              => 'OrdersShopaholic Status whose entry triggers Purchase CAPI dispatch. Default: new-payment-received.',
         'refire_purchase_on_status_flip'        => 'Re-fire Purchase on Status Flip',
-        'refire_purchase_on_status_flip_comment' => 'Off by default. When OFF, an order with a populated meta_purchase_event_id never re-fires Purchase.',
+        'refire_purchase_on_status_flip_comment' => 'Off by default. When OFF, an order with an existing event_log Purchase row never re-fires Purchase.',
         'ensure_fbp_fbc_server_side'            => 'Set _fbp / _fbc Server-side',
         'ensure_fbp_fbc_server_side_comment'    => 'When ON, the EnsureFbpFbcCookies middleware sets _fbp / _fbc when missing. Fixes the empty-cookie bug.',
         'cost_price_type_id'                    => 'Cost Price Type ID (margin mode)',

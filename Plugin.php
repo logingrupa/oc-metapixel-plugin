@@ -149,11 +149,14 @@ class Plugin extends PluginBase
      * existing partials/facebook_pixel.htm per SKEL-04 / CONTEXT Area 2 Q1.
      * Phase 4 FUN-01 will dispatch the CAPI twin from onRun().
      *
-     * purchasePixel — Phase 3 plan 03-06 browser-side Pixel twin for the
-     * thank-you page. Reads the persisted meta_purchase_event_id +
-     * meta_purchase_event_time written atomically by OrderStatusWatcher
-     * and emits fbq('track', 'Purchase', custom_data, {eventID}) so Meta
-     * dedups Pixel + CAPI by event_id within its ±10 s event_time window.
+     * purchasePixel — browser-side Purchase Pixel twin for the thank-you
+     * page. Reads the plugin-owned `logingrupa_metapixel_event_log` row
+     * written by `EventLogWriter::record` from `SendCapiEvent::handle`
+     * (CAPI channel) and emits `fbq('track', 'Purchase', custom_data,
+     * {eventID})` so Meta dedups Pixel + CAPI by event_id within its
+     * ±10 s event_time window. Phase 3.1 REFAC-08 rewrite — the legacy
+     * Phase-3 column-based dedup fence on Lovata's orders table was
+     * superseded by the plugin-owned event_log table.
      *
      * @return array<class-string, string>
      */

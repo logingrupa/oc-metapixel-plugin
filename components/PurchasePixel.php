@@ -19,9 +19,10 @@ use Lovata\OrdersShopaholic\Models\Status;
 /**
  * Phase 3.1 REFAC-08 — server-authoritative browser-side Meta Pixel twin.
  *
- * Reads the plugin-owned `logingrupa_metapixel_event_log` table (NOT the
- * deleted `lovata_orders_shopaholic_orders.meta_purchase_event_*` columns)
- * to decide whether to render the `fbq('track', 'Purchase', ...)` IIFE.
+ * Reads the plugin-owned `logingrupa_metapixel_event_log` table to decide
+ * whether to render the `fbq('track', 'Purchase', ...)` IIFE. The legacy
+ * Phase-3 column-based dedup fence on Lovata's orders table was superseded
+ * by this plugin-owned event_log table (Phase 3.1 schema bedrock REFAC-01).
  * The table is the SINGLE source of truth for "has this Purchase event
  * fired for this subject on this channel on this site". Once a row with
  * `channel='pixel'` exists for the Order on the current site, this

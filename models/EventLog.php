@@ -15,9 +15,9 @@ use October\Rain\Database\Traits\Validation;
  * Class EventLog
  *
  * Phase 3.1 REFAC-03 — single source of truth for "has this Meta event fired
- * for this subject (channel-scoped, site-scoped)". Replaces the deleted
- * `lovata_orders_shopaholic_orders.meta_purchase_event_id` column. Plugin
- * no longer mutates Lovata's table — clean SRP for third-party operators.
+ * for this subject (channel-scoped, site-scoped)". Plugin-owned table that
+ * supersedes the Phase-3 column-based dedup fence on Lovata's orders table.
+ * Plugin no longer mutates Lovata's table — clean SRP for third-party operators.
  *
  * Row shape per channel:
  *   - channel='capi'  — server-side dispatch race-winner. Written by

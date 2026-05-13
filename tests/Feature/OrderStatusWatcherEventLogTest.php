@@ -22,10 +22,9 @@ use Ramsey\Uuid\Uuid;
 /**
  * Feature test locking Plan 03.1-03 REFAC-07 OrderStatusWatcher EventLog
  * race-fence contract. Renamed + rewritten from the Phase-3
- * OrderStatusWatcherTest, which asserted via the now-deleted
- * `meta_purchase_event_id` / `meta_purchase_event_time` columns. Every
- * assertion that read those columns now queries the
- * `logingrupa_metapixel_event_log` table.
+ * OrderStatusWatcherTest, which asserted via the now-deleted dedup-fence
+ * columns on Lovata's orders table. Every assertion that read those
+ * columns now queries the `logingrupa_metapixel_event_log` table.
  *
  * Test cases:
  *
@@ -306,9 +305,8 @@ final class OrderStatusWatcherEventLogTest extends MetapixelTestCase
 
     public function test_event_id_persisted_to_event_log_row(): void
     {
-        // Phase 3.1 replacement for the Phase-3
-        // test_event_id_persisted_to_meta_purchase_event_id_column. The UUID
-        // generated inside fireForwardDispatch propagates to:
+        // Phase 3.1 replacement for the Phase-3 column-write assertion.
+        // The UUID generated inside fireForwardDispatch propagates to:
         //   1. The dispatched SendCapiEvent's $arPayload['data'][0]['event_id'].
         //   2. The EventLog row inserted by EventLogWriter::record (production
         //      flow; simulated via insertCapiRow() under Queue::fake).
@@ -333,7 +331,7 @@ final class OrderStatusWatcherEventLogTest extends MetapixelTestCase
 
     public function test_event_time_persisted_to_event_log_row(): void
     {
-        // Phase 3.1 replacement for test_event_time_persisted_to_meta_purchase_event_time_column.
+        // Phase 3.1 replacement for the Phase-3 column-write assertion.
         $obOrder = $this->makeOrderAtPendingStatus();
         $obOrder->status_id = 5;
         $obOrder->save();
