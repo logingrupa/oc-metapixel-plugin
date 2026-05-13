@@ -204,26 +204,71 @@ final class OrderStatusWatcher
     }
 
     /**
-     * Generate UUIDv4 + event_time, persist BOTH columns atomically via a
-     * single saveQuietly, build payload (soft-skip on MetaPixelException),
-     * dispatch SendCapiEvent. The dispatch tail is shared between
-     * handleUpdated and handleCreated to keep both methods' cyclomatic
-     * complexity ≤ 10 (PHPMD).
+     * Generate UUIDv4 + event_time, persist BOTH columns via an atomic
+     * conditional UPDATE (compare-and-set), build payload (soft-skip on
+     * MetaPixelException), schedule SendCapiEvent dispatch after the wrapping
+     * transaction commits.
+     *
+     * WR-12 lock — atomic CAS via DB-level conditional UPDATE.
+     *   PayPal and Vipps both ship a browser-return URL AND an async
+     *   server-to-server webhook that BOTH update Order.status_id to paid
+     *   within milliseconds. Two concurrent eloquent.updated handlers each
+     *   load their own Order instance with meta_purchase_event_id = NULL,
+     *   pass the in-memory IS-NULL fence, and both reach this method —
+     *   read-then-write race. The single `UPDATE … WHERE meta_purchase_event_id
+     *   IS NULL` is atomic at the row level (InnoDB exclusive lock at row
+     *   acquisition): winner returns affected_rows = 1, loser returns 0 and
+     *   bails. Same shape as the refire away-clear branch above (WR-01).
+     *
+     * WR-13 lock — afterCommit-deferred queue dispatch.
+     *   If the wrapping Order::save() transaction rolls back, an immediate
+     *   SendCapiEvent::dispatch on a database queue would still POST to Meta
+     *   for a row that no longer reflects paid state. afterCommit defers the
+     *   dispatch to post-commit; on rollback the closure never fires.
+     *
+     * The dispatch tail is shared between handleUpdated and handleCreated to
+     * keep both methods' cyclomatic complexity ≤ 10 (PHPMD).
      */
     private function fireForwardDispatch(Order $obOrder): void
     {
         $sUuid = Uuid::uuid4()->toString();
         $iEventTime = time();
+        $iOrderId = $this->intOrZero($obOrder->getAttribute('id'));
 
-        // Persist BOTH columns BEFORE dispatch so the browser-side
-        // PurchasePixel twin (components/PurchasePixel.php) reads the same
-        // event_time as the CAPI dispatch (±10 s Meta dedup window). If
-        // PayloadBuilder later throws, the columns are still set — the
-        // Phase-5 manual replay path (FailedEvent table) is the recovery,
-        // NOT re-firing on a re-save.
-        $obOrder->setAttribute('meta_purchase_event_id', $sUuid);
-        $obOrder->setAttribute('meta_purchase_event_time', $iEventTime);
-        $obOrder->saveQuietly();
+        if ($iOrderId <= 0) {
+            // Defensive — handleUpdated/handleCreated only fire on persisted
+            // Order instances, but fail-safe rather than UPDATE WHERE id=0.
+            return;
+        }
+
+        $iRowsAffected = DB::table('lovata_orders_shopaholic_orders')
+            ->where('id', $iOrderId)
+            ->whereNull('meta_purchase_event_id')
+            ->update([
+                'meta_purchase_event_id' => $sUuid,
+                'meta_purchase_event_time' => $iEventTime,
+            ]);
+
+        if ($iRowsAffected === 0) {
+            // Lost the race — a concurrent handler already populated the
+            // column for this order. No-op.
+            Log::info('Metapixel: lost CAS race — peer already dispatched Purchase', [
+                'meta_pixel.order_id' => $iOrderId,
+                'meta_pixel.attempted_event_id' => $sUuid,
+            ]);
+
+            return;
+        }
+
+        // Sync in-memory model so downstream reads in the same request see
+        // the persisted state (PayloadBuilder reads via $obOrder).
+        $obOrder->setRawAttributes(
+            array_merge($obOrder->getAttributes(), [
+                'meta_purchase_event_id' => $sUuid,
+                'meta_purchase_event_time' => $iEventTime,
+            ]),
+            true,
+        );
 
         try {
             $arPayload = (new PayloadBuilder)->buildPurchaseEventPayload(
@@ -235,10 +280,10 @@ final class OrderStatusWatcher
             // Boundary catch: PayloadBuilder precondition failure (no
             // currency, no items, invalid event_id). Log warning and
             // return — do NOT rethrow (would cascade through Order::save).
-            // The saveQuietly above already wrote the UUID; the manual
+            // The UPDATE above already wrote the UUID; the manual
             // replay path (Phase 5 HARD-02) is the operator recovery.
             Log::warning('Metapixel: PayloadBuilder precondition failed — Purchase NOT dispatched', [
-                'meta_pixel.order_id' => $this->intOrZero($obOrder->getAttribute('id')),
+                'meta_pixel.order_id' => $iOrderId,
                 'meta_pixel.event_id' => $sUuid,
                 'meta_pixel.exception' => get_class($obException),
                 'meta_pixel.message' => $obException->getMessage(),
@@ -247,12 +292,15 @@ final class OrderStatusWatcher
             return;
         }
 
-        SendCapiEvent::dispatch('Purchase', $arPayload);
-        Log::info('Metapixel: Purchase dispatched', [
-            'meta_pixel.order_id' => $this->intOrZero($obOrder->getAttribute('id')),
-            'meta_pixel.order_number' => $this->stringOrEmpty($obOrder->getAttribute('order_number')),
-            'meta_pixel.event_id' => $sUuid,
-        ]);
+        $sOrderNumber = $this->stringOrEmpty($obOrder->getAttribute('order_number'));
+        DB::afterCommit(static function () use ($arPayload, $iOrderId, $sOrderNumber, $sUuid) {
+            SendCapiEvent::dispatch('Purchase', $arPayload);
+            Log::info('Metapixel: Purchase dispatched', [
+                'meta_pixel.order_id' => $iOrderId,
+                'meta_pixel.order_number' => $sOrderNumber,
+                'meta_pixel.event_id' => $sUuid,
+            ]);
+        });
     }
 
     private function isPluginDisabled(): bool
