@@ -9,3 +9,7 @@
 1.0.3:
     - 'WR-07: add unique index on failed_events (event_id, http_status) to no-op double-writes of the same logical permanent failure.'
     - add_unique_index_to_failed_events.php
+1.1.0:
+    - 'Phase 3.1 event-log refactor — drop meta_purchase_event_id/event_time columns from Shopaholic Orders; create plugin-owned logingrupa_metapixel_event_log table (polymorphic subject + multi-site site_id + UNIQUE race-fence).'
+    - drop_meta_purchase_columns_from_orders_table.php
+    - create_metapixel_event_log_table.php

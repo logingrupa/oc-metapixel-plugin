@@ -240,14 +240,10 @@ abstract class MetapixelTestCase extends TestCase
             $obTable->integer('status_id')->nullable();
             $obTable->string('order_number')->nullable();
             $obTable->string('secret_key')->nullable();
-            // Phase 3 plan 03-06: dedup-fence + event_time companion columns.
-            // Both are persisted atomically by OrderStatusWatcher::handleUpdated
-            // via a single saveQuietly() so the browser-side PurchasePixel twin
-            // (components/PurchasePixel.php) reads the SAME event_time as the
-            // server-side CAPI dispatch — required for Meta to dedup Pixel +
-            // CAPI by event_id within its ±10 s event_time window.
-            $obTable->string('meta_purchase_event_id', 36)->nullable()->index();
-            $obTable->unsignedBigInteger('meta_purchase_event_time')->nullable();
+            // Phase 3.1 REFAC-01: legacy dedup-fence columns removed from
+            // Lovata's orders table. Purchase idempotency now lives in the
+            // plugin-owned `logingrupa_metapixel_event_log` table —
+            // provision it via `bootEventLogTable()` below.
             $obTable->decimal('total_price_value', 15, 2)->nullable();
             $obTable->integer('currency_id')->nullable();
             $obTable->string('email')->nullable();
@@ -255,6 +251,47 @@ abstract class MetapixelTestCase extends TestCase
             $obTable->string('name')->nullable();
             $obTable->string('last_name')->nullable();
             $obTable->timestamps();
+        });
+    }
+
+    /**
+     * Provision the minimal `logingrupa_metapixel_event_log` table for Phase
+     * 3.1 tests that need event_log row round-trips (EventLogTest,
+     * SendCapiEventEventLogTest, PurchasePixelEventLogGateTest,
+     * OrderStatusWatcherEventLogTest, MultiSiteEventLogTest).
+     *
+     * Mirrors the production migration `create_metapixel_event_log_table.php`
+     * column-by-column. The two secondary indices (secret_key composite,
+     * subject composite) are omitted to keep SQLite boot fast — the UNIQUE
+     * composite + event_id index are sufficient for every test in Phase 3.1
+     * per PATTERNS.md line 1056. The production migration carries them.
+     *
+     * Guarded — safe to call multiple times in a single test.
+     */
+    protected function bootEventLogTable(): void
+    {
+        if (Schema::hasTable('logingrupa_metapixel_event_log')) {
+            return;
+        }
+
+        Schema::create('logingrupa_metapixel_event_log', function ($obTable): void {
+            $obTable->bigIncrements('id');
+            $obTable->string('event_id', 36);
+            $obTable->string('event_name', 64);
+            $obTable->string('channel', 16);
+            $obTable->string('subject_type', 255);
+            $obTable->unsignedInteger('subject_id');
+            $obTable->string('secret_key', 64)->nullable();
+            $obTable->unsignedInteger('site_id')->nullable();
+            $obTable->unsignedBigInteger('event_time');
+            $obTable->timestamp('fired_at');
+            $obTable->timestamps();
+
+            $obTable->unique(
+                ['subject_type', 'subject_id', 'event_name', 'channel', 'site_id'],
+                'metapixel_event_log_subject_event_channel_unique',
+            );
+            $obTable->index('event_id', 'metapixel_event_log_event_id_index');
         });
     }
 
@@ -271,6 +308,7 @@ abstract class MetapixelTestCase extends TestCase
         // runs with `foreign_key_constraints = false` (see createApplication
         // config block), so ordering is correctness-positive but not yet
         // load-bearing — kept for portability.
+        Schema::dropIfExists('logingrupa_metapixel_event_log');   // Phase 3.1 REFAC-02
         Schema::dropIfExists('lovata_orders_shopaholic_order_positions');
         Schema::dropIfExists('lovata_shopaholic_offers');
         Schema::dropIfExists('lovata_shopaholic_products');
