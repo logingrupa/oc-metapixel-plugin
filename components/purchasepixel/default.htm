@@ -1,53 +1,61 @@
 {# @var arMetaEvent array{event_id: string, event_time: int, event_name: string, custom_data: array}|null #}
 
 {#
-    Phase 3 plan 03-06 — browser-side Meta Pixel twin for the thank-you page.
+    Phase 3.1 REFAC-09 — server-authoritative Pixel twin.
 
-    Mirrors the PixelHead Twig partial's defence-in-depth: every
-    interpolation inside <script> uses the e('js') escaper for JS-string-
-    context escaping. event_id is server-generated UUIDv4 from
-    OrderStatusWatcher and is provably alphanumeric+dash — the escaper
-    is a no-op today but is the T-04-02 / T-03-33 mitigation against a
-    future regression that lets attacker-controlled strings reach the
-    column.
+    Zero browser-side state. The server's `logingrupa_metapixel_event_log`
+    table is the single source of truth for "has Pixel already fired for
+    this Order". Once PurchasePixel::onRun finds a channel='pixel' row in
+    event_log, this partial does not render — regardless of device,
+    browser, incognito, or time elapsed (independent of Meta's 7-day
+    eventID dedup window).
 
-    custom_data is rendered via __SELF__.sCustomDataJson which is
-    pre-encoded server-side in PurchasePixel::encodeCustomDataForScript with
-    JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT so the partial
-    cannot break out of <script> via `</script>` injection regardless of any
-    future slash-escape changes elsewhere in the plugin (CR-01 lock).
+    Defense-in-depth interpolation contract (carried forward from
+    Phase 3 CR-01):
 
-    No render when arMetaEvent is null (any guard failure in
-    PurchasePixel::onRun — disabled / order-not-found / non-paid /
-    missing event_id / missing event_time). The fbq('init', ...) call
-    is owned by PixelHead — this component only fires the Purchase
-    track event with the persisted eventID.
+      * `event_id` uses Twig's e('js') escaper for JS-string context.
+        UUIDv4 is provably alphanumeric+dash so the escaper is a no-op
+        today, but the lock guards a future regression that lets
+        attacker-controlled strings reach the column.
+      * `sCustomDataJson` is pre-encoded server-side in
+        PurchasePixel::encodeCustomDataForScript with
+        JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT so
+        the partial cannot break out of <script> via `</script>`
+        injection regardless of any future slash-escape changes
+        elsewhere in the plugin (CR-01 lock). The `|raw` filter is safe
+        because the input is server-controlled and JSON-escaped at
+        encode time.
+
+    Server-authoritative confirmation contract (T-3.1-18 / T-3.1-19):
+    after `fbq('track', 'Purchase', ...)` we call
+    `jax.ajax('purchasePixel::onMarkFired', { data: { event_id } })`.
+    The PHP handler validates `event_id` matches the server's CAPI row
+    and only then inserts the Pixel row in event_log. The `typeof jax`
+    guard mirrors the existing `typeof fbq` defensive pattern — if
+    Larajax isn't bundled in this theme, Pixel still fires; the CAPI
+    counterpart and Meta's own eventID dedup keep the pair safe.
+
+    PageView (PixelHead component) is untouched — it owns fbq('init')
+    and PageView fires every page load by design. Phase 3.1 changes
+    ONLY Purchase semantics.
 #}
 {% if __SELF__.arMetaEvent is not null %}
-<!-- Metapixel — server-deduplicated Purchase Pixel twin -->
+<!-- Metapixel — server-deduplicated Purchase Pixel twin (Phase 3.1) -->
 <script>
     (function () {
         if (typeof fbq !== 'function') {
             return;
         }
         var sEventId = '{{ __SELF__.arMetaEvent.event_id|e('js') }}';
-        // Per-event_id sessionStorage guard — avoids re-firing fbq on every
-        // browser reload of the order-complete page within the same tab
-        // session. Meta dedups server-side via the shared event_id anyway,
-        // but suppressing client repeats saves redundant POSTs to
-        // facebook.com/tr and keeps Test Events tab readable.
-        var sKey = 'metapixel_purchase_fired:' + sEventId;
-        try {
-            if (sessionStorage.getItem(sKey) === '1') {
-                return;
-            }
-            sessionStorage.setItem(sKey, '1');
-        } catch (e) {
-            // Storage blocked (private mode, quota, disabled cookies) —
-            // fall through and fire. The CAPI counterpart and Meta's
-            // own 7-day eventID dedup window still prevent double-count.
+        fbq(
+            'track',
+            'Purchase',
+            Object.assign({ event_time: {{ __SELF__.arMetaEvent.event_time }} }, {{ __SELF__.sCustomDataJson|raw }}),
+            { eventID: sEventId }
+        );
+        if (typeof jax === 'object' && typeof jax.ajax === 'function') {
+            jax.ajax('purchasePixel::onMarkFired', { data: { event_id: sEventId } });
         }
-        fbq('track', 'Purchase', Object.assign({event_time: {{ __SELF__.arMetaEvent.event_time }} }, {{ __SELF__.sCustomDataJson|raw }}), { eventID: sEventId });
     })();
 </script>
 {% endif %}
