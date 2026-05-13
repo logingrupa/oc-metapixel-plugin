@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixelshopaholic\Tests\Feature;
 
 require_once __DIR__.'/../MetapixelTestCase.php';
+require_once __DIR__.'/../Support/OrderFixtures.php';
 // Migration filenames are snake_case (October Updates Manager convention) — not PSR-4 discoverable.
 require_once __DIR__.'/../../updates/create_table_failed_events.php';
 require_once __DIR__.'/../../updates/add_unique_index_to_failed_events.php';
@@ -20,8 +21,10 @@ use Logingrupa\Metapixelshopaholic\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixelshopaholic\Models\FailedEvent;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
+use Logingrupa\Metapixelshopaholic\Tests\Support\OrderFixtures;
 use Logingrupa\Metapixelshopaholic\Updates\AddUniqueIndexToFailedEvents;
 use Logingrupa\Metapixelshopaholic\Updates\CreateTableFailedEvents;
+use Lovata\OrdersShopaholic\Models\Order;
 use Mockery;
 use Ramsey\Uuid\Uuid;
 
@@ -46,6 +49,17 @@ use Ramsey\Uuid\Uuid;
  *   9. SendCapiEvent implements ShouldQueue interface.
  *   10. handle() passes the EXACT $arPayload through to MetaClient::send
  *       (Mockery spy).
+ *   11. failed() wraps non-Meta exception as permanent.
+ *   12. handle() readonly property round-trip lock.
+ *   13. handle() + failed() do not double-write FailedEvent rows.
+ *   14. Constructor requires $obSubject as the 3rd argument (Phase 3.1
+ *       v1.1.0 BREAKING CHANGE — SCE-03 deliberately broken — REFAC-06).
+ *
+ * Phase 3.1 update: the constructor now takes 3 args (`Order $obSubject`
+ * added). Every dispatch/new call passes a hermetic paid Order built via
+ * OrderFixtures. `bootEventLogTable()` provisions the event_log table so
+ * `SendCapiEvent::handle()`'s `EventLogWriter::record` race-fence pre-call
+ * has a destination (race-winner path → MockHandler captures the POST).
  *
  * Settings priming uses the MetaClient pattern (reflection setAttribute on
  * Settings::instance()) — HR-02 multi-Settings::set flap workaround.
@@ -59,6 +73,10 @@ final class SendCapiEventTest extends MetapixelTestCase
     {
         parent::setUp();
         $this->bootSystemSettings();
+        $this->bootOrdersStatuses();
+        $this->bootOrdersTable();
+        $this->bootEventLogTable();
+        OrderFixtures::provisionHermeticOfferProductTables();
         Cache::flush();
         Settings::clearInternalCache();
         PluginGuard::flush();
@@ -73,6 +91,7 @@ final class SendCapiEventTest extends MetapixelTestCase
 
     protected function tearDown(): void
     {
+        OrderFixtures::dropHermeticOfferProductTables();
         Mockery::close();
         parent::tearDown();
     }
@@ -84,8 +103,9 @@ final class SendCapiEventTest extends MetapixelTestCase
             new Response(200, [], '{"events_received": 1, "fbtrace_id": "abc"}'),
         ]);
         $arPayload = $this->makePayload();
+        $obOrder = OrderFixtures::makePaidOrder();
 
-        SendCapiEvent::dispatchSync('Purchase', $arPayload);
+        SendCapiEvent::dispatchSync('Purchase', $arPayload, $obOrder);
 
         $this->assertSame(0, FailedEvent::count(), '200 response must NOT write a FailedEvent row.');
     }
@@ -97,7 +117,8 @@ final class SendCapiEventTest extends MetapixelTestCase
             new Response(503, [], 'service unavailable'),
         ]);
         $arPayload = $this->makePayload();
-        $obJob = new SendCapiEvent('Purchase', $arPayload);
+        $obOrder = OrderFixtures::makePaidOrder();
+        $obJob = new SendCapiEvent('Purchase', $arPayload, $obOrder);
 
         $bThrown = false;
         try {
@@ -115,7 +136,8 @@ final class SendCapiEventTest extends MetapixelTestCase
     {
         $this->primeSettings();
         $arPayload = $this->makePayload('fixed-uuid-1234');
-        $obJob = new SendCapiEvent('Purchase', $arPayload);
+        $obOrder = OrderFixtures::makePaidOrder();
+        $obJob = new SendCapiEvent('Purchase', $arPayload, $obOrder);
 
         // Simulate Laravel calling failed() after $tries exhaustion on a transient.
         $obException = new MetaApiTransientException(
@@ -140,9 +162,10 @@ final class SendCapiEventTest extends MetapixelTestCase
             new Response(400, [], '{"error":{"message":"bad payload"}}'),
         ]);
         $arPayload = $this->makePayload('permanent-uuid-001');
+        $obOrder = OrderFixtures::makePaidOrder();
 
         // Dispatch via dispatchSync — must NOT throw.
-        SendCapiEvent::dispatchSync('Purchase', $arPayload);
+        SendCapiEvent::dispatchSync('Purchase', $arPayload, $obOrder);
 
         $this->assertSame(1, FailedEvent::count(), 'Permanent 400 must write exactly one FailedEvent row.');
         /** @var FailedEvent $obFailed */
@@ -157,8 +180,9 @@ final class SendCapiEventTest extends MetapixelTestCase
         // we use the real MetaClient here (not mocked) so that exception path is real.
         $this->primeSettings('', 'EAA-test-token');
         $arPayload = $this->makePayload('missing-pixel-uuid');
+        $obOrder = OrderFixtures::makePaidOrder();
 
-        SendCapiEvent::dispatchSync('Purchase', $arPayload);
+        SendCapiEvent::dispatchSync('Purchase', $arPayload, $obOrder);
 
         $this->assertSame(1, FailedEvent::count(), 'Missing pixel_id must write exactly one FailedEvent row.');
         /** @var FailedEvent $obFailed */
@@ -172,8 +196,9 @@ final class SendCapiEventTest extends MetapixelTestCase
     {
         $this->primeSettings('2291486191076331', '');
         $arPayload = $this->makePayload('missing-token-uuid');
+        $obOrder = OrderFixtures::makePaidOrder();
 
-        SendCapiEvent::dispatchSync('Purchase', $arPayload);
+        SendCapiEvent::dispatchSync('Purchase', $arPayload, $obOrder);
 
         $this->assertSame(1, FailedEvent::count(), 'Missing capi_access_token must write exactly one FailedEvent row.');
         /** @var FailedEvent $obFailed */
@@ -184,7 +209,8 @@ final class SendCapiEventTest extends MetapixelTestCase
 
     public function test_backoff_schedule_is_one_four_sixteen(): void
     {
-        $obJob = new SendCapiEvent('Purchase', $this->makePayload());
+        $obOrder = OrderFixtures::makePaidOrder();
+        $obJob = new SendCapiEvent('Purchase', $this->makePayload(), $obOrder);
 
         $this->assertSame([1, 4, 16], $obJob->backoff, '$backoff must equal [1, 4, 16] per CONTEXT Area 1 Q2.');
         $this->assertSame(3, $obJob->tries, '$tries must equal 3 per CONTEXT Area 1 Q2.');
@@ -199,10 +225,11 @@ final class SendCapiEventTest extends MetapixelTestCase
             new Response(400, [], '{"error":"bad"}'),
         ]);
         $arPayload = $this->makePayload();
+        $obOrder = OrderFixtures::makePaidOrder();
 
         $bThrown = false;
         try {
-            SendCapiEvent::dispatchSync('Purchase', $arPayload);
+            SendCapiEvent::dispatchSync('Purchase', $arPayload, $obOrder);
         } catch (\Throwable $obException) {
             $bThrown = true;
         }
@@ -224,6 +251,7 @@ final class SendCapiEventTest extends MetapixelTestCase
     {
         $arPayload = $this->makePayload('mockery-uuid-001');
         $arCaptured = [];
+        $obOrder = OrderFixtures::makePaidOrder();
 
         $obMock = Mockery::mock(MetaClient::class);
         $obMock->shouldReceive('send')
@@ -240,7 +268,7 @@ final class SendCapiEventTest extends MetapixelTestCase
             ->andReturn(['events_received' => 1]);
         $this->app->instance(MetaClient::class, $obMock);
 
-        SendCapiEvent::dispatchSync('Purchase', $arPayload);
+        SendCapiEvent::dispatchSync('Purchase', $arPayload, $obOrder);
 
         $this->assertSame($arPayload, $arCaptured, 'MetaClient::send must receive the EXACT $arPayload constructor argument.');
     }
@@ -253,7 +281,8 @@ final class SendCapiEventTest extends MetapixelTestCase
         // contract holds.
         $this->primeSettings();
         $arPayload = $this->makePayload('non-meta-uuid-001');
-        $obJob = new SendCapiEvent('Purchase', $arPayload);
+        $obOrder = OrderFixtures::makePaidOrder();
+        $obJob = new SendCapiEvent('Purchase', $arPayload, $obOrder);
 
         $obJob->failed(new \RuntimeException('container resolution failure'));
 
@@ -271,10 +300,12 @@ final class SendCapiEventTest extends MetapixelTestCase
         // is carried on the dispatch job state (and exposed to log builders).
         $this->primeSettings();
         $arPayload = $this->makePayload();
-        $obJob = new SendCapiEvent('CustomEventName', $arPayload);
+        $obOrder = OrderFixtures::makePaidOrder();
+        $obJob = new SendCapiEvent('CustomEventName', $arPayload, $obOrder);
 
         $this->assertSame('CustomEventName', $obJob->sEventName, 'Constructor must store sEventName on a readonly property.');
         $this->assertSame($arPayload, $obJob->arPayload, 'Constructor must store arPayload on a readonly property.');
+        $this->assertSame($obOrder->id, $obJob->obSubject->id, 'Constructor must store obSubject on a readonly property (v1.1.0 SCE-03 break).');
     }
 
     public function test_handle_then_failed_does_not_double_write_failed_event(): void
@@ -291,12 +322,13 @@ final class SendCapiEventTest extends MetapixelTestCase
         $this->primeSettings();
         $sUuid = Uuid::uuid4()->toString();
         $arPayload = $this->makePayload($sUuid);
+        $obOrder = OrderFixtures::makePaidOrder();
         $obException = new \Logingrupa\Metapixelshopaholic\Classes\Exception\MetaApiPermanentException(
             'simulated permanent failure',
             ['http_status' => 400, 'attempts' => 3],
         );
 
-        $obJob = new SendCapiEvent('Purchase', $arPayload);
+        $obJob = new SendCapiEvent('Purchase', $arPayload, $obOrder);
         // Simulate the BOTH paths firing: handle's permanent-catch goes
         // first (writes row), then Laravel's failed() hook fires (second
         // write — must NOT create a duplicate row).
@@ -305,6 +337,34 @@ final class SendCapiEventTest extends MetapixelTestCase
 
         $iCount = FailedEvent::where('event_id', $sUuid)->count();
         $this->assertSame(1, $iCount, 'WR-07: double-fire MUST NOT produce two FailedEvent rows for the same (event_id, http_status).');
+    }
+
+    public function test_constructor_requires_order_subject_parameter(): void
+    {
+        // Phase 3.1 v1.1.0 BREAKING CHANGE lock — REFAC-06 deliberately breaks
+        // the Phase 3 SCE-03 two-arg signature. PHP 8.4 strict-mode catches the
+        // missing required arg as ArgumentCountError. The v1.1.0 minor-version
+        // bump in updates/version.yaml documents the break; no plugin-external
+        // call sites instantiate SendCapiEvent. T-3.1-12 accepted (Tampering).
+        $arPayload = $this->makePayload();
+
+        $bThrown = false;
+        try {
+            // @phpstan-ignore-next-line — intentional missing arg for assertion.
+            new SendCapiEvent('Purchase', $arPayload);
+        } catch (\ArgumentCountError $obException) {
+            $bThrown = true;
+        } catch (\TypeError $obException) {
+            // ArgumentCountError extends TypeError in PHP 8 — defensive both-branch
+            // capture so the test holds on any future PHP upgrade narrowing.
+            $bThrown = true;
+        }
+
+        $this->assertTrue(
+            $bThrown,
+            'SendCapiEvent::__construct MUST require the third $obSubject parameter '
+            .'(v1.1.0 BREAKING CHANGE — Phase 3.1 REFAC-06 — SCE-03 deliberately broken).',
+        );
     }
 
     /**
