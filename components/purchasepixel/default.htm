@@ -26,8 +26,28 @@
 {% if __SELF__.arMetaEvent is not null %}
 <!-- Metapixel — server-deduplicated Purchase Pixel twin -->
 <script>
-    if (typeof fbq === 'function') {
-        fbq('track', 'Purchase', Object.assign({event_time: {{ __SELF__.arMetaEvent.event_time }} }, {{ __SELF__.sCustomDataJson|raw }}), { eventID: '{{ __SELF__.arMetaEvent.event_id|e('js') }}' });
-    }
+    (function () {
+        if (typeof fbq !== 'function') {
+            return;
+        }
+        var sEventId = '{{ __SELF__.arMetaEvent.event_id|e('js') }}';
+        // Per-event_id sessionStorage guard — avoids re-firing fbq on every
+        // browser reload of the order-complete page within the same tab
+        // session. Meta dedups server-side via the shared event_id anyway,
+        // but suppressing client repeats saves redundant POSTs to
+        // facebook.com/tr and keeps Test Events tab readable.
+        var sKey = 'metapixel_purchase_fired:' + sEventId;
+        try {
+            if (sessionStorage.getItem(sKey) === '1') {
+                return;
+            }
+            sessionStorage.setItem(sKey, '1');
+        } catch (e) {
+            // Storage blocked (private mode, quota, disabled cookies) —
+            // fall through and fire. The CAPI counterpart and Meta's
+            // own 7-day eventID dedup window still prevent double-count.
+        }
+        fbq('track', 'Purchase', Object.assign({event_time: {{ __SELF__.arMetaEvent.event_time }} }, {{ __SELF__.sCustomDataJson|raw }}), { eventID: sEventId });
+    })();
 </script>
 {% endif %}
