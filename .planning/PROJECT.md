@@ -70,7 +70,8 @@ Full list lives in `REQUIREMENTS.md`, grouped under:
 | `event_id` direction = server → frontend (never reverse) | Meta dedupes on `event_id` match within ±10 s window. Server-authoritative UUID v4 + matching `event_time` is the only deterministic source. | — Pending |
 | `content_ids` = `SKU-{product_id}[-{offer_id}]` (not SKU, not barcode) | Must match Facebook Catalog feed exporter exactly; mismatch = Meta cannot match products. | Resolved 2026-04-22 |
 | Paid-status trigger = `new-payment-received` (default, configurable dropdown) | Live DB audit: PayPal + Vipps `after_status_id=5`; bank transfer admin-flipped to ID=5. Base Lovata `complete` means "shipped/done" — wrong for CAPI Purchase. | Resolved 2026-04-22 |
-| Idempotency via new `meta_purchase_event_id VARCHAR(36) NULL INDEX` column on `lovata_orders_shopaholic_orders` | Stores the UUID persistently so status flip-flops (paid → refund → paid) never re-fire Purchase. DB-level guard, not in-memory. | — Pending |
+| ~~Idempotency via new `meta_purchase_event_id VARCHAR(36) NULL INDEX` column on `lovata_orders_shopaholic_orders`~~ | ~~Stores the UUID persistently so status flip-flops (paid → refund → paid) never re-fire Purchase. DB-level guard, not in-memory.~~ | **SUPERSEDED 2026-05-13 by Phase 3.1** — plugin should not mutate Shopaholic's table (SRP); columns also can't suppress browser re-fires across devices beyond Meta's 7-day eventID dedup window |
+| Idempotency via plugin-owned `logingrupa_metapixel_event_log` table (polymorphic subject, multi-site `site_id` scope, UNIQUE(subject_type, subject_id, event_name, channel, site_id)) | Plugin owns its own audit log — third-party operators can audit foreign-schema mutations of their own tables, not the plugin's; UNIQUE-constraint race-fence atomically replaces atomic-CAS-on-orders; second `channel='pixel'` row suppresses browser re-fires across devices/sessions/time independent of Meta's eventID dedup window; multi-site `site_id` scope lets two sites independently dispatch for the same Order id; designed to carry Phase 4 funnel events (AddToCart, ViewContent, Lead, ...) without further schema change. | Decided 2026-05-13 (Phase 3.1 INSERTED) — Pending implementation |
 | Boot-time missing pixel_id = log + disabled flag (NOT throw) | Throwing cascades through Campaigns/PromoMechanism boot chain and nukes the whole site. Event-time localises failure. | — Pending |
 | No `assert()` anywhere — explicit `throw` only | Prod `zend.assertions=0` makes `assert()` a silent no-op. `throw` gives identical dev behaviour plus prod safety. Enforced by `spaze/phpstan-disallowed-calls`. | — Pending |
 | Lead event hooks salon application-form `onSend` (not separate plugin endpoint) | That's the only functional lead form on the site. Inline wiring keeps the Meta plugin the sole owner of CAPI dispatch. | — Pending |
@@ -88,7 +89,7 @@ Full list lives in `REQUIREMENTS.md`, grouped under:
 **Target features:**
 - Dual-channel event dedup contract (same `event_id` + `event_time` on Pixel and CAPI)
 - `_fbp` / `_fbc` cookies always set server-side (middleware fix)
-- Purchase event fires on `new-payment-received` status with DB-level idempotency (`meta_purchase_event_id` column)
+- Purchase event fires on `new-payment-received` status with DB-level idempotency (plugin-owned `logingrupa_metapixel_event_log` table, multi-site `site_id` scoped — Phase 3.1; supersedes original `meta_purchase_event_id` column approach)
 - Full funnel catalogue (PageView, ViewContent, ViewCategory, Search, AddToCart, AddToWishlist, InitiateCheckout, AddPaymentInfo, Purchase, Lead, CompleteRegistration, Contact)
 - Backend `FailedEvents` admin list with `onReplay` and dedup status check
 

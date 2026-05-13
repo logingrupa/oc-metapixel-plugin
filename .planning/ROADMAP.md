@@ -2,7 +2,7 @@
 
 ## Overview
 
-Five sequential phases (S0→S4 in PLAN.md terms) ship a production-grade Meta Pixel + CAPI plugin. The core dedup contract — same server-generated `event_id` + `event_time` on browser `fbq()` and server `POST /events` — is enforced end-to-end from Phase 3 onward. Phase 1 locks the quality bar (composer qa green on empty plugin) before any business code is written. Phase 2 fixes the live `_fbp`/`_fbc` empty-cookie bug alone. Phase 3 closes the attribution gap for bank-transfer and admin-marked-paid orders. Phase 4 completes the funnel catalogue across PDP, cart, checkout, lead form, and registration. Phase 5 hardens operations + ships the Composer marketplace listing.
+Five sequential phases (S0→S4 in PLAN.md terms) plus one inserted refactor (3.1) ship a production-grade Meta Pixel + CAPI plugin. The core dedup contract — same server-generated `event_id` + `event_time` on browser `fbq()` and server `POST /events` — is enforced end-to-end from Phase 3 onward. Phase 1 locks the quality bar (composer qa green on empty plugin) before any business code is written. Phase 2 fixes the live `_fbp`/`_fbc` empty-cookie bug alone. Phase 3 closes the attribution gap for bank-transfer and admin-marked-paid orders. Phase 3.1 (INSERTED) moves idempotency + Pixel-render state off Shopaholic's table onto a plugin-owned multi-site event-log table — eliminating foreign-schema mutation and suppressing browser re-fires across devices/time. Phase 4 completes the funnel catalogue across PDP, cart, checkout, lead form, and registration. Phase 5 hardens operations + ships the Composer marketplace listing.
 
 ## Phases
 
@@ -14,7 +14,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Tooling** — `composer qa` green on empty plugin (composer.json, phpstan lvl 10 + larastan + universalObjectCrates, phpmd copy of Toolbox, pint, rector, Pest 4 + MetapixelTestCase, CI). ✓ 2026-05-12
 - [x] **Phase 2: Skeleton + cookie fix** — Plugin.php, Settings extending CommonSettings, `EnsureFbpFbcCookies` middleware, PluginGuard + PixelHead component. Fixes live empty-cookie bug. ✓ 2026-05-12
-- [ ] **Phase 3: Purchase end-to-end** — MetaClient, SendCapiEvent queue job, OrderStatusWatcher, idempotency via `meta_purchase_event_id` column, PayloadBuilder + UserDataHasher + custom exception hierarchy. Dedup verified ≥ 80 % / EMQ ≥ 8 in Test Events.
+- [ ] **Phase 3: Purchase end-to-end** — MetaClient, SendCapiEvent queue job, OrderStatusWatcher, idempotency via `meta_purchase_event_id` column (SUPERSEDED by Phase 3.1), PayloadBuilder + UserDataHasher + custom exception hierarchy. Dedup verified ≥ 80 % / EMQ ≥ 8 in Test Events.
+- [ ] **Phase 3.1: Event-log refactor** (INSERTED 2026-05-13) — Replace foreign-schema column idempotency with plugin-owned, multi-site `logingrupa_metapixel_event_log` table. Drops `meta_purchase_event_id` + `meta_purchase_event_time` columns from `lovata_orders_shopaholic_orders`. Adds `EventLog` model, `EventLogWriter`, `SiteResolver`. Rewires `SendCapiEvent`, `OrderStatusWatcher`, `PurchasePixel` onto UNIQUE-constraint race-fence. Suppresses Pixel re-fires across devices/sessions beyond Meta's 7-day eventID dedup window. Bumps plugin to v1.1.0.
 - [ ] **Phase 4: Funnel completion** — PageView, ViewContent, ViewCategory, Search, AddToCart, AddToWishlist, InitiateCheckout, AddPaymentInfo, Lead, CompleteRegistration, Contact. All share event_id + event_time. content_ids format locked to Facebook Catalog feed.
 - [ ] **Phase 5: Hardening + launch** — FailedEvents backend list + onReplay + onCheckDedup, lang/{en,lv,ru}, README with runbook, Composer marketplace listing, coverage ≥ 90 %.
 
@@ -67,7 +68,36 @@ Decimal phases appear between their surrounding integers in numeric order.
   - [x] 03-03-PLAN.md — MetaClient Guzzle wrapper (PAY-01) ✓ 2026-05-12
   - [x] 03-04-PLAN.md — PayloadBuilder + UserDataHasher (PAY-06, PAY-07, PAY-08) ✓ 2026-05-12
   - [x] 03-05-PLAN.md — SendCapiEvent queue job (PAY-02) ✓ 2026-05-12
-  - [~] 03-06-PLAN.md — OrderStatusWatcher + PurchasePixel + Plugin::boot + manual staging verification (PAY-03 ✓ automated; PAY-10 + PAY-11 PENDING staging) — tasks 1-8 ✓ 2026-05-12 / task 9 PENDING manual checkpoint
+  - [~] 03-06-PLAN.md — OrderStatusWatcher + PurchasePixel + Plugin::boot + manual staging verification (PAY-03 ✓ automated; PAY-10 + PAY-11 PENDING staging) — tasks 1-8 ✓ 2026-05-12 / task 9 PENDING manual checkpoint (DEFERRED — column mechanism superseded by Phase 3.1; staging verification rolls forward to Phase 3.1 completion)
+
+### Phase 3.1: Event-log refactor (INSERTED 2026-05-13)
+
+**Goal:** Idempotency + Pixel-render source-of-truth moves from `lovata_orders_shopaholic_orders` columns to a plugin-owned, multi-site-aware `logingrupa_metapixel_event_log` table. Plugin stops mutating Shopaholic's table (SRP, third-party-operator friendliness). UNIQUE-constraint race-fence replaces atomic-CAS-on-foreign-table. Pixel re-fires across devices/sessions/time are suppressed by server-side row existence — independent of Meta's 7-day eventID dedup window.
+**Depends on:** Phase 3 (rewires the same dispatch path).
+**Supersedes:** Phase 3 idempotency-column decision (PROJECT.md Key Decisions row 4); Phase 3 manual staging checkpoint (rolls forward to Phase 3.1 completion).
+**Requirements:** REFAC-01..REFAC-11 (see `phases/03.1-event-log-refactor/BRIEF.md` for full text)
+  - REFAC-01: Drop legacy columns from Shopaholic Orders (down-migration MIG-02 lock pattern)
+  - REFAC-02: Create `logingrupa_metapixel_event_log` table (id, event_id, event_name, channel, subject_type, subject_id, secret_key, site_id, event_time, fired_at, timestamps) with UNIQUE(subject_type, subject_id, event_name, channel, site_id) + 3 indices
+  - REFAC-03: `EventLog` Eloquent model (October Model, polymorphic `subject()` MorphTo, CHANNEL_CAPI/CHANNEL_PIXEL/EVENT_PURCHASE constants)
+  - REFAC-04: `SiteResolver` helper (October 4 multi-site SDK; `getActiveSiteId(): ?int`)
+  - REFAC-05: `EventLogWriter::record(...)` race-fence helper (INSERT IGNORE / ON DUPLICATE KEY UPDATE id=id; returns true=race-winner, false=lost-race)
+  - REFAC-06: `SendCapiEvent` race-fence moves to `EventLogWriter::record` (lost-race → log INFO + return, no HTTP POST)
+  - REFAC-07: `OrderStatusWatcher` rewrite (existence check on EventLog, `<70 LOC` per method; refire-flag semantics shift)
+  - REFAC-08: `PurchasePixel` rewrite (CAPI row present + Pixel row absent → render; `onMarkFired(): array` AJAX handler with event_id validation)
+  - REFAC-09: Twig partial (no sessionStorage, no cookie, server-authoritative; jax.ajax → `purchasePixel::onMarkFired`)
+  - REFAC-10: Delete obsolete column references (`MetapixelTestCase::bootOrdersTable`, PHPDoc, helper docblocks, STATE.md Pending Todos closure)
+  - REFAC-11: Tests (EventLogTest, SendCapiEventEventLogTest, PurchasePixelEventLogGateTest, OrderStatusWatcherEventLogTest update, MultiSiteEventLogTest) + version.yaml bump to v1.1.0
+**Success Criteria** (what must be TRUE):
+  1. `composer qa` green; phpstan level 10 + larastan + universal-object-crates clean; PSR-2 clean.
+  2. `lovata_orders_shopaholic_orders.meta_purchase_event_id` column does NOT exist.
+  3. `logingrupa_metapixel_event_log` table exists with all 3 indices and the 5-column UNIQUE key.
+  4. Concurrent test: two PHP processes calling `SendCapiEvent::dispatch` on same Order → exactly one HTTP POST + exactly one event_log row.
+  5. Multi-site test: same Order id on two `site_id` values → two independent CAPI fires; single-site install (`SiteResolver` returns null) → `site_id NULL` rows scoped correctly.
+  6. Browser Pixel re-fire (refresh `/lv/checkout/{slug}`, new incognito, different device) does NOT insert a second Pixel row — server event_log persists across sessions/devices/time.
+  7. Staging Phase-3 scenarios re-verified on new mechanism: PayPal CAPI+Pixel pair (same event_id), bank-transfer admin-flip CAPI-only, status flip-flop never re-fires.
+  8. `system_plugin_versions` row for Logingrupa.Metapixelshopaholic = v1.1.0.
+**Out of scope:** Phase 4 funnel events (event_log table designed for them, no implementation); UserDataHasher address fields; stable external_id for logged-in customers; AEM/Verified-Domain operator action.
+**Plans:** TBD (created by `/gsd-plan-phase 3.1` from BRIEF.md)
 
 ### Phase 4: Funnel completion
 
@@ -100,12 +130,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
+Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |---|---|---|---|
 | 1. Tooling | 1/1 | Complete | 2026-05-12 |
 | 2. Skeleton + cookie fix | 4/4 | Complete | 2026-05-12 |
-| 3. Purchase end-to-end | 5.5/6 (tasks 1-8 of plan 03-06 done; task 9 manual checkpoint PENDING) | In progress — awaiting staging | - |
+| 3. Purchase end-to-end | 5.5/6 (tasks 1-8 of plan 03-06 done; task 9 manual deferred to Phase 3.1) | Superseded mechanism — column rewrite in Phase 3.1 | - |
+| 3.1. Event-log refactor (INSERTED) | 0/- | Not started — awaiting `/gsd-plan-phase 3.1` | - |
 | 4. Funnel completion | 0/- | Not started | - |
 | 5. Hardening + launch | 0/- | Not started | - |
