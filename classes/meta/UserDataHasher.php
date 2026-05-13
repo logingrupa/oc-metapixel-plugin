@@ -105,10 +105,10 @@ class UserDataHasher
     private function compute(Order $obOrder): array
     {
         $obRequest = $this->readRequest();
-        $sEmail = $this->stringOrNull($obOrder->getAttribute('email'));
-        $sPhone = $this->stringOrNull($obOrder->getAttribute('phone'));
-        $sName = $this->stringOrNull($obOrder->getAttribute('name'));
-        $sLastName = $this->stringOrNull($obOrder->getAttribute('last_name'));
+        $sEmail = $this->readOrderField($obOrder, 'email');
+        $sPhone = $this->readOrderField($obOrder, 'phone');
+        $sName = $this->readOrderField($obOrder, 'name');
+        $sLastName = $this->readOrderField($obOrder, 'last_name');
         $mSecretKey = $obOrder->getAttribute('secret_key');
         $sSecretKey = is_scalar($mSecretKey) ? (string) $mSecretKey : '';
         $sNormalisedPhone = $this->normalisePhone($sPhone);
@@ -207,5 +207,29 @@ class UserDataHasher
         $sValue = (string) $mValue;
 
         return $sValue !== '' ? $sValue : null;
+    }
+
+    /**
+     * Read a customer-identity field from the Order.
+     *
+     * Lovata.OrdersShopaholic v1.33 stores `email`, `phone`, `name`, `last_name`
+     * inside the `property` jsonable column (NOT as direct columns) for guest
+     * orders. Logged-in customers may have the same data on the linked Buddies
+     * user record. Order falls back to direct attribute access in case a future
+     * schema promotes these to real columns.
+     */
+    private function readOrderField(Order $obOrder, string $sField): ?string
+    {
+        $sDirect = $this->stringOrNull($obOrder->getAttribute($sField));
+        if ($sDirect !== null) {
+            return $sDirect;
+        }
+
+        $mProperty = $obOrder->getAttribute('property');
+        if (! is_array($mProperty)) {
+            return null;
+        }
+
+        return $this->stringOrNull($mProperty[$sField] ?? null);
     }
 }
