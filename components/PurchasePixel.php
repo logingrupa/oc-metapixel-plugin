@@ -8,28 +8,49 @@ use Cms\Classes\ComponentBase;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\MetaPixelException;
+use Logingrupa\Metapixelshopaholic\Classes\Helper\EventLogWriter;
+use Logingrupa\Metapixelshopaholic\Classes\Helper\SiteResolver;
 use Logingrupa\Metapixelshopaholic\Classes\Meta\PayloadBuilder;
+use Logingrupa\Metapixelshopaholic\Models\EventLog;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Lovata\OrdersShopaholic\Models\Order;
 use Lovata\OrdersShopaholic\Models\Status;
 
 /**
- * Phase 3 plan 03-06 — browser-side Meta Pixel twin for the thank-you page.
+ * Phase 3.1 REFAC-08 — server-authoritative browser-side Meta Pixel twin.
  *
- * Reads the persisted `meta_purchase_event_id` + `meta_purchase_event_time`
- * columns (written atomically by OrderStatusWatcher::handleUpdated /
- * handleCreated via a single saveQuietly) and emits the Pixel-side
- * `fbq('track', 'Purchase', custom_data, {eventID})` call. Meta dedups
- * the Pixel + CAPI pair by `event_id` within its ±10 s event_time window.
+ * Reads the plugin-owned `logingrupa_metapixel_event_log` table (NOT the
+ * deleted `lovata_orders_shopaholic_orders.meta_purchase_event_*` columns)
+ * to decide whether to render the `fbq('track', 'Purchase', ...)` IIFE.
+ * The table is the SINGLE source of truth for "has this Purchase event
+ * fired for this subject on this channel on this site". Once a row with
+ * `channel='pixel'` exists for the Order on the current site, this
+ * component renders nothing — regardless of device, browser, incognito,
+ * or time elapsed (independent of Meta's 7-day eventID dedup window).
  *
- * Guard chain (render-nothing on ANY failure):
+ * Guard chain (render-nothing on ANY of these):
  *   1. PluginGuard disabled.
  *   2. Order not found by `orderSlug` (secret_key route binding).
  *   3. Status code !== Settings::get('paid_status_code', 'new-payment-received').
- *   4. `meta_purchase_event_id` is null (OrderStatusWatcher hasn't fired —
- *      e.g. user lands on /checkout/{slug} before PayPal IPN flips the
- *      status; Pixel correctly renders nothing rather than guess).
- *   5. `meta_purchase_event_time` is null (paired column — defensive).
+ *   4. CAPI row absent in event_log (server hasn't fired yet — e.g. user
+ *      reaches /checkout/{slug} before PayPal IPN flips the status; we
+ *      don't pair half a contract).
+ *   5. Pixel row present in event_log (browser already fired across
+ *      this/any device/session — cross-device-refire suppression).
+ *
+ * When the gate opens (CAPI present AND Pixel absent) the component reads
+ * `event_id` + `event_time` from the CAPI row (single source of truth) and
+ * populates `$arMetaEvent` + `$sCustomDataJson` for the Twig partial.
+ *
+ * `onMarkFired(): array` is the matched AJAX confirmation handler. The
+ * Twig partial calls `jax.ajax('purchasePixel::onMarkFired', { data: {
+ * event_id } })` after `fbq` fires; this handler validates that the
+ * submitted `event_id` MATCHES the server-side CAPI row's `event_id`
+ * (prevents forged Pixel-fire claims from crafted AJAX requests) and
+ * then calls `EventLogWriter::record(..., channel='pixel', ...)` to
+ * insert the Pixel row. Mismatch → `['ok' => false]` + Log::warning that
+ * logs only the submitted_event_id LENGTH (never the value — prevents
+ * log-injection via attacker-controlled UUID strings).
  *
  * `user_data` is intentionally OMITTED on the Pixel side (Meta CAPI spec —
  * `user_data` is server-side hashes only; the browser side infers fbp/fbc
@@ -41,13 +62,16 @@ use Lovata\OrdersShopaholic\Models\Status;
  *     ...
  *     {% component 'purchasePixel' %}
  *
- * Threat model (T-03-33..35):
- *   - event_id is server-generated UUIDv4 from OrderStatusWatcher; no
- *     user-controlled string reaches the column (T-03-33).
- *   - Status + event_id + event_time fences prevent Pixel-fires-for-
- *     non-paid-order (T-03-34).
- *   - custom_data fields are values the user already knows from their own
- *     checkout (order_id, value, currency, num_items) — non-PII (T-03-35).
+ * Threat model (Phase 3.1 T-3.1-18..24):
+ *   - T-3.1-18 (Spoofing onMarkFired): submitted event_id must match the
+ *     server's CAPI row event_id. UUIDv4 has ~122 bits entropy → guessing
+ *     is computationally infeasible. Mismatch → reject + warn.
+ *   - T-3.1-19 (Tampering payload): EventLogWriter uses the SERVER's
+ *     event_time from the CAPI row, not a client-supplied value.
+ *   - T-3.1-21 (Info Disclosure on mismatch log): Log captures
+ *     submitted_event_id_LENGTH only — never the value itself.
+ *   - T-3.1-23 (Elevation without CAPI): onMarkFired returns ok=false
+ *     when CAPI row absent — caller cannot escalate Pixel claim.
  */
 final class PurchasePixel extends ComponentBase
 {
@@ -74,7 +98,7 @@ final class PurchasePixel extends ComponentBase
     {
         return [
             'name' => 'Purchase Pixel',
-            'description' => 'Browser-side Pixel twin for Purchase events. Reads persisted event_id + event_time so Meta can dedup Pixel + CAPI by event_id.',
+            'description' => 'Browser-side Pixel twin for Purchase events. Reads event_log CAPI row for event_id + event_time so Meta can dedup Pixel + CAPI by event_id.',
         ];
     }
 
@@ -120,14 +144,29 @@ final class PurchasePixel extends ComponentBase
             return;
         }
 
-        $mEventId = $obOrder->getAttribute('meta_purchase_event_id');
-        $mEventTime = $obOrder->getAttribute('meta_purchase_event_time');
-        if ($mEventId === null || $mEventTime === null) {
+        // REFAC-08 step 4: CAPI row absent → return. The server hasn't
+        // dispatched yet (e.g. user reaches /checkout/{slug} before the
+        // PayPal IPN flips the status, or status flipped manually but the
+        // queue hasn't drained); don't pair half a contract.
+        $obCapiRow = $this->findEventLogRow($obOrder, EventLog::CHANNEL_CAPI);
+        if ($obCapiRow === null) {
             return;
         }
 
-        $sEventId = $this->stringOrEmpty($mEventId);
-        $iEventTime = $this->intOrZero($mEventTime);
+        // REFAC-08 step 5: Pixel row present → return. Browser already
+        // fired on this device / a different device / a private window /
+        // 10 days ago — server-side persistence is independent of Meta's
+        // 7-day eventID dedup window which expires on the Meta side.
+        if ($this->findEventLogRow($obOrder, EventLog::CHANNEL_PIXEL) !== null) {
+            return;
+        }
+
+        // REFAC-08 step 6: read event_id + event_time from the CAPI row
+        // (single source of truth — paired with the server-side fire).
+        // $casts on EventLog narrows event_time to int on rehydrate;
+        // explicit (int) cast is belt-and-braces for phpstan level 10.
+        $sEventId = (string) $obCapiRow->event_id;
+        $iEventTime = (int) $obCapiRow->event_time;
         if ($sEventId === '' || $iEventTime === 0) {
             return;
         }
@@ -160,6 +199,128 @@ final class PurchasePixel extends ComponentBase
             'custom_data' => $arCustomData,
         ];
         $this->sCustomDataJson = $this->encodeCustomDataForScript($arCustomData);
+    }
+
+    /**
+     * AJAX handler — browser-side fbq('track','Purchase') confirmation.
+     * Called via `jax.ajax('purchasePixel::onMarkFired', { data: {
+     * event_id } })` from the Twig partial AFTER `fbq` fires.
+     *
+     * Security (REFAC-08, T-3.1-18): validate that the supplied event_id
+     * MATCHES the server's CAPI row event_id. Prevents forged Pixel-fire
+     * claims via crafted AJAX requests with a guessed event_id. UUIDv4
+     * has ~122 bits of entropy — guessing is computationally infeasible,
+     * but the check is the cheap correctness primitive.
+     *
+     * On mismatch: log warning with `submitted_event_id_len` only — NEVER
+     * the value itself (T-3.1-21 log-injection mitigation; the mismatched
+     * id is potentially attacker-controlled).
+     *
+     * On match: call `EventLogWriter::record(channel='pixel')`. event_time
+     * is read from the SERVER's CAPI row (T-3.1-19 — client cannot tamper
+     * the persisted event_time). Returns `won_race` as a runtime extension
+     * for tests; the public contract per `@return` is `ok` only.
+     *
+     * Second-call semantics: per BRIEF REFAC-11, calling onMarkFired again
+     * with the same event_id returns `['ok' => true, 'won_race' => false]`
+     * — success-for-the-caller, the row exists; the race-loser branch is
+     * fine because EventLogWriter's UNIQUE-constraint fence collapsed
+     * the duplicate INSERT into a no-op.
+     *
+     * @return array{ok: bool}
+     */
+    public function onMarkFired(): array
+    {
+        if ($this->isDisabled()) {
+            return ['ok' => false];
+        }
+
+        $obOrder = $this->resolveOrder();
+        if ($obOrder === null) {
+            return ['ok' => false];
+        }
+
+        if (! $this->isAtPaidStatus($obOrder)) {
+            return ['ok' => false];
+        }
+
+        $sSubmittedEventId = $this->stringOrEmpty(input('event_id'));
+        if ($sSubmittedEventId === '') {
+            return ['ok' => false];
+        }
+
+        $obCapiRow = $this->findEventLogRow($obOrder, EventLog::CHANNEL_CAPI);
+        if ($obCapiRow === null) {
+            // No CAPI row → no Pixel row may exist either. Caller cannot
+            // escalate a Pixel-fire claim without a corresponding server
+            // dispatch (T-3.1-23 elevation mitigation).
+            return ['ok' => false];
+        }
+
+        if ((string) $obCapiRow->event_id !== $sSubmittedEventId) {
+            // T-3.1-21: log LENGTH only — the submitted event_id is
+            // potentially attacker-controlled and must never reach the log
+            // stream verbatim (log-injection mitigation).
+            Log::warning('Metapixel: onMarkFired event_id mismatch — potential forgery', [
+                'meta_pixel.order_id' => $this->intOrZero($obOrder->getAttribute('id')),
+                'meta_pixel.submitted_event_id_len' => strlen($sSubmittedEventId),
+            ]);
+
+            return ['ok' => false];
+        }
+
+        $sSecretKey = $this->stringOrEmpty($obOrder->getAttribute('secret_key'));
+        $bWon = EventLogWriter::record(
+            $sSubmittedEventId,
+            EventLog::EVENT_PURCHASE,
+            EventLog::CHANNEL_PIXEL,
+            $obOrder,
+            $sSecretKey === '' ? null : $sSecretKey,
+            (int) $obCapiRow->event_time,
+        );
+
+        // 'won_race' is a runtime extension for tests (REFAC-11 second-call
+        // assertion). Public @return contract is `array{ok: bool}` — the
+        // extra key is informational. Race-loser path is success-for-caller.
+        return ['ok' => true, 'won_race' => $bWon];
+    }
+
+    /**
+     * Query event_log for a row matching (Order, channel) scoped by the
+     * SiteResolver-resolved active site_id. Reusable across `onRun` (CAPI
+     * presence + Pixel presence checks) and `onMarkFired` (CAPI presence
+     * + event_id match).
+     *
+     * Site_id branch: NULL → `whereNull('site_id')`; non-null → equality.
+     * Mirrors `OrderStatusWatcher::alreadyDispatched` Phase 3.1 Wave-3 idiom.
+     *
+     * MC-05 narrowing: `Builder::first()` returns `?Model`; explicit
+     * `instanceof EventLog` narrow keeps phpstan level 10 happy without
+     * `@var` / `assert` and locks the typed `?EventLog` return.
+     */
+    private function findEventLogRow(Order $obOrder, string $sChannel): ?EventLog
+    {
+        $iSubjectId = $this->intOrZero($obOrder->getAttribute('id'));
+        if ($iSubjectId <= 0) {
+            return null;
+        }
+
+        $iSiteId = SiteResolver::getActiveSiteId();
+
+        $obQuery = EventLog::where('subject_type', Order::class)
+            ->where('subject_id', $iSubjectId)
+            ->where('event_name', EventLog::EVENT_PURCHASE)
+            ->where('channel', $sChannel);
+
+        if ($iSiteId === null) {
+            $obQuery->whereNull('site_id');
+        } else {
+            $obQuery->where('site_id', $iSiteId);
+        }
+
+        $obResult = $obQuery->first();
+
+        return $obResult instanceof EventLog ? $obResult : null;
     }
 
     /**
