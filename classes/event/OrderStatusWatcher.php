@@ -9,8 +9,10 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\MetaPixelException;
+use Logingrupa\Metapixelshopaholic\Classes\Helper\SiteResolver;
 use Logingrupa\Metapixelshopaholic\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixelshopaholic\Classes\Queue\SendCapiEvent;
+use Logingrupa\Metapixelshopaholic\Models\EventLog;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Lovata\OrdersShopaholic\Models\Order;
 use Lovata\OrdersShopaholic\Models\Status;
@@ -29,36 +31,49 @@ use Throwable;
  *     received fires single-channel CAPI (PAY-11).
  *   - queue worker / CLI Order reloads also see the model events.
  *
- * Idempotency fence (PAY-03): the `meta_purchase_event_id` DB column on
- * `lovata_orders_shopaholic_orders` is the DB-level dedup guard — a paid
- * status save with the column already populated is a no-op. The companion
- * `meta_purchase_event_time` column lets the browser-side PurchasePixel twin
- * (components/PurchasePixel.php) read the SAME timestamp the server used so
- * Meta dedups Pixel + CAPI within its ±10 s event_time window.
+ * Phase 3.1 REFAC-07 — race-fence migrated to event_log:
+ *   - Idempotency fence is now `EventLog::where(subject_type=Order,
+ *     subject_id=$obOrder->id, event_name='Purchase', channel='capi',
+ *     site_id=<active>)->exists()` (alreadyDispatched helper).
+ *   - The legacy two-column atomic CAS on Lovata's `orders` table is
+ *     GONE along with the columns themselves (Wave-1 REFAC-01 migration).
+ *   - The refire-away-clear branch from Phase 3 (WR-01 column-clear) is
+ *     also GONE — nulling deleted columns is a no-op. Refire semantics
+ *     shift to BRIEF REFAC-07 lines 178-180:
+ *       - refire ON  → watcher always proceeds; EventLogWriter's UNIQUE
+ *                       collision in SendCapiEvent handles same-order rebroadcast.
+ *       - refire OFF → watcher pre-checks alreadyDispatched to skip.
+ *   - Race-fence ATOMICITY lives entirely inside SendCapiEvent →
+ *     EventLogWriter::record (WR-12 atomic UPDATE is GONE — UNIQUE
+ *     INSERT IGNORE on the event_log table replaces it).
  *
- * Write-path discipline: every model mutation inside a handler MUST use
- * `saveQuietly()` (no observer recursion). Two writes are possible per
- * handleUpdated call:
- *   1. Away-transition clear (refire-flip ON only) — clears BOTH columns.
- *   2. Forward-fire (paid + event_id IS NULL) — sets BOTH columns + dispatch.
+ * fireForwardDispatch is now <35 LOC (Tiger-Style <70 LOC).
  *
  * Tiger-Style boundary catch: PayloadBuilder may throw
  * OrderHasNoCurrencyException / OrderHasNoItemsException — log warning and
  * return (DO NOT rethrow — would break Order::save() cascade through Lovata
  * OrderProcessor / Campaign / PromoMechanism).
  *
- * Threat model (T-03-26..28):
- *   - meta_purchase_event_id is only written here (T-03-26 mitigation).
- *   - saveQuietly suppresses model observers — no infinite recursion (T-03-27).
+ * Multi-site (T-3.1-16 mitigation): alreadyDispatched branches on
+ * SiteResolver::getActiveSiteId() — `whereNull('site_id')` for single-site
+ * installs / CLI / queue, `where('site_id', $iSiteId)` for multi-site.
+ * One site's "already dispatched" decision never suppresses another site's
+ * legitimate dispatch for the same Order id (rare-but-valid scenario in
+ * October 4 multi-site installations).
+ *
+ * Threat model (T-03-26..28 + Phase 3.1 T-3.1-16):
+ *   - The legacy idempotency column is no longer written here (columns
+ *     deleted in Wave-1 REFAC-01).
  *   - Status + idempotency fences guard against spoof-dispatch (T-03-28).
+ *   - Multi-site scope prevents cross-site dispatch suppression (T-3.1-16).
  */
 final class OrderStatusWatcher
 {
     /**
      * WR-08 lock: in-process status_id → code cache. Each handleUpdated may
-     * fire up to 2 Status::where('id', $id)->value('code') queries (current +
-     * original via isAwayFromPaid), plus the disabled flag lookup. On a bulk-
-     * admin save of N orders this becomes 2N status table queries.
+     * fire one Status::where('id', $id)->value('code') query (current status),
+     * plus the disabled flag lookup. On a bulk-admin save of N orders this
+     * becomes N status table queries without caching.
      *
      * Caching at the class-static level (request-scoped) collapses the
      * lookups to 1 query per distinct status_id per request. Status table is
@@ -66,6 +81,10 @@ final class OrderStatusWatcher
      * operator adds a handful). The map is reset between requests because
      * PHP-FPM workers reset class statics on shutdown; tests can call
      * flushStatusCache() in tearDown.
+     *
+     * Phase 3.1 REFAC-07: the second cache hit (status_id original-value
+     * lookup via the removed isAwayFromPaid helper) is gone with the
+     * deleted refire-away-clear branch.
      *
      * @var array<int, string>
      */
@@ -110,8 +129,9 @@ final class OrderStatusWatcher
     }
 
     /**
-     * Order model updated. Refire-flip away-transition clear → status fence →
-     * idempotency fence → UUID + event_time persist → dispatch.
+     * Order model updated. Refire-aware status fence → EventLog existence
+     * fence → dispatch. Phase 3.1 REFAC-07: the refire-away-clear column
+     * branch is GONE (columns deleted).
      */
     public function handleUpdated(Order $obOrder): void
     {
@@ -120,48 +140,6 @@ final class OrderStatusWatcher
         }
 
         $sPaidCode = $this->readPaidStatusCode();
-        $bRefire = $this->readRefireFlag();
-
-        // Refire-flip ON branch: status flipped AWAY from paid → clear both
-        // dedup columns so the next back-to-paid flip re-fires. Phase-3
-        // default ($bRefire === false) skips this entirely; status flip-flop
-        // never re-fires because the fence below stays populated.
-        //
-        // WR-01 lock: write via raw DB::table()->update() rather than
-        // saveQuietly() — we are currently inside the `eloquent.updated`
-        // event chain that the user's original Order::save() initiated, and
-        // a nested saveQuietly issues a second UPDATE statement during the
-        // first UPDATE's event handler chain. The raw DB write skips the
-        // model save lifecycle entirely (no second event chain), and we
-        // sync the in-memory $obOrder attributes via setRawAttributes so a
-        // later read inside this same handler sees the cleared state.
-        if ($bRefire && $this->isAwayFromPaid($obOrder, $sPaidCode)) {
-            $iOrderId = $this->intOrZero($obOrder->getAttribute('id'));
-            if ($iOrderId > 0) {
-                DB::table('lovata_orders_shopaholic_orders')
-                    ->where('id', $iOrderId)
-                    ->update([
-                        'meta_purchase_event_id' => null,
-                        'meta_purchase_event_time' => null,
-                    ]);
-            }
-            $obOrder->setRawAttributes(
-                array_merge($obOrder->getAttributes(), [
-                    'meta_purchase_event_id' => null,
-                    'meta_purchase_event_time' => null,
-                ]),
-                true,
-            );
-            Log::info('Metapixel: cleared meta_purchase_event_id + event_time on away-transition', [
-                'meta_pixel.order_id' => $iOrderId,
-                'meta_pixel.order_number' => $this->stringOrEmpty($obOrder->getAttribute('order_number')),
-            ]);
-            // Continue — the same handleUpdated call may also be the
-            // back-to-paid transition (rare but valid: a single save that
-            // crosses from paid → other → paid is collapsed by Eloquent
-            // into one event firing, so the away-clear above happens and
-            // then the status fence below admits the forward-fire).
-        }
 
         // Status fence: only fire when the CURRENT status code matches the
         // configured paid_status_code (default 'new-payment-received').
@@ -169,9 +147,13 @@ final class OrderStatusWatcher
             return;
         }
 
-        // Idempotency fence: column already populated = Purchase already
-        // dispatched (or in flight in the queue). No-op.
-        if ($obOrder->getAttribute('meta_purchase_event_id') !== null) {
+        // Idempotency fence (REFAC-07 semantics):
+        //   refire_purchase_on_status_flip=OFF (default) → skip if event_log
+        //     has a 'Purchase'/'capi' row for this Order on the active site.
+        //   refire_purchase_on_status_flip=ON            → proceed regardless;
+        //     SendCapiEvent's EventLogWriter::record will collide on UNIQUE
+        //     if no flip-away preceded → no double-POST.
+        if (! $this->readRefireFlag() && $this->alreadyDispatched($obOrder)) {
             return;
         }
 
@@ -181,8 +163,9 @@ final class OrderStatusWatcher
     /**
      * Order model created. CONTEXT Area 2 Q2 — covers admin-created-already-paid
      * orders (imports, seeds, manual entry). Refire-flip logic does not apply
-     * (no original status to flip away from). Same guard + dispatch as the
-     * forward-fire branch of handleUpdated.
+     * (no original status to flip away from). Same gating as the forward-fire
+     * branch of handleUpdated, with the EventLog existence fence in place of
+     * the deleted column-NULL guard.
      */
     public function handleCreated(Order $obOrder): void
     {
@@ -190,13 +173,11 @@ final class OrderStatusWatcher
             return;
         }
 
-        $sPaidCode = $this->readPaidStatusCode();
-
-        if (! $this->isAtPaidStatus($obOrder, $sPaidCode)) {
+        if (! $this->isAtPaidStatus($obOrder, $this->readPaidStatusCode())) {
             return;
         }
 
-        if ($obOrder->getAttribute('meta_purchase_event_id') !== null) {
+        if (! $this->readRefireFlag() && $this->alreadyDispatched($obOrder)) {
             return;
         }
 
@@ -204,30 +185,18 @@ final class OrderStatusWatcher
     }
 
     /**
-     * Generate UUIDv4 + event_time, persist BOTH columns via an atomic
-     * conditional UPDATE (compare-and-set), build payload (soft-skip on
-     * MetaPixelException), schedule SendCapiEvent dispatch after the wrapping
-     * transaction commits.
+     * Generate UUIDv4 + event_time, build payload, schedule SendCapiEvent
+     * dispatch after the wrapping transaction commits.
      *
-     * WR-12 lock — atomic CAS via DB-level conditional UPDATE.
-     *   PayPal and Vipps both ship a browser-return URL AND an async
-     *   server-to-server webhook that BOTH update Order.status_id to paid
-     *   within milliseconds. Two concurrent eloquent.updated handlers each
-     *   load their own Order instance with meta_purchase_event_id = NULL,
-     *   pass the in-memory IS-NULL fence, and both reach this method —
-     *   read-then-write race. The single `UPDATE … WHERE meta_purchase_event_id
-     *   IS NULL` is atomic at the row level (InnoDB exclusive lock at row
-     *   acquisition): winner returns affected_rows = 1, loser returns 0 and
-     *   bails. Same shape as the refire away-clear branch above (WR-01).
+     * Phase 3.1 REFAC-07:
+     *   - WR-12 atomic-CAS UPDATE on the orders table is GONE (columns
+     *     deleted). Race-fence atomicity now lives inside SendCapiEvent →
+     *     EventLogWriter::record (UNIQUE INSERT IGNORE on event_log).
+     *   - WR-13 lock preserved — afterCommit-deferred queue dispatch so a
+     *     rolled-back transaction never POSTs to Meta.
      *
-     * WR-13 lock — afterCommit-deferred queue dispatch.
-     *   If the wrapping Order::save() transaction rolls back, an immediate
-     *   SendCapiEvent::dispatch on a database queue would still POST to Meta
-     *   for a row that no longer reflects paid state. afterCommit defers the
-     *   dispatch to post-commit; on rollback the closure never fires.
-     *
-     * The dispatch tail is shared between handleUpdated and handleCreated to
-     * keep both methods' cyclomatic complexity ≤ 10 (PHPMD).
+     * The dispatch tail is shared between handleUpdated and handleCreated
+     * to keep both methods' cyclomatic complexity ≤ 10 (PHPMD).
      */
     private function fireForwardDispatch(Order $obOrder): void
     {
@@ -237,38 +206,9 @@ final class OrderStatusWatcher
 
         if ($iOrderId <= 0) {
             // Defensive — handleUpdated/handleCreated only fire on persisted
-            // Order instances, but fail-safe rather than UPDATE WHERE id=0.
+            // Order instances, but fail-safe rather than dispatch on id=0.
             return;
         }
-
-        $iRowsAffected = DB::table('lovata_orders_shopaholic_orders')
-            ->where('id', $iOrderId)
-            ->whereNull('meta_purchase_event_id')
-            ->update([
-                'meta_purchase_event_id' => $sUuid,
-                'meta_purchase_event_time' => $iEventTime,
-            ]);
-
-        if ($iRowsAffected === 0) {
-            // Lost the race — a concurrent handler already populated the
-            // column for this order. No-op.
-            Log::info('Metapixel: lost CAS race — peer already dispatched Purchase', [
-                'meta_pixel.order_id' => $iOrderId,
-                'meta_pixel.attempted_event_id' => $sUuid,
-            ]);
-
-            return;
-        }
-
-        // Sync in-memory model so downstream reads in the same request see
-        // the persisted state (PayloadBuilder reads via $obOrder).
-        $obOrder->setRawAttributes(
-            array_merge($obOrder->getAttributes(), [
-                'meta_purchase_event_id' => $sUuid,
-                'meta_purchase_event_time' => $iEventTime,
-            ]),
-            true,
-        );
 
         try {
             $arPayload = (new PayloadBuilder)->buildPurchaseEventPayload(
@@ -280,8 +220,8 @@ final class OrderStatusWatcher
             // Boundary catch: PayloadBuilder precondition failure (no
             // currency, no items, invalid event_id). Log warning and
             // return — do NOT rethrow (would cascade through Order::save).
-            // The UPDATE above already wrote the UUID; the manual
-            // replay path (Phase 5 HARD-02) is the operator recovery.
+            // The manual replay path (Phase 5 HARD-02) is the operator
+            // recovery for a precondition-failure dispatch.
             Log::warning('Metapixel: PayloadBuilder precondition failed — Purchase NOT dispatched', [
                 'meta_pixel.order_id' => $iOrderId,
                 'meta_pixel.event_id' => $sUuid,
@@ -293,14 +233,49 @@ final class OrderStatusWatcher
         }
 
         $sOrderNumber = $this->stringOrEmpty($obOrder->getAttribute('order_number'));
-        DB::afterCommit(static function () use ($arPayload, $iOrderId, $sOrderNumber, $sUuid) {
-            SendCapiEvent::dispatch('Purchase', $arPayload);
+        DB::afterCommit(static function () use ($arPayload, $iOrderId, $sOrderNumber, $sUuid, $obOrder): void {
+            // SCE-03 v1.1.0 update: third arg is $obOrder (Phase 3.1 REFAC-06).
+            SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder);
             Log::info('Metapixel: Purchase dispatched', [
                 'meta_pixel.order_id' => $iOrderId,
                 'meta_pixel.order_number' => $sOrderNumber,
                 'meta_pixel.event_id' => $sUuid,
             ]);
         });
+    }
+
+    /**
+     * Existence check on event_log for a CAPI Purchase row scoped to this
+     * Order + active site_id. Replaces the legacy Phase-3 column-NULL
+     * check on Lovata's orders table (columns deleted in Wave-1 REFAC-01).
+     *
+     * Multi-site (T-3.1-16 mitigation): single-site / CLI / queue context
+     * → SiteResolver returns null → `whereNull('site_id')` matches rows
+     * inserted by EventLogWriter with site_id=NULL. Multi-site context →
+     * SiteResolver returns int → `where('site_id', $iSiteId)`. MySQL UNIQUE
+     * treats NULL as distinct under the composite key, so single-site and
+     * multi-site rows coexist correctly on the same table.
+     */
+    private function alreadyDispatched(Order $obOrder): bool
+    {
+        $iSubjectId = $this->intOrZero($obOrder->getAttribute('id'));
+        if ($iSubjectId <= 0) {
+            return false;
+        }
+        $iSiteId = SiteResolver::getActiveSiteId();
+
+        $obQuery = EventLog::where('subject_type', Order::class)
+            ->where('subject_id', $iSubjectId)
+            ->where('event_name', EventLog::EVENT_PURCHASE)
+            ->where('channel', EventLog::CHANNEL_CAPI);
+
+        if ($iSiteId === null) {
+            $obQuery->whereNull('site_id');
+        } else {
+            $obQuery->where('site_id', $iSiteId);
+        }
+
+        return $obQuery->exists();
     }
 
     private function isPluginDisabled(): bool
@@ -354,30 +329,6 @@ final class OrderStatusWatcher
         $iStatusId = $this->intOrZero($obOrder->getAttribute('status_id'));
 
         return $this->lookupStatusCode($iStatusId) === $sPaidCode;
-    }
-
-    /**
-     * True iff the order's status_id was dirty on save AND the original
-     * status code equals the paid code AND the new status code does NOT.
-     * (The "AWAY from paid" transition that the refire-flip ON branch
-     * uses to clear the dedup columns.)
-     */
-    private function isAwayFromPaid(Order $obOrder, string $sPaidCode): bool
-    {
-        if (! $obOrder->isDirty('status_id')) {
-            return false;
-        }
-
-        $iOriginalStatusId = $this->intOrZero($obOrder->getOriginal('status_id'));
-        if ($iOriginalStatusId <= 0) {
-            return false;
-        }
-
-        if ($this->lookupStatusCode($iOriginalStatusId) !== $sPaidCode) {
-            return false;
-        }
-
-        return ! $this->isAtPaidStatus($obOrder, $sPaidCode);
     }
 
     private function stringOrEmpty(mixed $mValue): string

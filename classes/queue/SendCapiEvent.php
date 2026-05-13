@@ -15,8 +15,11 @@ use Logingrupa\Metapixelshopaholic\Classes\Exception\MetaApiTransientException;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\MetaPixelException;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\MissingCapiTokenException;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\MissingPixelConfigException;
+use Logingrupa\Metapixelshopaholic\Classes\Helper\EventLogWriter;
 use Logingrupa\Metapixelshopaholic\Classes\Meta\MetaClient;
+use Logingrupa\Metapixelshopaholic\Models\EventLog;
 use Logingrupa\Metapixelshopaholic\Models\FailedEvent;
+use Lovata\OrdersShopaholic\Models\Order;
 use Throwable;
 
 /**
@@ -40,11 +43,24 @@ use Throwable;
  *   - `failed()` hook fires after `$tries` exhaustion on a re-thrown transient
  *     — also writes a FailedEvent row (transient-exhausted case).
  *
- * Idempotency (CONTEXT Area 1 Q3): the `meta_purchase_event_id` DB column on
- * `lovata_orders_shopaholic_orders` (plan 03-01 PAY-04) is the canonical fence
- * at the dispatch site. NO `ShouldBeUniqueUntilProcessing` here — two equal
- * payloads cannot be dispatched because the UUID generation in
- * OrderStatusWatcher (plan 03-06) is fenced by `meta_purchase_event_id IS NULL`.
+ * Idempotency / race-fence (Phase 3.1 REFAC-06): the legacy column-CAS on
+ * Lovata's `orders` table is GONE. The race fence now lives on the
+ * plugin-owned `logingrupa_metapixel_event_log` table via the 5-column
+ * UNIQUE constraint (subject_type, subject_id, event_name, channel,
+ * site_id). `handle()` calls `EventLogWriter::record(...)` BEFORE
+ * `MetaClient::send`. `insertOrIgnore` returns 1 = race winner (proceed
+ * with POST) or 0 = race loser (peer already POSTed — log INFO + return,
+ * no HTTP traffic).
+ *
+ * v1.1.0 BREAKING CHANGE (SCE-03 deliberately broken): the Phase-3 signature
+ * `__construct(string $sEventName, array $arPayload)` adds a required third
+ * parameter `Order $obSubject`. Subject is needed by `EventLogWriter::record`
+ * to populate the polymorphic `subject_type` + `subject_id` columns AND the
+ * `secret_key` for the future `/checkout/{slug}` lookup path. `Order` is
+ * `SerializesModels`-compatible (the trait we already use), so the readonly
+ * Order property survives queue rehydrate cleanly. No call sites outside
+ * this plugin instantiate `SendCapiEvent`; the v1.1.0 minor version bump
+ * (Wave-1 `updates/version.yaml`) documents the break.
  *
  * Tiger-Style: exactly one silent catch (writeFailedEvent's DB-write guard
  * documented inline; rethrowing would cause Laravel to retry an already-
@@ -62,6 +78,11 @@ use Throwable;
  *     `public readonly array $arPayload` — PHP 8.4 readonly prevents mutation.
  *   - T-03-24 (logging the access_token): mitigated — payload contains BODY
  *     only; access_token lives in the query string built by MetaClient.
+ *   - T-3.1-12 (constructor break): accepted — v1.1.0 documents the break.
+ *   - T-3.1-13 (race-fence repudiation): mitigated — EventLog UNIQUE row +
+ *     fired_at timestamp + UUID event_id form the append-only audit trail.
+ *   - T-3.1-14 (DoS on hot path): mitigated — `insertOrIgnore` is a single
+ *     round-trip; latency comparable to the legacy column-CAS UPDATE.
  */
 final class SendCapiEvent implements ShouldQueue
 {
@@ -80,20 +101,41 @@ final class SendCapiEvent implements ShouldQueue
      * @param  string  $sEventName  Meta event name (Purchase, ViewContent, AddToCart, ...).
      * @param  array<string, mixed>  $arPayload  Envelope built by PayloadBuilder
      *                                           (`['data' => [['event_id' => ..., ...]]]`).
+     * @param  Order  $obSubject   Polymorphic subject for the EventLog race-fence row
+     *                             (v1.1.0 BREAKING — Phase 3.1 REFAC-06). Order is
+     *                             `SerializesModels`-compatible so the readonly property
+     *                             survives queue rehydrate.
      */
     public function __construct(
         public readonly string $sEventName,
         public readonly array $arPayload,
+        public readonly Order $obSubject,
     ) {}
 
     /**
-     * Send the CAPI payload through MetaClient. Transient → rethrow for Laravel
-     * retry. Permanent / missing-config → write FailedEvent + return.
+     * Race-fence pre-call → MetaClient HTTP POST → transient/permanent
+     * exception routing. Race-fence loss (peer already POSTed) returns
+     * without calling `$obClient->send`. Transient → rethrow. Permanent /
+     * missing-config → write FailedEvent + return.
      *
      * @param  MetaClient  $obClient  Container-resolved via type-hint.
      */
     public function handle(MetaClient $obClient): void
     {
+        // Phase 3.1 REFAC-06: race-fence moves from the deleted legacy
+        // column on Lovata's orders table to the event_log table's
+        // 5-col UNIQUE constraint. `EventLogWriter::record` returns:
+        //   - true  → this job's INSERT created the row (race winner) → POST.
+        //   - false → UNIQUE blocked OR DB error (race loser) → no POST.
+        if (! $this->raceFenceWon()) {
+            Log::info(
+                'Metapixel CAPI dispatch lost race — peer already POSTed',
+                $this->buildLogContext(),
+            );
+
+            return;
+        }
+
         try {
             $obClient->send($this->arPayload);
 
@@ -144,6 +186,75 @@ final class SendCapiEvent implements ShouldQueue
     }
 
     /**
+     * Atomic race-fence INSERT via EventLogWriter. Returns true when this job
+     * won the UNIQUE-constraint race, false when a concurrent dispatch
+     * already recorded the CAPI row OR the payload is malformed OR a DB
+     * write failure occurred (EventLogWriter absorbs DB errors as a
+     * Tiger-Style fail-safe — surface them as race-loss so no double-fire
+     * happens on infra outage).
+     *
+     * Payload parsing: extracts `event_id` + `event_time` from
+     * `$this->arPayload['data'][0]` (PayloadBuilder envelope shape locked in
+     * Phase 3 PB-01). Both must be present and well-typed; otherwise return
+     * false (refuse to dispatch a malformed payload — no HTTP POST).
+     */
+    private function raceFenceWon(): bool
+    {
+        $arFirst = $this->extractFirstEvent();
+        $mxEventId = $arFirst['event_id'] ?? null;
+        $sEventId = is_string($mxEventId) ? $mxEventId : '';
+        $mxEventTime = $arFirst['event_time'] ?? null;
+        $iEventTime = is_int($mxEventTime) ? $mxEventTime : 0;
+
+        if ($sEventId === '' || $iEventTime === 0) {
+            return false; // malformed payload — refuse to dispatch
+        }
+
+        return EventLogWriter::record(
+            $sEventId,
+            $this->sEventName,
+            EventLog::CHANNEL_CAPI,
+            $this->obSubject,
+            $this->stringOrNull($this->obSubject->getAttribute('secret_key')),
+            $iEventTime,
+        );
+    }
+
+    /**
+     * Read the first event envelope from `$this->arPayload['data'][0]` with
+     * full typed narrowing. PayloadBuilder envelope shape: `['data' => [[
+     * 'event_id' => ..., 'event_time' => ..., ... ]]]`. Returns an empty
+     * array when the shape doesn't match (malformed payload).
+     *
+     * @return array<string, mixed>
+     */
+    private function extractFirstEvent(): array
+    {
+        $mxData = $this->arPayload['data'] ?? null;
+        if (! is_array($mxData)) {
+            return [];
+        }
+        $mxFirst = $mxData[0] ?? null;
+
+        return is_array($mxFirst) ? $mxFirst : [];
+    }
+
+    /**
+     * Narrow a mixed value to `string|null` — non-empty string returns as-is,
+     * everything else returns null. Mirrors OrderStatusWatcher::intOrZero /
+     * stringOrEmpty narrowing pattern (PHPSTAN-01 lock). Phpstan level 10
+     * accepts the is_string narrowing without `@var` or assert.
+     */
+    private function stringOrNull(mixed $mValue): ?string
+    {
+        if (is_string($mValue) && $mValue !== '') {
+            return $mValue;
+        }
+
+        return null;
+    }
+
+    /**
      * Persist a FailedEvent row from the current payload + the terminating
      * exception. DB-write failure is absorbed by a documented silent catch
      * (Tiger-Style exception — rethrowing during dead-letter would cause
@@ -172,9 +283,8 @@ final class SendCapiEvent implements ShouldQueue
      */
     private function buildLogContext(array $arExtra = []): array
     {
-        $mxData = $this->arPayload['data'] ?? null;
-        $mxFirst = is_array($mxData) ? ($mxData[0] ?? null) : null;
-        $mxEventId = is_array($mxFirst) ? ($mxFirst['event_id'] ?? null) : null;
+        $arFirst = $this->extractFirstEvent();
+        $mxEventId = $arFirst['event_id'] ?? null;
 
         return array_merge([
             'meta_pixel.event_name' => $this->sEventName,
