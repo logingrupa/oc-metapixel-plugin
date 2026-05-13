@@ -5,43 +5,37 @@ namespace Logingrupa\Metapixelshopaholic\Tests\Feature;
 require_once __DIR__.'/../MetapixelTestCase.php';
 require_once __DIR__.'/../Support/OrderFixtures.php';
 
+use Carbon\Carbon;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixelshopaholic\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixelshopaholic\Components\PurchasePixel;
+use Logingrupa\Metapixelshopaholic\Models\EventLog;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
 use Logingrupa\Metapixelshopaholic\Tests\Support\OrderFixtures;
+use Lovata\OrdersShopaholic\Models\Order;
 use Ramsey\Uuid\Uuid;
 
 /**
- * Feature test locking the Plan 03-06 PAY-10 PurchasePixel browser-twin
- * dedup contract.
+ * Feature test locking the Phase 3.1 REFAC-08 PurchasePixel browser-twin
+ * dedup contract on top of the event_log table.
  *
- * Each test covers ONE invariant from the plan's <behavior> section:
+ * Phase 3 column-based test methods that purely locked the deleted
+ * Phase-3 dedup columns have been DELETED — superseded by the
+ * event_log gate tests in `PurchasePixelEventLogGateTest`:
  *
- *   1. test_paid_order_with_persisted_event_id_populates_ar_meta_event
- *      — happy path: paid + event_id + event_time set → arMetaEvent
- *      populated with all 4 keys and Phase-3 content_ids/value/currency.
- *   2. test_non_paid_order_does_not_populate_ar_meta_event
- *      — status fence rejects even if event_id is somehow set.
- *   3. test_paid_order_without_persisted_event_id_does_not_populate_ar_meta_event
- *      — IPN-race protection: user lands on /checkout/{slug} before the
- *      PayPal IPN flips the status — Pixel renders nothing.
- *   4. test_paid_order_without_persisted_event_time_does_not_populate_ar_meta_event
- *      — column-pair contract: event_time null = render nothing.
- *   5. test_plugin_disabled_does_not_populate_ar_meta_event
- *      — PluginGuard short-circuit at component entry.
- *   6. test_order_slug_not_found_does_not_populate_ar_meta_event
- *      — bad slug = render nothing (defensive).
- *   7. test_custom_data_matches_capi_envelope_byte_for_byte
- *      — the contract that Meta-dedup-on-event-id relies on: Pixel
- *      side's custom_data === CAPI side's custom_data byte-for-byte.
+ *   - `test_paid_order_without_persisted_event_id_does_not_populate_ar_meta_event`
+ *     → replaced by `PurchasePixelEventLogGateTest::test_onrun_returns_null_when_capi_row_absent`.
+ *   - `test_paid_order_without_persisted_event_time_does_not_populate_ar_meta_event`
+ *     → replaced by `PurchasePixelEventLogGateTest::test_onrun_returns_null_when_capi_row_absent`
+ *       (the Phase-3 column-pair defensive guard for partial writes no
+ *       longer applies — the event_log INSERT is atomic so the
+ *       "half-written" branch cannot exist).
  *
- * Component is instantiated via the ArrayAccess stub pattern from
- * PixelHeadTest (no full October page-lifecycle boot needed for a
- * unit-of-behavior feature test).
+ * Every surviving test that previously seeded the deleted Phase-3 dedup
+ * columns on `$obOrder` now seeds an EventLog CAPI row instead.
  */
 final class PurchasePixelTest extends MetapixelTestCase
 {
@@ -51,6 +45,7 @@ final class PurchasePixelTest extends MetapixelTestCase
         $this->bootSystemSettings();
         $this->bootOrdersStatuses();
         $this->bootOrdersTable();
+        $this->bootEventLogTable();
         OrderFixtures::provisionHermeticOfferProductTables();
         Cache::flush();
         Settings::clearInternalCache();
@@ -65,20 +60,17 @@ final class PurchasePixelTest extends MetapixelTestCase
         parent::tearDown();
     }
 
-    public function test_paid_order_with_persisted_event_id_populates_ar_meta_event(): void
+    public function test_paid_order_with_capi_row_populates_ar_meta_event(): void
     {
         $obOrder = OrderFixtures::makePaidOrder();
         $sUuid = Uuid::uuid4()->toString();
         $iEventTime = 1715000000;
-        $obOrder->forceFill([
-            'meta_purchase_event_id' => $sUuid,
-            'meta_purchase_event_time' => $iEventTime,
-        ])->save();
+        $this->seedCapiRow($obOrder, $sUuid, $iEventTime);
 
         $obComponent = $this->makeComponent((string) $obOrder->secret_key);
         $obComponent->onRun();
 
-        $this->assertNotNull($obComponent->arMetaEvent, 'paid order with both persisted columns must populate arMetaEvent.');
+        $this->assertNotNull($obComponent->arMetaEvent, 'paid order with CAPI event_log row must populate arMetaEvent.');
         $this->assertSame($sUuid, $obComponent->arMetaEvent['event_id']);
         $this->assertSame($iEventTime, $obComponent->arMetaEvent['event_time']);
         $this->assertSame('Purchase', $obComponent->arMetaEvent['event_name']);
@@ -93,13 +85,12 @@ final class PurchasePixelTest extends MetapixelTestCase
     public function test_non_paid_order_does_not_populate_ar_meta_event(): void
     {
         // Build the paid order, then forceFill the status BACK down to pending.
-        // event_id is set so we can prove the status fence (not the event_id
-        // fence) is what's rejecting the dispatch.
+        // CAPI row is seeded so we can prove the status fence (not the
+        // event_log gate) is what's rejecting the dispatch.
         $obOrder = OrderFixtures::makePaidOrder();
+        $this->seedCapiRow($obOrder, Uuid::uuid4()->toString(), 1715000000);
         $obOrder->forceFill([
             'status_id' => 1, // 'new' (pending) per bootOrdersStatuses seed.
-            'meta_purchase_event_id' => Uuid::uuid4()->toString(),
-            'meta_purchase_event_time' => 1715000000,
         ])->save();
 
         $obComponent = $this->makeComponent((string) $obOrder->secret_key);
@@ -108,48 +99,10 @@ final class PurchasePixelTest extends MetapixelTestCase
         $this->assertNull($obComponent->arMetaEvent, 'status != paid_status_code MUST render nothing.');
     }
 
-    public function test_paid_order_without_persisted_event_id_does_not_populate_ar_meta_event(): void
-    {
-        // IPN-race scenario: user reaches /checkout/{slug} before PayPal IPN
-        // flips the status — OrderStatusWatcher hasn't fired yet so event_id
-        // is null. Pixel correctly renders nothing rather than guess.
-        $obOrder = OrderFixtures::makePaidOrder();
-        // makePaidOrder leaves event_id null by default; explicit set for clarity.
-        $obOrder->forceFill([
-            'meta_purchase_event_id' => null,
-            'meta_purchase_event_time' => null,
-        ])->save();
-
-        $obComponent = $this->makeComponent((string) $obOrder->secret_key);
-        $obComponent->onRun();
-
-        $this->assertNull($obComponent->arMetaEvent, 'event_id null MUST render nothing.');
-    }
-
-    public function test_paid_order_without_persisted_event_time_does_not_populate_ar_meta_event(): void
-    {
-        // Defensive: column-pair contract violation. Should never happen in
-        // production (OrderStatusWatcher writes BOTH atomically) but lock
-        // the guard so a future refactor can't sneak past it.
-        $obOrder = OrderFixtures::makePaidOrder();
-        $obOrder->forceFill([
-            'meta_purchase_event_id' => Uuid::uuid4()->toString(),
-            'meta_purchase_event_time' => null,
-        ])->save();
-
-        $obComponent = $this->makeComponent((string) $obOrder->secret_key);
-        $obComponent->onRun();
-
-        $this->assertNull($obComponent->arMetaEvent, 'event_time null MUST render nothing.');
-    }
-
     public function test_plugin_disabled_does_not_populate_ar_meta_event(): void
     {
         $obOrder = OrderFixtures::makePaidOrder();
-        $obOrder->forceFill([
-            'meta_purchase_event_id' => Uuid::uuid4()->toString(),
-            'meta_purchase_event_time' => 1715000000,
-        ])->save();
+        $this->seedCapiRow($obOrder, Uuid::uuid4()->toString(), 1715000000);
 
         // Reflection-prime PluginGuard into disabled state — sidesteps HR-02
         // (the Settings::set('pixel_id', '') round-trip flap inside the
@@ -203,12 +156,11 @@ final class PurchasePixelTest extends MetapixelTestCase
         // thank-you-page render). Both the relation load AND the Status::where
         // lookup return null → render nothing (status fence rejects).
         $obOrder = OrderFixtures::makePaidOrder();
+        $this->seedCapiRow($obOrder, Uuid::uuid4()->toString(), 1715000000);
         // Point at an orphaned status_id — relation lookup returns null and
         // Status::where('id', 9999)->value('code') returns null too.
         $obOrder->forceFill([
             'status_id' => 9999,
-            'meta_purchase_event_id' => Uuid::uuid4()->toString(),
-            'meta_purchase_event_time' => 1715000000,
         ])->save();
         // Avoid eager-loaded `status` relation — fresh from DB.
         $obFresh = $obOrder->fresh();
@@ -225,10 +177,7 @@ final class PurchasePixelTest extends MetapixelTestCase
         // the fallback should resolve 'new-payment-received' via Status::where
         // and return true.
         $obOrder = OrderFixtures::makePaidOrder();
-        $obOrder->forceFill([
-            'meta_purchase_event_id' => Uuid::uuid4()->toString(),
-            'meta_purchase_event_time' => 1715000000,
-        ])->save();
+        $this->seedCapiRow($obOrder, Uuid::uuid4()->toString(), 1715000000);
         // unsetRelation forces a fresh lookup; on the fresh fetch the relation
         // is not loaded so getRelationValue triggers the BelongsTo query.
         $obFresh = $obOrder->fresh();
@@ -294,10 +243,7 @@ final class PurchasePixelTest extends MetapixelTestCase
         // deleting all order_positions on a paid order so resolveOrderPositions
         // raises OrderHasNoItemsException (a MetaPixelException subclass).
         $obOrder = OrderFixtures::makePaidOrder();
-        $obOrder->forceFill([
-            'meta_purchase_event_id' => Uuid::uuid4()->toString(),
-            'meta_purchase_event_time' => 1715000000,
-        ])->save();
+        $this->seedCapiRow($obOrder, Uuid::uuid4()->toString(), 1715000000);
         // Delete positions: PayloadBuilder reads relation values → empty
         // collection → OrderHasNoItemsException MetaPixelException subclass.
         \DB::table('lovata_orders_shopaholic_order_positions')
@@ -323,10 +269,9 @@ final class PurchasePixelTest extends MetapixelTestCase
         $obOrder = OrderFixtures::makePaidOrder();
         $sUuid = Uuid::uuid4()->toString();
         $iEventTime = 1715000000;
+        $this->seedCapiRow($obOrder, $sUuid, $iEventTime);
         $obOrder->forceFill([
             'order_number' => '</script><script>alert(1)</script>',
-            'meta_purchase_event_id' => $sUuid,
-            'meta_purchase_event_time' => $iEventTime,
         ])->save();
 
         $obComponent = $this->makeComponent((string) $obOrder->fresh()->secret_key);
@@ -384,10 +329,7 @@ final class PurchasePixelTest extends MetapixelTestCase
         $obOrder = OrderFixtures::makePaidOrder();
         $sUuid = Uuid::uuid4()->toString();
         $iEventTime = 1715000000;
-        $obOrder->forceFill([
-            'meta_purchase_event_id' => $sUuid,
-            'meta_purchase_event_time' => $iEventTime,
-        ])->save();
+        $this->seedCapiRow($obOrder, $sUuid, $iEventTime);
         $obOrder = $obOrder->fresh();
 
         $arCapiEnvelope = (new PayloadBuilder)->buildPurchaseEventPayload(
@@ -405,6 +347,29 @@ final class PurchasePixelTest extends MetapixelTestCase
             $obComponent->arMetaEvent['custom_data'],
             'Pixel custom_data MUST equal CAPI custom_data byte-for-byte (Meta dedup contract).',
         );
+    }
+
+    /**
+     * Seed an EventLog CAPI row for the given Order. Used by every test
+     * that previously seeded the deleted Phase-3 dedup columns on $obOrder.
+     *
+     * site_id=null mirrors single-site test harness (no SiteManager
+     * binding in MetapixelTestCase) so the production findEventLogRow's
+     * `whereNull('site_id')` branch exercises the same row.
+     */
+    private function seedCapiRow(Order $obOrder, string $sUuid, int $iEventTime): EventLog
+    {
+        return EventLog::create([
+            'event_id' => $sUuid,
+            'event_name' => EventLog::EVENT_PURCHASE,
+            'channel' => EventLog::CHANNEL_CAPI,
+            'subject_type' => Order::class,
+            'subject_id' => (int) $obOrder->id,
+            'secret_key' => (string) $obOrder->secret_key,
+            'site_id' => null,
+            'event_time' => $iEventTime,
+            'fired_at' => Carbon::now(),
+        ]);
     }
 
     /**
