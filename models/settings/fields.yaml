@@ -100,3 +100,21 @@ tabs:
             type: switch
             span: left
             default: false
+
+        cost_price_type_id:
+            label: 'logingrupa.metapixelshopaholic::lang.field.cost_price_type_id'
+            commentAbove: 'logingrupa.metapixelshopaholic::lang.field.cost_price_type_id_comment'
+            tab: 'logingrupa.metapixelshopaholic::lang.tab.advanced'
+            type: dropdown
+            span: right
+            default: 0
+            options: getCostPriceTypeIdOptions
+            emptyOption: 'lovata.toolbox::lang.field.empty'
+
+        cost_price_excludes_vat:
+            label: 'logingrupa.metapixelshopaholic::lang.field.cost_price_excludes_vat'
+            commentAbove: 'logingrupa.metapixelshopaholic::lang.field.cost_price_excludes_vat_comment'
+            tab: 'logingrupa.metapixelshopaholic::lang.tab.advanced'
+            type: switch
+            span: left
+            default: true

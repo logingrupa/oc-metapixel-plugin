@@ -6,6 +6,7 @@ namespace Logingrupa\Metapixelshopaholic\Classes\Meta;
 
 use Illuminate\Contracts\Container\BindingResolutionException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\InvalidEventIdException;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\OrderHasNoCurrencyException;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\OrderHasNoItemsException;
@@ -223,27 +224,37 @@ class PayloadBuilder
         $fTotalValue = 0.0;
         $iNumItems = 0;
 
+        $iCostPriceTypeId = $this->readCostPriceTypeId();
+        $bCostExcludesVat = $this->readCostExcludesVat();
+        $arCostByOfferId = $iCostPriceTypeId > 0
+            ? $this->loadCostPrices($this->extractOfferIds($arPositions), $iCostPriceTypeId)
+            : [];
+
         foreach ($arPositions as $obPosition) {
             // OrderPosition is polymorphic — `item_type = Offer::class, item_id = {offerId}`.
-            // Read item_id directly (the `offer_id` accessor returns null if
-            // item_type != Offer; raw `item_id` is type-stable).
             $iOfferId = $this->intOrZero($obPosition->getRawOriginal('item_id'));
             $iProductId = $this->resolveProductIdForOffer($iOfferId);
             $iQuantity = $this->intOrZero($obPosition->getAttribute('quantity'));
-            // Lovata.OrdersShopaholic OrderPosition stores the unit price as
-            // the `price` decimal column. The PriceHelperTrait dynamic accessor
-            // `getPriceAttribute` reformats this via PriceHelper::format using
-            // the `decimals` Setting (default 0 = whole-number rounding) which
-            // would silently lose the cents. `getRawOriginal('price')` reads
-            // the raw DB column bypassing the formatter.
-            $fPriceValue = $this->floatOrZero($obPosition->getRawOriginal('price'));
+            // `getRawOriginal('price')` reads the raw DB cents bypassing the
+            // PriceHelper formatter (which would round per Settings.decimals).
+            $fSellPriceGross = $this->floatOrZero($obPosition->getRawOriginal('price'));
+            $fTaxPercent = $this->floatOrZero($obPosition->getRawOriginal('tax_percent'));
+            $fCostPrice = $arCostByOfferId[$iOfferId] ?? 0.0;
+
+            $fItemValue = $this->resolveItemValue(
+                $fSellPriceGross,
+                $fCostPrice,
+                $fTaxPercent,
+                $iCostPriceTypeId > 0,
+                $bCostExcludesVat,
+            );
 
             $arContents[] = [
                 'id' => $this->buildSkuId($iProductId, $iOfferId),
                 'quantity' => $iQuantity,
-                'item_price' => $fPriceValue,
+                'item_price' => $fItemValue,
             ];
-            $fTotalValue += $fPriceValue * $iQuantity;
+            $fTotalValue += $fItemValue * $iQuantity;
             $iNumItems += $iQuantity;
         }
 
@@ -252,6 +263,112 @@ class PayloadBuilder
             'total_value' => $fTotalValue,
             'num_items' => $iNumItems,
         ];
+    }
+
+    /**
+     * Resolve the Meta `item_price` value for one position.
+     *
+     * Three modes:
+     *   - **Revenue (margin OFF)** → `item_price = sell_gross`. Sent VAT-inclusive
+     *     as the customer paid it. No cost row needed.
+     *   - **Net margin (margin ON, cost excludes VAT)** → `item_price = (sell_gross / (1 + tax/100)) - cost`.
+     *     Strips VAT from sell so both sides are net (BEZ PVN).
+     *   - **Gross margin (margin ON, cost includes VAT)** → `item_price = sell_gross - cost`.
+     *     Both already gross — no VAT adjustment.
+     *
+     * Missing cost row in margin mode → cost = 0.0 → item_price degrades to sell
+     * (or sell_net if VAT stripped) rather than throwing. Tax_percent <= 0 →
+     * no VAT stripping (defensive — protects tax-exempt sites).
+     */
+    private function resolveItemValue(
+        float $fSellGross,
+        float $fCost,
+        float $fTaxPercent,
+        bool $bMarginMode,
+        bool $bCostExcludesVat
+    ): float {
+        if (! $bMarginMode) {
+            return $fSellGross;
+        }
+
+        $fSellAligned = ($bCostExcludesVat && $fTaxPercent > 0.0)
+            ? $fSellGross / (1.0 + ($fTaxPercent / 100.0))
+            : $fSellGross;
+
+        return $fSellAligned - $fCost;
+    }
+
+    /**
+     * Read the cost-price type ID from Settings. Returns 0 (revenue mode) when
+     * unset/invalid — Meta Purchase value = full sell revenue. Returns N > 0
+     * (margin mode) → value = sum((sell - cost) * qty) where cost is fetched
+     * from `lovata_shopaholic_prices` for `price_type_id = N`.
+     */
+    private function readCostPriceTypeId(): int
+    {
+        $mValue = Settings::get('cost_price_type_id', 0);
+
+        return $this->intOrZero($mValue);
+    }
+
+    /**
+     * Read the cost-excludes-VAT toggle. Default true — most accounting setups
+     * store cost as NET (BEZ PVN) per Lovata's price-type naming convention.
+     */
+    private function readCostExcludesVat(): bool
+    {
+        return (bool) Settings::get('cost_price_excludes_vat', true);
+    }
+
+    /**
+     * Extract distinct positive offer IDs from order positions.
+     *
+     * @param  list<OrderPosition>  $arPositions
+     * @return list<int>
+     */
+    private function extractOfferIds(array $arPositions): array
+    {
+        $arIds = [];
+        foreach ($arPositions as $obPosition) {
+            $iOfferId = $this->intOrZero($obPosition->getRawOriginal('item_id'));
+            if ($iOfferId > 0) {
+                $arIds[$iOfferId] = $iOfferId;
+            }
+        }
+
+        return array_values($arIds);
+    }
+
+    /**
+     * Bulk-load cost prices for the given offer IDs.
+     *
+     * Single query against `lovata_shopaholic_prices` filtered by
+     * `item_type = Offer::class AND price_type_id = $iPriceTypeId`. Returns
+     * `[offerId => costPrice]`. Missing rows are absent from the map → the
+     * caller treats absence as cost=0 (margin = sell).
+     *
+     * @param  list<int>  $arOfferIds
+     * @return array<int, float>
+     */
+    private function loadCostPrices(array $arOfferIds, int $iPriceTypeId): array
+    {
+        if ($arOfferIds === [] || $iPriceTypeId <= 0) {
+            return [];
+        }
+
+        $arRows = DB::table('lovata_shopaholic_prices')
+            ->select('item_id', 'price')
+            ->where('item_type', Offer::class)
+            ->where('price_type_id', $iPriceTypeId)
+            ->whereIn('item_id', $arOfferIds)
+            ->get();
+
+        $arResult = [];
+        foreach ($arRows as $obRow) {
+            $arResult[$this->intOrZero($obRow->item_id)] = $this->floatOrZero($obRow->price);
+        }
+
+        return $arResult;
     }
 
     /**

@@ -48,5 +48,9 @@ return [
         'refire_purchase_on_status_flip_comment' => 'Off by default. When OFF, an order with a populated meta_purchase_event_id never re-fires Purchase.',
         'ensure_fbp_fbc_server_side'            => 'Set _fbp / _fbc Server-side',
         'ensure_fbp_fbc_server_side_comment'    => 'When ON, the EnsureFbpFbcCookies middleware sets _fbp / _fbc when missing. Fixes the empty-cookie bug.',
+        'cost_price_type_id'                    => 'Cost Price Type ID (margin mode)',
+        'cost_price_type_id_comment'            => 'When > 0, Meta Purchase value = sum((sell_net - cost) * qty). Cost = lovata_shopaholic_prices.price for this price_type_id. Set to empty to send full revenue (default).',
+        'cost_price_excludes_vat'               => 'Cost Price Excludes VAT (BEZ PVN)',
+        'cost_price_excludes_vat_comment'       => 'ON when selected cost price type is NET (without VAT) — sell price is then divided by (1 + tax_percent/100) before margin subtraction. OFF when cost price already includes VAT — gross-to-gross margin. Default: ON.',
     ],
 ];

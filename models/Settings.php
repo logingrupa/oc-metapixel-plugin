@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Logingrupa\Metapixelshopaholic\Models;
 
 use Lovata\OrdersShopaholic\Models\Status;
+use Lovata\Shopaholic\Models\PriceType;
 use Lovata\Toolbox\Models\CommonSettings;
 
 /**
@@ -21,6 +22,8 @@ use Lovata\Toolbox\Models\CommonSettings;
  * @property string $paid_status_code
  * @property bool $refire_purchase_on_status_flip
  * @property bool $ensure_fbp_fbc_server_side
+ * @property int $cost_price_type_id
+ * @property bool $cost_price_excludes_vat
  */
 class Settings extends CommonSettings
 {
@@ -63,6 +66,8 @@ class Settings extends CommonSettings
         'paid_status_code',
         'refire_purchase_on_status_flip',
         'ensure_fbp_fbc_server_side',
+        'cost_price_type_id',
+        'cost_price_excludes_vat',
     ];
 
     /**
@@ -132,5 +137,33 @@ class Settings extends CommonSettings
             'redis' => 'redis',
             'sync' => 'sync',
         ];
+    }
+
+    /**
+     * Dropdown options for `cost_price_type_id` — populated from
+     * `lovata_shopaholic_price_types` (id → name). Includes only active
+     * types. Auto-invoked by October's form builder via
+     * `options: getCostPriceTypeIdOptions` in fields.yaml.
+     *
+     * Same iteration shape as `getPaidStatusCodeOptions` (WR-06 lock):
+     * explicit foreach + `getAttribute()` for phpstan-level-10 stability
+     * against the upstream Lovata model without @property docblocks.
+     *
+     * @return array<int, string>
+     */
+    public function getCostPriceTypeIdOptions(): array
+    {
+        $obList = PriceType::where('active', 1)->orderBy('id')->get();
+        $arResult = [];
+        foreach ($obList as $obType) {
+            $mId = $obType->getAttribute('id');
+            $mName = $obType->getAttribute('name');
+            if (! is_scalar($mId) || ! is_scalar($mName)) {
+                continue;
+            }
+            $arResult[(int) $mId] = (string) $mName;
+        }
+
+        return $arResult;
     }
 }
