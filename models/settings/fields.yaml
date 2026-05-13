@@ -31,7 +31,9 @@ tabs:
             label: 'logingrupa.metapixelshopaholic::lang.field.capi_access_token'
             commentAbove: 'logingrupa.metapixelshopaholic::lang.field.capi_access_token_comment'
             tab: 'logingrupa.metapixelshopaholic::lang.tab.tracking'
-            type: password
+            type: sensitive
+            allowCopy: true
+            hiddenPlaceholder: '••••••••••••••••••••'
             span: right
             required: true
 
