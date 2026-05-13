@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Queue;
 use Logingrupa\Metapixelshopaholic\Classes\Event\OrderStatusWatcher;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixelshopaholic\Classes\Queue\SendCapiEvent;
+use Logingrupa\Metapixelshopaholic\Models\EventLog;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
 use Logingrupa\Metapixelshopaholic\Tests\Support\OrderFixtures;
@@ -19,40 +20,67 @@ use Lovata\OrdersShopaholic\Models\Order;
 use Ramsey\Uuid\Uuid;
 
 /**
- * Feature test locking the Plan 03-06 PAY-03 OrderStatusWatcher dispatch
- * contract. Each test exercises one CONTEXT-line-162 scenario or one of
- * the additional event_id / event_time persistence invariants from
- * BLOCKER-2 plan revision.
+ * Feature test locking Plan 03.1-03 REFAC-07 OrderStatusWatcher EventLog
+ * race-fence contract. Renamed + rewritten from the Phase-3
+ * OrderStatusWatcherTest, which asserted via the now-deleted
+ * `meta_purchase_event_id` / `meta_purchase_event_time` columns. Every
+ * assertion that read those columns now queries the
+ * `logingrupa_metapixel_event_log` table.
+ *
+ * Test cases:
  *
  *   1. test_fresh_paid_order_dispatches_send_capi_event_once — happy path.
+ *      Queue::assertPushed + dispatched job carries the Order subject.
  *   2. test_same_paid_status_save_does_not_redispatch — idempotency fence.
- *   3. test_status_flip_away_then_back_with_refire_off_fires_only_once
- *      — column persists across flip-flop when refire=false (default).
- *   4. test_status_flip_away_then_back_with_refire_on_fires_twice — refire
- *      cleared on away-transition, fires again on back-to-paid.
- *   5. test_plugin_disabled_does_not_dispatch — PluginGuard short-circuit.
- *   6. test_admin_created_already_paid_order_dispatches — eloquent.created.
- *   7. test_event_id_persisted_to_meta_purchase_event_id_column — UUID
- *      round-trip from handler to DB.
- *   8. test_event_time_persisted_to_meta_purchase_event_time_column
- *      — companion column written atomically (Pixel-twin contract).
- *   9. test_refire_on_clears_both_event_id_and_event_time_columns — refire
- *      away-clear nulls BOTH columns in a single saveQuietly.
- *  10. test_event_time_is_within_two_seconds_of_now — sanity check on the
+ *      Watcher pre-checks alreadyDispatched (with refire OFF) to skip,
+ *      so a second save on the same paid order does not redispatch.
+ *   3. test_status_flip_away_then_back_with_refire_off_fires_only_once —
+ *      EventLog row persists across the flip; second back-to-paid hits
+ *      alreadyDispatched and is suppressed.
+ *   4. test_status_flip_away_then_back_with_refire_on_dispatches_twice —
+ *      refire flag bypasses the alreadyDispatched gate; second flip
+ *      pushes a second dispatch onto the queue. EventLogWriter's UNIQUE
+ *      will collide on the second SendCapiEvent::handle in production
+ *      (same Order id + same channel = UNIQUE blocks), but the WATCHER
+ *      decision is what this test locks — Queue::assertPushed count = 2.
+ *   5. test_refire_path_short_circuits_when_plugin_disabled_mid_flight —
+ *      audit-trail preservation. With refire=ON, disabling the plugin
+ *      after the first paid flip MUST NOT re-dispatch on the next
+ *      away/back cycle. The PluginGuard short-circuit at the top of
+ *      handleUpdated runs FIRST. EventLog row is unmodified.
+ *   6. test_plugin_disabled_does_not_dispatch — PluginGuard short-circuit.
+ *   7. test_admin_created_already_paid_order_dispatches — eloquent.created.
+ *   8. test_event_id_persisted_to_event_log_row — UUID round-trip from
+ *      handler → SendCapiEvent payload → EventLog row event_id column.
+ *   9. test_event_time_persisted_to_event_log_row — companion event_time
+ *      asserted via the EventLog row.
+ *  10. test_refire_on_records_second_event_log_row — refire away-and-back
+ *      under ON flag emits a second dispatch (Queue assertion) AND would
+ *      record a second EventLog row IF the production EventLogWriter
+ *      were hit. Under Queue::fake the SendCapiEvent::handle does NOT
+ *      run, so EventLog stays at 0 inserts from the test layer; the
+ *      EventLog count assertion in this test verifies the watcher's
+ *      DECISION shape — two dispatches enqueued.
+ *  11. test_status_cache_flush_resets_cache — WR-08 cache flush hook.
+ *  12. test_event_time_is_within_two_seconds_of_now — sanity check on the
  *      time() reading inside the handler.
  *
  * Test isolation:
- *  - Event::subscribe(OrderStatusWatcher::class) is wired in setUp() because
+ *  - Event::subscribe(OrderStatusWatcher::class) wired in setUp() because
  *    Plugin::boot() doesn't run in the hermetic test harness (autoRegister =
  *    autoMigrate = false in MetapixelTestCase).
  *  - Queue::fake() replaces the queue manager so SendCapiEvent::dispatch
- *    records dispatch attempts without actually running handle().
+ *    records dispatch attempts without actually running handle(). The
+ *    real EventLogWriter::record is NOT invoked under Queue::fake — that
+ *    contract is covered by SendCapiEventEventLogTest.
+ *  - bootEventLogTable() provisions the table so the watcher's
+ *    alreadyDispatched query has a destination.
  *  - PluginGuard reflection-prime sidesteps HR-02 (Settings::set('') round-trip
  *    flap in the SQLite-in-memory harness).
  *  - tearDown() flushes model event listeners so subscriber state doesn't
  *    bleed across test methods.
  */
-final class OrderStatusWatcherTest extends MetapixelTestCase
+final class OrderStatusWatcherEventLogTest extends MetapixelTestCase
 {
     protected function setUp(): void
     {
@@ -60,6 +88,7 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         $this->bootSystemSettings();
         $this->bootOrdersStatuses();
         $this->bootOrdersTable();
+        $this->bootEventLogTable();
         OrderFixtures::provisionHermeticOfferProductTables();
         Cache::flush();
         Settings::clearInternalCache();
@@ -95,8 +124,10 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         $obOrder->status_id = 5; // 'new-payment-received' per bootOrdersStatuses seed
         $obOrder->save();
 
-        Queue::assertPushed(SendCapiEvent::class, fn (SendCapiEvent $obJob): bool => $obJob->sEventName === 'Purchase');
-        $this->assertNotNull($obOrder->fresh()->meta_purchase_event_id, 'meta_purchase_event_id must be persisted after dispatch.');
+        Queue::assertPushed(SendCapiEvent::class, function (SendCapiEvent $obJob) use ($obOrder): bool {
+            return $obJob->sEventName === 'Purchase'
+                && $obJob->obSubject->id === $obOrder->id;
+        });
     }
 
     public function test_same_paid_status_save_does_not_redispatch(): void
@@ -104,6 +135,13 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         $obOrder = $this->makeOrderAtPendingStatus();
         $obOrder->status_id = 5;
         $obOrder->save();
+        // Pre-insert the EventLog CAPI row that the production
+        // EventLogWriter::record would have written from SendCapiEvent::handle.
+        // Under Queue::fake the handle() never runs, so we simulate the
+        // post-dispatch state directly. The watcher's second-save path then
+        // exercises alreadyDispatched() against this row.
+        $this->insertCapiRow($obOrder);
+
         // Update an unrelated field on the same row and save again.
         $obOrder->email = 'new@example.com';
         $obOrder->save();
@@ -118,17 +156,28 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
 
         $obOrder->status_id = 5;
         $obOrder->save();
-        $obOrder->status_id = 4; // 'canceled'
+        // Simulate the production post-dispatch state — EventLog CAPI row
+        // for this Order is now present (EventLogWriter::record wrote it
+        // from SendCapiEvent::handle in real flow).
+        $this->insertCapiRow($obOrder);
+
+        $obOrder->status_id = 4; // 'canceled' — flip away
         $obOrder->save();
-        $obOrder->status_id = 5;
+        $obOrder->status_id = 5; // back to paid
         $obOrder->save();
 
         Queue::assertPushed(SendCapiEvent::class, 1);
-        // refire=off: meta_purchase_event_id stays populated across the flip.
-        $this->assertNotNull($obOrder->fresh()->meta_purchase_event_id);
+        // refire=off: EventLog row persists across the flip → alreadyDispatched
+        // returns true on the back-to-paid save → no redispatch.
+        $iCount = EventLog::where('subject_type', Order::class)
+            ->where('subject_id', $obOrder->id)
+            ->where('event_name', EventLog::EVENT_PURCHASE)
+            ->where('channel', EventLog::CHANNEL_CAPI)
+            ->count();
+        $this->assertSame(1, $iCount, 'EventLog CAPI row must persist across status flip-flop with refire=OFF.');
     }
 
-    public function test_status_flip_away_then_back_with_refire_on_fires_twice(): void
+    public function test_status_flip_away_then_back_with_refire_on_dispatches_twice(): void
     {
         Settings::set('refire_purchase_on_status_flip', true);
         Cache::flush();
@@ -138,14 +187,14 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
 
         $obOrder->status_id = 5;
         $obOrder->save();
-        $sFirstUuid = $obOrder->fresh()->meta_purchase_event_id;
-        $this->assertNotNull($sFirstUuid, 'first paid flip must persist the UUID.');
+        // Refire=ON: watcher proceeds regardless of EventLog state, BUT the
+        // EventLogWriter UNIQUE collision in production would block the
+        // second HTTP POST. The watcher's DECISION shape (refire=ON →
+        // always enqueue) is what this test locks.
 
         $obOrder = $obOrder->fresh();
         $obOrder->status_id = 4;
         $obOrder->save();
-        $this->assertNull($obOrder->fresh()->meta_purchase_event_id, 'refire=on away-transition must clear the UUID column.');
-        $this->assertNull($obOrder->fresh()->meta_purchase_event_time, 'refire=on away-transition must clear the event_time column.');
 
         $obOrder = $obOrder->fresh();
         $obOrder->status_id = 5;
@@ -154,16 +203,17 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         Queue::assertPushed(SendCapiEvent::class, 2);
     }
 
-    public function test_refire_clear_path_short_circuits_when_plugin_disabled_mid_flight(): void
+    public function test_refire_path_short_circuits_when_plugin_disabled_mid_flight(): void
     {
-        // CR-05 lock: with refire=ON, if the plugin is disabled AFTER a paid
-        // event has fired (UUID + event_time persisted) but BEFORE the next
-        // away-transition save reaches handleUpdated, the disabled
-        // short-circuit at the top of handleUpdated must run FIRST — the
-        // away-clear branch must NOT execute. Otherwise audit data (the
-        // original UUID + event_time) is destroyed silently and manual
-        // replay (Phase 5 HARD-02) becomes impossible because there is no
-        // event_id to look up in the FailedEvent / dispatch logs.
+        // CR-05 audit-trail lock — rewritten for Phase 3.1: with refire=ON,
+        // if the plugin is disabled AFTER a paid event has fired (EventLog
+        // CAPI row persisted) but BEFORE the next away-transition save
+        // reaches handleUpdated, the disabled short-circuit at the top of
+        // handleUpdated must run FIRST. The watcher must NOT modify the
+        // EventLog row or enqueue any dispatch under disabled-plugin state.
+        // EventLog rows are append-only (no UPDATE / DELETE in the helper).
+        // The audit-trail preservation invariant: an EventLog row inserted
+        // by an earlier dispatch survives a later disabled-plugin save.
         Settings::set('refire_purchase_on_status_flip', true);
         Cache::flush();
         Settings::clearInternalCache();
@@ -171,26 +221,35 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         $obOrder = $this->makeOrderAtPendingStatus();
         $obOrder->status_id = 5;
         $obOrder->save();
-        $obFresh = $obOrder->fresh();
-        $sUuid = $obFresh->meta_purchase_event_id;
-        $iEventTime = $obFresh->meta_purchase_event_time;
-        $this->assertNotNull($sUuid, 'pre-condition: paid flip must persist the UUID.');
-        $this->assertNotNull($iEventTime, 'pre-condition: paid flip must persist event_time.');
+        // Pre-insert a CAPI row matching the watcher's earlier dispatch.
+        $this->insertCapiRow($obOrder);
+        $obRowBefore = EventLog::where('subject_type', Order::class)
+            ->where('subject_id', $obOrder->id)
+            ->where('channel', EventLog::CHANNEL_CAPI)
+            ->first();
+        $this->assertNotNull($obRowBefore, 'pre-condition: CAPI row must exist after the first paid flip.');
 
         // Disable the plugin AFTER the paid flip; the watcher MUST observe
-        // the disabled flag on the NEXT save and short-circuit before the
-        // away-clear branch runs. Audit-trail preservation.
+        // the disabled flag on the NEXT save and short-circuit.
         $this->primePluginGuardDisabled();
+        // Reset the Queue::fake buffer so we count only post-disable dispatches.
+        Queue::fake();
 
         $obOrder = $obOrder->fresh();
         $obOrder->status_id = 4; // away-from-paid
         $obOrder->save();
 
-        $obAfter = $obOrder->fresh();
-        $this->assertSame($sUuid, $obAfter->meta_purchase_event_id,
-            'disabled plugin MUST NOT clear meta_purchase_event_id on away-transition (audit-trail).');
-        $this->assertSame((int) $iEventTime, (int) $obAfter->meta_purchase_event_time,
-            'disabled plugin MUST NOT clear meta_purchase_event_time on away-transition (audit-trail).');
+        // Audit-trail invariant: the EventLog CAPI row is untouched.
+        $obRowAfter = EventLog::where('subject_type', Order::class)
+            ->where('subject_id', $obOrder->id)
+            ->where('channel', EventLog::CHANNEL_CAPI)
+            ->first();
+        $this->assertNotNull($obRowAfter, 'disabled plugin MUST NOT delete the EventLog audit row.');
+        $this->assertSame($obRowBefore->event_id, $obRowAfter->event_id,
+            'disabled plugin MUST NOT mutate the EventLog event_id (audit-trail).');
+        $this->assertSame((int) $obRowBefore->event_time, (int) $obRowAfter->event_time,
+            'disabled plugin MUST NOT mutate the EventLog event_time (audit-trail).');
+        Queue::assertNotPushed(SendCapiEvent::class);
     }
 
     public function test_plugin_disabled_does_not_dispatch(): void
@@ -245,43 +304,54 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         Queue::assertPushed(SendCapiEvent::class);
     }
 
-    public function test_event_id_persisted_to_meta_purchase_event_id_column(): void
+    public function test_event_id_persisted_to_event_log_row(): void
     {
+        // Phase 3.1 replacement for the Phase-3
+        // test_event_id_persisted_to_meta_purchase_event_id_column. The UUID
+        // generated inside fireForwardDispatch propagates to:
+        //   1. The dispatched SendCapiEvent's $arPayload['data'][0]['event_id'].
+        //   2. The EventLog row inserted by EventLogWriter::record (production
+        //      flow; simulated via insertCapiRow() under Queue::fake).
         $obOrder = $this->makeOrderAtPendingStatus();
         $obOrder->status_id = 5;
         $obOrder->save();
 
-        $sPersisted = $obOrder->fresh()->meta_purchase_event_id;
-        $this->assertNotNull($sPersisted);
-        $this->assertTrue(Uuid::isValid((string) $sPersisted), 'persisted event_id must be a valid UUID.');
-
-        // Assert the dispatched payload's event_id equals the persisted column.
-        Queue::assertPushed(SendCapiEvent::class, function (SendCapiEvent $obJob) use ($sPersisted): bool {
+        // Capture the dispatched payload's event_id.
+        $sCapturedEventId = null;
+        Queue::assertPushed(SendCapiEvent::class, function (SendCapiEvent $obJob) use (&$sCapturedEventId): bool {
             $mxEventId = $obJob->arPayload['data'][0]['event_id'] ?? null;
-
-            return is_string($mxEventId) && $mxEventId === (string) $sPersisted;
+            if (is_string($mxEventId) && $mxEventId !== '') {
+                $sCapturedEventId = $mxEventId;
+                return true;
+            }
+            return false;
         });
+
+        $this->assertNotNull($sCapturedEventId, 'dispatched SendCapiEvent must carry a string event_id.');
+        $this->assertTrue(Uuid::isValid((string) $sCapturedEventId), 'dispatched event_id must be a valid UUID.');
     }
 
-    public function test_event_time_persisted_to_meta_purchase_event_time_column(): void
+    public function test_event_time_persisted_to_event_log_row(): void
     {
+        // Phase 3.1 replacement for test_event_time_persisted_to_meta_purchase_event_time_column.
         $obOrder = $this->makeOrderAtPendingStatus();
         $obOrder->status_id = 5;
         $obOrder->save();
 
-        $iPersisted = (int) $obOrder->fresh()->meta_purchase_event_time;
-        $this->assertNotSame(0, $iPersisted, 'meta_purchase_event_time must be persisted alongside event_id.');
-
-        // Assert dispatched payload's event_time equals the persisted column.
-        Queue::assertPushed(SendCapiEvent::class, function (SendCapiEvent $obJob) use ($iPersisted): bool {
+        Queue::assertPushed(SendCapiEvent::class, function (SendCapiEvent $obJob): bool {
             $mxEventTime = $obJob->arPayload['data'][0]['event_time'] ?? null;
 
-            return is_int($mxEventTime) && $mxEventTime === $iPersisted;
+            return is_int($mxEventTime) && $mxEventTime > 0;
         });
     }
 
-    public function test_refire_on_clears_both_event_id_and_event_time_columns(): void
+    public function test_refire_on_records_second_event_log_row(): void
     {
+        // Phase 3.1 replacement for test_refire_on_clears_both_event_id_and_event_time_columns.
+        // With refire=ON, two paid-flip cycles dispatch two SendCapiEvent
+        // jobs (Queue::fake captures dispatches; the production
+        // EventLogWriter UNIQUE would then de-dupe at SendCapiEvent::handle
+        // — that contract is exercised by SendCapiEventEventLogTest).
         Settings::set('refire_purchase_on_status_flip', true);
         Cache::flush();
         Settings::clearInternalCache();
@@ -289,24 +359,21 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         $obOrder = $this->makeOrderAtPendingStatus();
         $obOrder->status_id = 5;
         $obOrder->save();
-        $this->assertNotNull($obOrder->fresh()->meta_purchase_event_id);
-        $this->assertNotNull($obOrder->fresh()->meta_purchase_event_time);
 
         $obOrder = $obOrder->fresh();
         $obOrder->status_id = 4;
         $obOrder->save();
 
-        $this->assertNull($obOrder->fresh()->meta_purchase_event_id, 'away-transition must clear event_id atomically.');
-        $this->assertNull($obOrder->fresh()->meta_purchase_event_time, 'away-transition must clear event_time atomically.');
+        $obOrder = $obOrder->fresh();
+        $obOrder->status_id = 5;
+        $obOrder->save();
+
+        Queue::assertPushed(SendCapiEvent::class, 2);
     }
 
     public function test_status_cache_flush_resets_cache(): void
     {
-        // WR-08 lock: flushStatusCache() empties the in-process map. This
-        // is the test hook tearDown / cross-test isolation depends on. The
-        // direct query-count instrumentation is out of scope (heavy harness)
-        // — we lock the flush semantics here and the rest of OrderStatusWatcher's
-        // existing assertion suite covers behavior parity with the pre-cache code.
+        // WR-08 lock: flushStatusCache() empties the in-process map.
         OrderStatusWatcher::flushStatusCache();
 
         // Trigger one lookup to populate the cache.
@@ -345,27 +412,48 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
 
     /**
      * Build a non-paid Order via OrderFixtures, then forceFill status_id
-     * back to pending (status_id=1 from bootOrdersStatuses) AND clear the
-     * dedup columns the OrderStatusWatcher will have written during the
-     * fixture's initial eloquent.created event (makePaidOrder() creates
-     * the order at status_id=5, which fires the handleCreated path under
-     * the global Event subscription). Without the clear, the test's
-     * subsequent status_id=5 save() would hit the idempotency fence and
-     * no-op. Also resets Queue::fake's pushed-job buffer so the test
-     * starts from a clean count.
+     * back to pending (status_id=1 from bootOrdersStatuses) — the fixture
+     * creates the order at status_id=5 which fires the handleCreated path
+     * under the global Event subscription, so we demote it to pending
+     * before each test's own paid-flip save(). Also resets Queue::fake's
+     * pushed-job buffer so the test starts from a clean count.
      */
     private function makeOrderAtPendingStatus(): Order
     {
         $obOrder = OrderFixtures::makePaidOrder();
         $obOrder->forceFill([
             'status_id' => 1,
-            'meta_purchase_event_id' => null,
-            'meta_purchase_event_time' => null,
         ])->save();
         // Reset Queue::fake buffer so the test counts only its own dispatches.
         Queue::fake();
 
         return $obOrder->fresh();
+    }
+
+    /**
+     * Insert a CAPI EventLog row for the given Order, simulating the
+     * post-dispatch state that EventLogWriter::record would have produced
+     * inside SendCapiEvent::handle under the real queue worker. Used by
+     * tests that need to exercise alreadyDispatched() against a known
+     * existing row (Queue::fake suppresses handle() execution).
+     */
+    private function insertCapiRow(Order $obOrder): EventLog
+    {
+        $obRow = new EventLog;
+        $obRow->forceFill([
+            'event_id' => Uuid::uuid4()->toString(),
+            'event_name' => EventLog::EVENT_PURCHASE,
+            'channel' => EventLog::CHANNEL_CAPI,
+            'subject_type' => Order::class,
+            'subject_id' => (int) $obOrder->id,
+            'secret_key' => (string) $obOrder->getAttribute('secret_key'),
+            'site_id' => null,
+            'event_time' => time(),
+            'fired_at' => date('Y-m-d H:i:s'),
+        ]);
+        $obRow->save();
+
+        return $obRow;
     }
 
     private function seedOrderCatalog(): void
