@@ -16,6 +16,7 @@ use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
 use Logingrupa\Metapixelshopaholic\Tests\Support\OrderFixtures;
 use Lovata\OrdersShopaholic\Models\Order;
+use Ramsey\Uuid\Uuid;
 
 /**
  * Phase 3.1 REFAC-11 EventLogTest — locks the 4 schema invariants Wave-3
@@ -177,12 +178,16 @@ final class EventLogTest extends MetapixelTestCase
     {
         $obOrder = OrderFixtures::makePaidOrder();
 
+        // 03.1-08 T3.1 fix: hex literals (37-char) breached max:36 validation.
+        // Uuid::uuid4()->toString() emits canonical 36-char UUIDv4. DRY mirror
+        // of MultiSiteCrossContextTest / SendCapiEventEventLogTest / Purchase-
+        // EndToEndIntegrationTest after PLAN-02 LOW-02/03 cleanup.
         $arNullSite = $this->makeFillableRow($obOrder, 'capi', null);
-        $arNullSite['event_id'] = 'null-site-1111-aaaa-bbbb-cccccccccccc';
+        $arNullSite['event_id'] = Uuid::uuid4()->toString();
         EventLog::create($arNullSite);
 
         $arSiteOne = $this->makeFillableRow($obOrder, 'capi', 1);
-        $arSiteOne['event_id'] = 'site-1-2222-aaaa-bbbb-cccccccccccc';
+        $arSiteOne['event_id'] = Uuid::uuid4()->toString();
         EventLog::create($arSiteOne);
 
         $this->assertSame(2, EventLog::count(), 'NULL and non-NULL site_id rows MUST coexist under UNIQUE');
