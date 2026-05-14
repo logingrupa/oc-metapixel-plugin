@@ -65,7 +65,10 @@ final class EventLogWriter
      * @param  object       $obSubject  Polymorphic subject (Phase 3.1: only Order).
      * @param  string|null  $sSecretKey Direct-lookup slug for /checkout/{slug}.
      * @param  int          $iEventTime Meta-spec Unix seconds (paired browser+server).
-     * @param  ?int         $iSiteId    Caller-resolved site_id (Phase 3.1-07 REFAC-13 DRY).
+     * @param  ?int         $iSiteId    Caller-supplied; required (REFAC-13). Order-scoped
+     *                                  via SiteResolver::forOrder($obOrder); request-scoped
+     *                                  (Phase 4 non-Order) via SiteResolver::getActiveSiteId().
+     *                                  Explicit null = single-site / CLI / no scope.
      */
     public static function record(
         string $sEventId,
@@ -74,7 +77,7 @@ final class EventLogWriter
         object $obSubject,
         ?string $sSecretKey,
         int $iEventTime,
-        ?int $iSiteId = null,
+        ?int $iSiteId,
     ): bool {
         try {
             $sSubjectType = get_class($obSubject);

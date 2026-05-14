@@ -165,6 +165,8 @@ final class MultiSiteEventLogTest extends MetapixelTestCase
         Config::set('system.active_site', null);
         $obOrder = OrderFixtures::makePaidOrder();
 
+        // Phase 3.1-08 T1.2 — writer signature requires explicit ?int $iSiteId
+        // (no default). Single-site install path = explicit null.
         $bWon = EventLogWriter::record(
             'cccccccc-cccc-cccc-cccc-cccccccccccc',
             EventLog::EVENT_PURCHASE,
@@ -172,6 +174,7 @@ final class MultiSiteEventLogTest extends MetapixelTestCase
             $obOrder,
             (string) $obOrder->secret_key,
             self::FIXED_EVENT_TIME,
+            null,
         );
 
         $this->assertTrue($bWon, 'Single-site insert must win its race (no prior row).');
