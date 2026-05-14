@@ -121,6 +121,17 @@ final class SendCapiEventEventLogTest extends MetapixelTestCase
     public function test_second_concurrent_dispatch_returns_false_no_http_post(): void
     {
         $obOrder = OrderFixtures::makePaidOrder();
+        // 03.1-08 T3.6 — stamp Order.site_id non-null so SiteResolver::forOrder
+        // returns int 1; SendCapiEvent::raceFenceWon passes site_id=1; the
+        // preInsertCapiRow also writes site_id=1; both rows collide on
+        // UNIQUE(subject_type, subject_id, event_name, channel, site_id=1).
+        // Single-site fixture (site_id=null) cannot fence — both SQLite AND
+        // MySQL treat each NULL as distinct under UNIQUE (NULL-distinct).
+        // Multi-site fixture is the canonical race-fence scenario.
+        $obOrder->site_id = 1;
+        $obOrder->save();
+        $obOrder = $obOrder->fresh();
+
         $sEventId = Uuid::uuid4()->toString();
         $iEventTime = time();
         $arPayload = $this->makePayload($sEventId, $iEventTime);
@@ -129,7 +140,7 @@ final class SendCapiEventEventLogTest extends MetapixelTestCase
         // have written (race-winner peer already POSTed to Meta). This is
         // the "race loser" simulation — INSERT IGNORE in EventLogWriter
         // will collide on UNIQUE(subject_type, subject_id, event_name,
-        // channel, site_id=NULL) → affected_rows=0 → returns false.
+        // channel, site_id=1) → affected_rows=0 → returns false.
         $this->preInsertCapiRow($obOrder, $sEventId, $iEventTime);
         $iEventLogCountBefore = EventLog::count();
         $this->assertSame(1, $iEventLogCountBefore, 'pre-condition: exactly one CAPI row exists before dispatch.');
@@ -319,13 +330,18 @@ final class SendCapiEventEventLogTest extends MetapixelTestCase
     }
 
     /**
-     * Pre-insert an EventLog CAPI row matching the active site_id branch
-     * (single-site / CLI / queue worker context → site_id NULL). Used by
-     * the race-loser test to seed the UNIQUE collision before
-     * SendCapiEvent::handle's EventLogWriter::record runs.
+     * Pre-insert an EventLog CAPI row matching the Order's site_id branch.
+     * site_id mirrors Order.site_id — null for single-site default, int for
+     * multi-site fixtures (T3.6 race-fence test stamps order.site_id=1 to
+     * exercise the canonical UNIQUE-fence; null sites can't fence per
+     * SQLite/MySQL NULL-distinct UNIQUE rules). The seeded site_id must
+     * match what SendCapiEvent::raceFenceWon passes via SiteResolver::forOrder.
      */
     private function preInsertCapiRow(Order $obOrder, string $sEventId, int $iEventTime): void
     {
+        $mxSiteId = $obOrder->getAttribute('site_id');
+        $iSiteId = is_numeric($mxSiteId) ? (int) $mxSiteId : null;
+
         $obRow = new EventLog;
         $obRow->forceFill([
             'event_id' => $sEventId,
@@ -334,7 +350,7 @@ final class SendCapiEventEventLogTest extends MetapixelTestCase
             'subject_type' => Order::class,
             'subject_id' => (int) $obOrder->id,
             'secret_key' => (string) $obOrder->getAttribute('secret_key'),
-            'site_id' => null,
+            'site_id' => $iSiteId,
             'event_time' => $iEventTime,
             'fired_at' => date('Y-m-d H:i:s'),
         ]);

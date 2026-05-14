@@ -187,6 +187,61 @@ abstract class MetapixelTestCase extends TestCase
     }
 
     /**
+     * 03.1-08 T3.2 — bind plugin's `lang/` directory to the October translation
+     * namespace `logingrupa.metapixelshopaholic`. autoRegister=false skips the
+     * full PluginManager::registerPlugin chain that normally calls
+     * `$translator->addNamespace($pluginNamespace, $langPath)` (modules/system/
+     * classes/PluginManager.php:252). Without that bind, `Lang::get(
+     * 'logingrupa.metapixelshopaholic::lang.<...>')` returns the raw key —
+     * ExceptionHierarchyTest::test_every_lang_key_resolves_to_a_string fails.
+     *
+     * Called from subclass setUp() after parent::setUp() — keeps the hermetic-
+     * opt-in pattern (HR-02). Idempotent — Laravel translator dedupes
+     * namespaces via array key.
+     */
+    protected function bootTranslations(): void
+    {
+        $sLangPath = __DIR__.'/../lang';
+        $this->app['translator']->addNamespace('logingrupa.metapixelshopaholic', $sLangPath);
+    }
+
+    /**
+     * 03.1-08 T3.3 — provision Laravel `migrations` table + bust
+     * System::hasDatabase() cache so SettingModel::getSettingsRecord runs
+     * its query. With autoMigrate=false the `migrations` table is never
+     * provisioned; System::hasDatabase() short-circuits the SettingModel
+     * read at line 181 (modules/system/models/SettingModel.php) and
+     * `Settings::get('pixel_id', '')` always returns the default — breaking
+     * any test that round-trips Settings::set/get for a non-default value
+     * (BootsWithoutPixelIdTest, EnsureFbpFbcCookiesTest CR-01 path).
+     *
+     * Mirrors `bootSystemSettings` / `bootEventLogTable` opt-in pattern.
+     * Idempotent. Reflection-resets System helper's `hasDatabaseCache`
+     * + October Manifest `MANIFEST_DB_CHECK` so the next call re-probes.
+     */
+    protected function bootMigrationsTable(): void
+    {
+        if (! Schema::hasTable('migrations')) {
+            Schema::create('migrations', function ($obTable): void {
+                $obTable->increments('id');
+                $obTable->string('migration');
+                $obTable->integer('batch');
+            });
+        }
+
+        // Bust the System helper's hasDatabaseCache + the cached Manifest
+        // flag so the next System::hasDatabase() call re-probes against
+        // the freshly-provisioned migrations table.
+        $obSystem = \System::getFacadeRoot();
+        $obReflect = new \ReflectionClass($obSystem);
+        if ($obReflect->hasProperty('hasDatabaseCache')) {
+            $obProp = $obReflect->getProperty('hasDatabaseCache');
+            $obProp->setAccessible(true);
+            $obProp->setValue($obSystem, null);
+        }
+    }
+
+    /**
      * Provision a minimal `lovata_orders_shopaholic_statuses` table seeded with
      * the canonical Lovata statuses + the custom `new-payment-received` row.
      * `Settings::getPaidStatusCodeOptions()` queries this via
@@ -319,6 +374,9 @@ abstract class MetapixelTestCase extends TestCase
         Schema::dropIfExists('lovata_orders_shopaholic_orders');
         Schema::dropIfExists('lovata_orders_shopaholic_statuses');
         Schema::dropIfExists('system_settings');
+        // 03.1-08 T3.3 — drop migrations table (opt-in provisioned by
+        // bootMigrationsTable) so the next test starts from a clean slate.
+        Schema::dropIfExists('migrations');
     }
 
     protected function flushModelEventListeners()

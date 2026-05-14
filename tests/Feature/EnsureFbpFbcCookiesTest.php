@@ -50,6 +50,12 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
     {
         parent::setUp();
 
+        // 03.1-08 T3.4 — provision `migrations` so System::hasDatabase()
+        // returns true; without it SettingModel::getSettingsRecord short-
+        // circuits to null and Settings::get always returns the default,
+        // breaking test_short_circuits_when_settings_toggle_off (CR-01).
+        $this->bootMigrationsTable();
+
         // Reset Settings + Cache between tests so the CR-01 negative-path
         // test (`short_circuits_when_settings_toggle_off`) cannot bleed its
         // `ensure_fbp_fbc_server_side=false` value into preceding test cases.

@@ -85,6 +85,15 @@ final class ExceptionHierarchyTest extends MetapixelTestCase
         'meta_api_permanent',
     ];
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+        // 03.1-08 T3.2 — bind plugin lang namespace so Lang::get(
+        // 'logingrupa.metapixelshopaholic::lang.exception.<...>') resolves
+        // to the localized string instead of the raw key path.
+        $this->bootTranslations();
+    }
+
     public function test_meta_pixel_exception_is_abstract(): void
     {
         $obReflection = new \ReflectionClass(MetaPixelException::class);
