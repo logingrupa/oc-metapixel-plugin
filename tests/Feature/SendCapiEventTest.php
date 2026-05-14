@@ -78,9 +78,8 @@ final class SendCapiEventTest extends MetapixelTestCase
         Cache::flush();
         Settings::clearInternalCache();
         PluginGuard::flush();
-        // Provision failed_events table via the canonical Phase-3 migration so
-        // FailedEvent::create() round-trips through the real schema.
-        // WR-07 unique idx inline in CreateTableFailedEvents::up() post-cleanup.
+        // failed_events schema round-trip via canonical migration — WR-07
+        // unique idx inlined in CreateTableFailedEvents::up() (commit 08a0d12).
         (new CreateTableFailedEvents)->up();
     }
 
