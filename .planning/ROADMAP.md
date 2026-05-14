@@ -98,6 +98,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   8. `system_plugin_versions` row for Logingrupa.Metapixelshopaholic = v1.1.0.
 **Out of scope:** Phase 4 funnel events (event_log table designed for them, no implementation); UserDataHasher address fields; stable external_id for logged-in customers; AEM/Verified-Domain operator action.
 **Plans:** Plans 03.1-01..05 executed 2026-05-13 (see `phases/03.1-event-log-refactor/0*-SUMMARY.md`). Plugin v1.1.0 published.
+  - [ ] 03.1-06-PLAN.md — Staging-checkpoint automation: PurchaseEndToEndIntegrationTest (4 BRIEF scenarios + multi-site cross-link) + STAGING-RUNBOOK.md for operator (REFAC-11 closure; planned 2026-05-14)
 
 ### Phase 4: Funnel completion
 
