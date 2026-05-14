@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1.0
 milestone_name: milestone
-status: phase-3.1-cross-context-verified
-stopped_at: "Phase 3.1-07 (cross-context site_id symmetry) complete. v1.1.1 shipped — SiteResolver::forOrder(Order): ?int canonical Order-scoped resolver; EventLogWriter::record(...) 7th param ?int $iSiteId (writer pure I/O, DRY); Watcher + SendCapiEvent + PurchasePixel rewired via forOrder. 2026-05-14 prod bug (orders 29802 + 29803 on new.nailscosmetics.lv — Pixel never rendered) CLOSED at contract level: tests/Unit/SiteResolverTest + tests/Feature/MultiSiteCrossContextTest codify the writer/reader symmetry. BACKFILL.sql at .planning/phases/03.1-07-multi-site-site-id-symmetry/BACKFILL.sql repairs stranded prod rows pre-deploy. STAGING-RUNBOOK Scenario 5 operator playbook for live verification. Next: operator runs BACKFILL.sql per affected site → deploys v1.1.1 → runs STAGING-RUNBOOK Scenario 5 → on PASS, tag v1.1.1; then `/gsd-plan-phase 4` for Funnel Completion."
-last_updated: "2026-05-14T00:00:00Z"
+status: executing
+stopped_at: "Phase 3.1-07 — cross-context closure at contract level (12-task plan, MVP-TDD discipline, ALL RED → GREEN cycles preserved in git log); operator runs BACKFILL.sql per affected site + deploys v1.1.1 + runs STAGING-RUNBOOK Scenario 5 → on PASS, tag v1.1.1 + `/gsd-plan-phase 4`. Next focus: Phase 4 (funnel completion — AddToCart, ViewContent, Lead) reusing Phase 3.1 API surface (EventLog + EventLogWriter::record + SiteResolver — forOrder for Order-scoped, getActiveSiteId for non-Order subjects)."
+last_updated: "2026-05-14T21:19:49.696Z"
 last_activity: 2026-05-14
 progress:
-  total_phases: 7
-  completed_phases: 3
-  total_plans: 23
-  completed_plans: 18
-  percent: 78
+  total_phases: 8
+  completed_phases: 2
+  total_plans: 16
+  completed_plans: 10
+  percent: 25
 ---
 
 # Project State
@@ -27,7 +27,7 @@ See: `.planning/PROJECT.md` (updated 2026-04-22)
 
 Phase: 3.1-07 (cross-context site_id symmetry) — CONTRACT-VERIFIED (v1.1.1); operator runs BACKFILL.sql + STAGING-RUNBOOK Scenario 5 for live closure
 Plan: 1 of 1 (03.1-07 shipped 2026-05-14)
-Status: Phase 3.1-07 closed at contract level — plugin v1.1.1 ledger entry in version.yaml. SiteResolver::forOrder is canonical Order-scoped resolver; EventLogWriter::record signature gains 7th optional ?int site_id (DRY — writer pure I/O); Watcher + SendCapiEvent + PurchasePixel rewired through forOrder. 2026-05-14 production bug on new.nailscosmetics.lv (orders 29802 + 29803 — Pixel never rendered) CLOSED. BACKFILL.sql at `.planning/phases/03.1-07-multi-site-site-id-symmetry/BACKFILL.sql` repairs stranded production rows pre-deploy; STAGING-RUNBOOK Scenario 5 is the operator playbook. Next focus = Phase 4 (funnel completion: AddToCart, ViewContent, Lead).
+Status: Ready to execute
 
 ### Prior Phase 3.1 Cursor (preserved for history)
 
@@ -40,7 +40,7 @@ Status: Phase 3.1 closed at the contract level — plugin v1.1.0 ledger entry in
 Phase: 03 (purchase-end-to-end) — automated tasks complete, Task-9 manual staging verification SUPERSEDED by Phase 3.1 manual checkpoint (the column-based contract no longer exists; Phase 3.1's event_log contract is the canonical staging-verification surface).
 Plan: 6 of 6 tasks 1-8 done (03-06 — PAY-03 + PAY-10/11 plumbing shipped). Task 9 superseded by Phase 3.1 closure.
 Status: Phase 03 wave 4 partial — production code superseded by Phase 3.1 refactor; PAY-10 + PAY-11 acceptance criteria now mapped to Phase 3.1 BRIEF acceptance scenarios.
-Last activity: 2026-05-13
+Last activity: 2026-05-14
 
 ## Performance Metrics
 
