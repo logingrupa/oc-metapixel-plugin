@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1.0
 milestone_name: milestone
-status: phase-3.1-runtime-verified
-stopped_at: "Phase 3.1 (event-log refactor) complete. 5 plans shipped (03.1-01 schema bedrock, 03.1-02 model + helpers, 03.1-03 queue + watcher race-fence, 03.1-04 PurchasePixel rewrite, 03.1-05 multi-site test + cleanup). v1.1.0 break: SendCapiEvent::__construct gained 3rd arg `Order $obSubject` (SCE-03 superseded). OrderStatusWatcher WR-12 atomic-CAS removed (column-fence gone). Plugin-owned `logingrupa_metapixel_event_log` table is the SINGLE source of truth for Meta event idempotency — polymorphic subject, multi-site site_id scoped, UNIQUE(subject_type, subject_id, event_name, channel, site_id) race-fence; second `channel='pixel'` row suppresses browser re-fires across devices/sessions/time. Phase 3.1 Wave-5 (Plan 03.1-06) closes the runtime-verification gap: PurchaseEndToEndIntegrationTest codifies the 4 BRIEF scenarios in CI + STAGING-RUNBOOK.md hands the live-plumbing checks to the operator. Next: operator runs `STAGING-RUNBOOK.md` on staging; on PASS, append checkpoint line + tag v1.1.0; then `/gsd-plan-phase 4` for Funnel Completion."
+status: phase-3.1-cross-context-verified
+stopped_at: "Phase 3.1-07 (cross-context site_id symmetry) complete. v1.1.1 shipped — SiteResolver::forOrder(Order): ?int canonical Order-scoped resolver; EventLogWriter::record(...) 7th param ?int $iSiteId (writer pure I/O, DRY); Watcher + SendCapiEvent + PurchasePixel rewired via forOrder. 2026-05-14 prod bug (orders 29802 + 29803 on new.nailscosmetics.lv — Pixel never rendered) CLOSED at contract level: tests/Unit/SiteResolverTest + tests/Feature/MultiSiteCrossContextTest codify the writer/reader symmetry. BACKFILL.sql at .planning/phases/03.1-07-multi-site-site-id-symmetry/BACKFILL.sql repairs stranded prod rows pre-deploy. STAGING-RUNBOOK Scenario 5 operator playbook for live verification. Next: operator runs BACKFILL.sql per affected site → deploys v1.1.1 → runs STAGING-RUNBOOK Scenario 5 → on PASS, tag v1.1.1; then `/gsd-plan-phase 4` for Funnel Completion."
 last_updated: "2026-05-14T00:00:00Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 22
-  completed_plans: 17
-  percent: 77
+  total_plans: 23
+  completed_plans: 18
+  percent: 78
 ---
 
 # Project State
@@ -21,13 +21,19 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-22)
 
 **Core value:** Meta Ads Manager sees every purchase (including bank-transfer and admin-marked-paid), dedup ≥ 80 %, EMQ ≥ 8 for Purchase
-**Current focus:** Phase 3.1 — event-log refactor RUNTIME-VERIFIED (CI contracts 2026-05-14) + STAGING CHECKPOINT PENDING (operator action via STAGING-RUNBOOK.md); next focus = Phase 4 funnel completion
+**Current focus:** Phase 3.1-07 — cross-context site_id symmetry CLOSED at contract level (2026-05-14, v1.1.1); operator runs BACKFILL.sql + STAGING Scenario 5; next focus = Phase 4 funnel completion
 
 ## Current Position
 
+Phase: 3.1-07 (cross-context site_id symmetry) — CONTRACT-VERIFIED (v1.1.1); operator runs BACKFILL.sql + STAGING-RUNBOOK Scenario 5 for live closure
+Plan: 1 of 1 (03.1-07 shipped 2026-05-14)
+Status: Phase 3.1-07 closed at contract level — plugin v1.1.1 ledger entry in version.yaml. SiteResolver::forOrder is canonical Order-scoped resolver; EventLogWriter::record signature gains 7th optional ?int site_id (DRY — writer pure I/O); Watcher + SendCapiEvent + PurchasePixel rewired through forOrder. 2026-05-14 production bug on new.nailscosmetics.lv (orders 29802 + 29803 — Pixel never rendered) CLOSED. BACKFILL.sql at `.planning/phases/03.1-07-multi-site-site-id-symmetry/BACKFILL.sql` repairs stranded production rows pre-deploy; STAGING-RUNBOOK Scenario 5 is the operator playbook. Next focus = Phase 4 (funnel completion: AddToCart, ViewContent, Lead).
+
+### Prior Phase 3.1 Cursor (preserved for history)
+
 Phase: 3.1 (event-log refactor) — RUNTIME-VERIFIED (CI contracts) + STAGING CHECKPOINT PENDING (operator action via STAGING-RUNBOOK.md)
 Plan: 6 of 6 (Plans 03.1-01..05 shipped 2026-05-13; Plan 03.1-06 staging-checkpoint automation shipped 2026-05-14)
-Status: Phase 3.1 closed at the contract level — plugin v1.1.0 ledger entry in version.yaml. Schema bedrock + model + helpers + queue + watcher + component + multi-site test + cleanup all green. PurchaseEndToEndIntegrationTest (5 methods) codifies the 4 BRIEF acceptance scenarios + 1 multi-site sanity check in CI. STAGING-RUNBOOK.md spells out the deploy + 4-scenario live-environment procedures for the operator. Next focus = Phase 4 (funnel completion: AddToCart, ViewContent, Lead).
+Status: Phase 3.1 closed at the contract level — plugin v1.1.0 ledger entry in version.yaml. Schema bedrock + model + helpers + queue + watcher + component + multi-site test + cleanup all green. PurchaseEndToEndIntegrationTest (5 methods) codifies the 4 BRIEF acceptance scenarios + 1 multi-site sanity check in CI. STAGING-RUNBOOK.md spells out the deploy + 4-scenario live-environment procedures for the operator.
 
 ### Prior Phase Cursor (preserved for history)
 
@@ -163,6 +169,10 @@ New from Phase 3.1 execution (all 5 plans):
     - WR-12 atomic-CAS on Order columns deleted (column-fence gone — WR-12 superseded above).
     - Reading from `meta_purchase_event_id` / `meta_purchase_event_time` columns is impossible — columns dropped. Any third-party code consuming these columns from Lovata's table breaks (no third-party consumers known; plugin was the sole writer).
 
+### Phase 3.1-07 Forward Notes
+
+**Cross-context site_id symmetry CLOSED 2026-05-14 (v1.1.1).** SiteResolver::forOrder is the canonical Order-scoped resolver; EventLogWriter::record signature gains 7th `?int $iSiteId` (DRY writer); Watcher + SendCapiEvent + PurchasePixel rewired. tests/Unit/SiteResolverTest + tests/Feature/MultiSiteCrossContextTest codify writer/reader symmetry. See [`STAGING-RUNBOOK.md` Scenario 5](phases/03.1-event-log-refactor/STAGING-RUNBOOK.md) for operator verification and [`BACKFILL.sql`](phases/03.1-07-multi-site-site-id-symmetry/BACKFILL.sql) for pre-deploy row repair on affected production sites.
+
 ### Phase 3.1 Forward Notes
 
 **Operator handoff:** see [`STAGING-RUNBOOK.md`](phases/03.1-event-log-refactor/STAGING-RUNBOOK.md) for the deploy + 4-scenario live-environment procedures (Wave-5 Plan 03.1-06 deliverable). The 4 BRIEF scenarios are codified at the contract level in `tests/Feature/PurchaseEndToEndIntegrationTest.php` (5 methods) so CI proves them on every push/PR; the runbook closes the last 10 % of live-plumbing checks (real PayPal IPN, real Pixel script handshake, Meta Events Manager Test Events dashboard).
@@ -235,12 +245,13 @@ SELECT code, version FROM system_plugin_versions WHERE code = 'Logingrupa.Metapi
 |---|---|---|---|---|---|
 | 20260422 | Metapixel plan v2→v3 refactor — 7 parallel audits, all 5 open questions resolved via codebase evidence. Plan files committed to plugin repo. | 2026-04-22 | c14ee5c | Complete | (plugin root `.planning/`) |
 | 20260513 | Phase 3.1 BRIEF + PATTERNS + 5 plans + 5 SUMMARYs shipped end-to-end. v1.1.0 published. | 2026-05-13 | ec8e25a..165d834 | Complete | `.planning/phases/03.1-event-log-refactor/` |
-| 20260514 | Phase 3.1 Wave-5 (Plan 03.1-06) — PurchaseEndToEndIntegrationTest (5 methods locking 4 BRIEF scenarios + multi-site sanity in CI) + STAGING-RUNBOOK.md operator playbook + STATE.md/ROADMAP.md runtime-verified closure. | 2026-05-14 | 632e722..(this) | Complete | `.planning/phases/03.1-event-log-refactor/` |
+| 20260514 | Phase 3.1 Wave-5 (Plan 03.1-06) — PurchaseEndToEndIntegrationTest (5 methods locking 4 BRIEF scenarios + multi-site sanity in CI) + STAGING-RUNBOOK.md operator playbook + STATE.md/ROADMAP.md runtime-verified closure. | 2026-05-14 | 632e722..22efd7b | Complete | `.planning/phases/03.1-event-log-refactor/` |
+| 20260514b | Phase 3.1-07 (Plan 03.1-07) — Cross-context site_id symmetry hotfix. SiteResolver::forOrder + EventLogWriter signature DRY + Watcher/Queue/Component rewire + BACKFILL.sql + STAGING Scenario 5 + v1.1.1 bump. Closes 2026-05-14 prod bug. | 2026-05-14 | 736b3e3..(this) | Complete | `.planning/phases/03.1-07-multi-site-site-id-symmetry/` |
 
 ## Session Continuity
 
-Last activity: 2026-05-14 — Phase 3.1 Wave-5 (Plan 03.1-06) closes the runtime-verification gap. `tests/Feature/PurchaseEndToEndIntegrationTest.php` (5 methods, all green) codifies the 4 BRIEF acceptance scenarios + 1 multi-site sanity check end-to-end (Watcher → SendCapiEvent → EventLogWriter → MockHandler ↔ PurchasePixel onRun → onMarkFired); `STAGING-RUNBOOK.md` (11 sections) is the operator playbook for the last 10 % live-environment plumbing (real PayPal IPN, real Pixel browser handshake, Meta Events Manager Test Events dashboard). Phase 3.1 status advanced to `phase-3.1-runtime-verified`; deferred MANUAL-CHECKPOINT item CLOSED. Prior Wave 1-4 history preserved verbatim above.
+Last activity: 2026-05-14 — Phase 3.1-07 (cross-context site_id symmetry) CLOSED at contract level. Plugin v1.1.1 shipped. `SiteResolver::forOrder(Order): ?int` is the canonical Order-scoped resolver; `EventLogWriter::record(...)` 7th param `?int $iSiteId` (DRY writer); `OrderStatusWatcher::alreadyDispatched` + `PurchasePixel::findEventLogRow` rewired via `forOrder`. New tests: `tests/Unit/SiteResolverTest` (3 methods) + `tests/Feature/MultiSiteCrossContextTest` (3 methods admin-flip cross-context). Extensions on `SendCapiEventEventLogTest`, `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest` (one new RED-GREEN method each). `MultiSiteEventLogTest` adjusted to new contract. `PurchaseEndToEndIntegrationTest` Scenarios 4 + multi-site adjusted (Rule 3 — auto-fix blocking from reader rewire). `BACKFILL.sql` repairs stranded prod rows pre-deploy; `STAGING-RUNBOOK Scenario 5` operator playbook. Status advanced `phase-3.1-runtime-verified` → `phase-3.1-cross-context-verified`. Closes 2026-05-14 prod bug on new.nailscosmetics.lv (orders 29802 + 29803).
 
 Last session: 2026-05-14
-Stopped at: Phase 3.1 Wave-5 — runtime verification closed at the contract level (PurchaseEndToEndIntegrationTest in CI); operator runs STAGING-RUNBOOK.md to close the live-environment checkpoint, then tag v1.1.0 + `/gsd-plan-phase 4`. Next focus: Phase 4 (funnel completion — AddToCart, ViewContent, Lead) reusing the Phase 3.1 API surface (EventLog + EventLogWriter::record + SiteResolver).
+Stopped at: Phase 3.1-07 — cross-context closure at contract level (12-task plan, MVP-TDD discipline, ALL RED → GREEN cycles preserved in git log); operator runs BACKFILL.sql per affected site + deploys v1.1.1 + runs STAGING-RUNBOOK Scenario 5 → on PASS, tag v1.1.1 + `/gsd-plan-phase 4`. Next focus: Phase 4 (funnel completion — AddToCart, ViewContent, Lead) reusing Phase 3.1 API surface (EventLog + EventLogWriter::record + SiteResolver — forOrder for Order-scoped, getActiveSiteId for non-Order subjects).
 Resume file: `.planning/ROADMAP.md`

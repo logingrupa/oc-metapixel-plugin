@@ -99,6 +99,26 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Out of scope:** Phase 4 funnel events (event_log table designed for them, no implementation); UserDataHasher address fields; stable external_id for logged-in customers; AEM/Verified-Domain operator action.
 **Plans:** Plans 03.1-01..05 executed 2026-05-13 (see `phases/03.1-event-log-refactor/0*-SUMMARY.md`). Plan 03.1-06 (Wave 5) executed 2026-05-14 — staging-checkpoint automation. Plugin v1.1.0 published; operator runbook at `phases/03.1-event-log-refactor/STAGING-RUNBOOK.md`.
   - [x] 03.1-06-PLAN.md — Staging-checkpoint automation: PurchaseEndToEndIntegrationTest (4 BRIEF scenarios + multi-site cross-link) + STAGING-RUNBOOK.md for operator (REFAC-11 closure) ✓ 2026-05-14
+  - [x] 03.1-07-PLAN.md — Cross-context site_id symmetry: SiteResolver::forOrder + EventLogWriter signature DRY + Watcher/Queue/Component rewire + BACKFILL.sql + STAGING Scenario 5 (REFAC-12 + REFAC-13 + REFAC-14) ✓ 2026-05-14
+
+### Phase 3.1-07: Multi-site site_id symmetry (INSERTED 2026-05-14 — production-blocking hotfix)
+
+**Goal:** Close the cross-context `site_id` divergence bug: writer (admin /back queue) and reader (frontend /lv/checkout) MUST resolve the SAME `site_id` for the same Order. Authoritative source = `lovata_orders_shopaholic_orders.site_id` (Lovata v1.33 column written by `OrderProcessor` at order create). Bug surfaced 2026-05-14 on `new.nailscosmetics.lv` (orders 29802 + 29803): writer admin context stamped `site_id=NULL`; reader frontend context queried `where site_id=1`; gate failed; Pixel never rendered. CAPI fired HTTP 2xx but browser side silent.
+**Depends on:** Phase 3.1 (rewires the same EventLog primitives).
+**Supersedes:** none — additive hotfix on top of v1.1.0.
+**Requirements:** REFAC-12 (`SiteResolver::forOrder`), REFAC-13 (rewire Watcher + SendCapiEvent + PurchasePixel + EventLogWriter DRY), REFAC-14 (BACKFILL.sql + STAGING Scenario 5). See `phases/03.1-07-multi-site-site-id-symmetry/BRIEF.md` for full text.
+**Success Criteria** (what must be TRUE):
+  1. `composer qa` green; phpstan level 10 clean.
+  2. Zero `SiteResolver::getActiveSiteId()` call sites in `classes/` + `components/` (grep gate) — except `helper/SiteResolver.php` itself.
+  3. `EventLogWriter::record` signature carries `?int $iSiteId` as explicit 7th parameter; zero `SiteResolver::` references inside `helper/EventLogWriter.php`.
+  4. `tests/Unit/SiteResolverTest.php` + `tests/Feature/MultiSiteCrossContextTest.php` exist and green; existing test extensions for Watcher + SendCapiEvent + PurchasePixel + MultiSiteEventLogTest exercise the new contract.
+  5. `BACKFILL.sql` documented at `.planning/phases/03.1-07-multi-site-site-id-symmetry/BACKFILL.sql` with header docblock preconditions (NULL-only repair, idempotent, pre-deploy safe).
+  6. STAGING-RUNBOOK.md Scenario 5 documents the cross-context operator verification flow.
+  7. `system_plugin_versions` row for Logingrupa.Metapixelshopaholic = v1.1.1.
+  8. STATE.md status advances `phase-3.1-runtime-verified` → `phase-3.1-cross-context-verified`.
+**Out of scope:** Lovata's `site_id` column (READ-only); SiteManager wiring; non-Order subjects (Phase 4); EventLog schema changes (none needed); migrations (none — pure code refactor).
+**Plans:**
+  - [x] 03.1-07-PLAN.md — single-wave hotfix: SiteResolver::forOrder + EventLogWriter signature DRY + 3 call-site rewires + BACKFILL.sql + STAGING Scenario 5 + v1.1.1 bump ✓ 2026-05-14
 
 ### Phase 4: Funnel completion
 
@@ -138,6 +158,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5
 | 1. Tooling | 1/1 | Complete | 2026-05-12 |
 | 2. Skeleton + cookie fix | 4/4 | Complete | 2026-05-12 |
 | 3. Purchase end-to-end | 5.5/6 (tasks 1-8 of plan 03-06 done; task 9 manual deferred to Phase 3.1) | Superseded mechanism — column rewrite shipped in Phase 3.1 | - |
-| 3.1. Event-log refactor (INSERTED) | 6/6 | Complete — v1.1.0 published; CI contracts (5 BRIEF scenarios) locked; operator runbook ships at STAGING-RUNBOOK.md | 2026-05-14 |
+| 3.1. Event-log refactor (INSERTED) | 7/7 | Complete — v1.1.1 published; CI contracts (5 BRIEF scenarios + cross-context symmetry) locked; operator runbook (Scenarios 1-5) at STAGING-RUNBOOK.md | 2026-05-14 |
+| 3.1-07. Multi-site site_id symmetry (INSERTED hotfix) | 1/1 | Complete — v1.1.1 published; 2026-05-14 prod bug (orders 29802 + 29803) CLOSED at contract level; BACKFILL.sql + STAGING Scenario 5 pending operator | 2026-05-14 |
 | 4. Funnel completion | 0/- | Not started | - |
 | 5. Hardening + launch | 0/- | Not started | - |
