@@ -1,3 +1,5 @@
+> **SUPERSEDED 2026-05-13**: this document describes the pre-3.1 design (idempotency via `meta_purchase_event_id` column on `lovata_orders_shopaholic_orders`). The column-based contract was replaced by the plugin-owned `logingrupa_metapixel_event_log` table in Phase 3.1. See [`.planning/phases/03.1-event-log-refactor/BRIEF.md`](phases/03.1-event-log-refactor/BRIEF.md) for the current architecture.
+
 # Logingrupa.MetapixelShopaholic — Plan v3 (codebase-aligned)
 
 > **v3 vs v2**: Previous AI agent wrote v2 without access to `themes/logingrupa-naisstore/`, `plugins/lovata/toolbox/`, `plugins/lovata/shopaholic/`, `plugins/lovata/ordersshopaholic/`, `plugins/lovata/buddies/`, `plugins/lovata/wishlistshopaholic/`, or existing `plugins/logingrupa/*`. This v3 reconciles v2 against live code.
