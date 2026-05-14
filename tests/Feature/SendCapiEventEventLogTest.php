@@ -12,6 +12,7 @@ use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
@@ -215,6 +216,45 @@ final class SendCapiEventEventLogTest extends MetapixelTestCase
             }
         }
         $this->assertTrue($bFoundCritical, 'EventLogWriter MUST emit Log::critical on DB write failure (operator telemetry).');
+    }
+
+    /**
+     * Phase 3.1-07 REFAC-13 RED — writer receives caller-resolved site_id
+     * from forOrder, not getActiveSiteId. Active_site DELIBERATELY diverges
+     * from Order.site_id to force the cross-context bug. RED until Task 6
+     * lock-steps EventLogWriter signature + SendCapiEvent call site.
+     */
+    public function test_writer_called_with_resolved_site_id_from_caller(): void
+    {
+        $obOrder = OrderFixtures::makePaidOrder();
+        $obOrder->site_id = 7;
+        $obOrder->save();
+        $obOrder = $obOrder->fresh();
+
+        // Diverge active_site from Order.site_id (admin /back context lies).
+        Config::set('system.active_site', null);
+
+        $sEventId = '77777777-7777-7777-7777-777777777777';
+        $iEventTime = 1715000000;
+        $arPayload = $this->makePayload($sEventId, $iEventTime);
+
+        $arHistory = [];
+        $this->bindMetaClientWithMockResponses([
+            new Response(200, [], '{"events_received": 1}'),
+        ], $arHistory);
+
+        SendCapiEvent::dispatchSync('Purchase', $arPayload, $obOrder);
+
+        $obRow = EventLog::where('subject_id', $obOrder->id)->first();
+        $this->assertNotNull($obRow, 'CAPI row MUST persist after dispatch.');
+        $this->assertSame(
+            7,
+            (int) $obRow->site_id,
+            'EventLogWriter MUST receive site_id from caller (forOrder), not getActiveSiteId.',
+        );
+
+        // Reset Config so subsequent files do not inherit binding.
+        Config::set('system.active_site', null);
     }
 
     /**
