@@ -35,6 +35,12 @@ final class BootsWithoutPixelIdTest extends MetapixelTestCase
     {
         parent::setUp();
         // system_settings is provisioned in MetapixelTestCase::createApplication.
+        // 03.1-08 T3.3 — also provision `migrations` so System::hasDatabase()
+        // returns true; without it SettingModel::getSettingsRecord short-
+        // circuits to null and Settings::get always returns default →
+        // breaks test_isDisabled_returns_false_when_pixel_id_populated.
+        $this->bootMigrationsTable();
+
         // Reset per-test memo so each test starts from a clean slate.
         Settings::clearInternalCache();
         PluginGuard::flush();
