@@ -7,6 +7,7 @@ require_once __DIR__.'/../Support/OrderFixtures.php';
 
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Queue;
 use Logingrupa\Metapixelshopaholic\Classes\Event\OrderStatusWatcher;
@@ -406,6 +407,50 @@ final class OrderStatusWatcherEventLogTest extends MetapixelTestCase
 
             return abs($mxEventTime - $iNowBefore) <= 2;
         });
+    }
+
+    /**
+     * Phase 3.1-07 REFAC-13 RED — alreadyDispatched resolves via Order.site_id
+     * (forOrder), not active_site (getActiveSiteId). Seed EventLog row at
+     * site_id=7 matching Order.site_id; active_site=null (admin context).
+     * Watcher MUST find row + suppress redispatch. RED until Task 7 rewires.
+     */
+    public function test_already_dispatched_query_uses_order_site_id(): void
+    {
+        $obOrder = $this->makeOrderAtPendingStatus();
+        $obOrder->site_id = 7;
+        $obOrder->save();
+
+        // Seed EventLog row at site_id=7 (matches Order.site_id).
+        $obRow = new EventLog;
+        $obRow->forceFill([
+            'event_id' => Uuid::uuid4()->toString(),
+            'event_name' => EventLog::EVENT_PURCHASE,
+            'channel' => EventLog::CHANNEL_CAPI,
+            'subject_type' => Order::class,
+            'subject_id' => (int) $obOrder->id,
+            'secret_key' => (string) $obOrder->getAttribute('secret_key'),
+            'site_id' => 7,
+            'event_time' => time(),
+            'fired_at' => date('Y-m-d H:i:s'),
+        ]);
+        $obRow->save();
+
+        // Admin /back context — active_site DIVERGES from Order.site_id.
+        Config::set('system.active_site', null);
+
+        // Flip to paid → Watcher::handleUpdated → alreadyDispatched fence.
+        $obOrder = $obOrder->fresh();
+        $obOrder->status_id = 5;
+        $obOrder->save();
+
+        // Reset Config so subsequent files do not inherit binding.
+        Config::set('system.active_site', null);
+
+        // alreadyDispatched MUST resolve via forOrder=7 → finds row → suppress.
+        // RED today: getActiveSiteId()=null → whereNull('site_id') → misses
+        // site_id=7 row → no suppression → dispatch fires.
+        Queue::assertNotPushed(SendCapiEvent::class);
     }
 
     /**
