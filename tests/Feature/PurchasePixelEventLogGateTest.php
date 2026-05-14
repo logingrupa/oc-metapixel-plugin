@@ -10,6 +10,8 @@ require_once __DIR__.'/../Support/OrderFixtures.php';
 use Carbon\Carbon;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
@@ -248,6 +250,52 @@ final class PurchasePixelEventLogGateTest extends MetapixelTestCase
             $bLengthOnlyCaptured,
             'Log context MUST carry submitted_event_id_len ONLY — never the value (T-3.1-21).',
         );
+    }
+
+    /**
+     * Phase 3.1-07 REFAC-13 RED — findEventLogRow resolves via Order.site_id
+     * (forOrder), not active_site (getActiveSiteId). Seed row site_id=2;
+     * active_site=1 forces divergence. RED until Task 7 rewires reader.
+     */
+    public function test_findEventLogRow_uses_order_site_id_not_active_site(): void
+    {
+        $obOrder = OrderFixtures::makePaidOrder();
+        $obOrder->site_id = 2;
+        $obOrder->save();
+        $obOrder = $obOrder->fresh();
+
+        $sUuid = Uuid::uuid4()->toString();
+        $iEventTime = 1715000000;
+
+        // Seed CAPI row at site_id=2 (matches Order.site_id, NOT active_site).
+        DB::table('logingrupa_metapixel_event_log')->insert([
+            'event_id' => $sUuid,
+            'event_name' => EventLog::EVENT_PURCHASE,
+            'channel' => EventLog::CHANNEL_CAPI,
+            'subject_type' => Order::class,
+            'subject_id' => (int) $obOrder->id,
+            'secret_key' => (string) $obOrder->secret_key,
+            'site_id' => 2,
+            'event_time' => $iEventTime,
+            'fired_at' => Carbon::now(),
+            'created_at' => Carbon::now(),
+            'updated_at' => Carbon::now(),
+        ]);
+
+        // Frontend FPM lies — active_site=1, diverges from Order.site_id=2.
+        Config::set('system.active_site', 1);
+
+        $obComponent = $this->makeComponent((string) $obOrder->secret_key);
+        $obComponent->onRun();
+
+        // Reset Config so subsequent files do not inherit binding.
+        Config::set('system.active_site', null);
+
+        $this->assertNotNull(
+            $obComponent->arMetaEvent,
+            'Component MUST resolve via Order.site_id=2, not active_site=1.',
+        );
+        $this->assertSame($sUuid, $obComponent->arMetaEvent['event_id']);
     }
 
     /**
