@@ -28,6 +28,7 @@ use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
 use Logingrupa\Metapixelshopaholic\Tests\Support\OrderFixtures;
 use Lovata\OrdersShopaholic\Models\Order;
+use Ramsey\Uuid\Uuid;
 
 /**
  * Phase 3.1 Wave-5 REFAC-11 closure — full Purchase pipeline end-to-end
@@ -337,7 +338,9 @@ final class PurchaseEndToEndIntegrationTest extends MetapixelTestCase
         EventLog::query()->delete();
         $obOrder = Order::find($obOrder->id);
 
-        $sEventId = 'ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb';
+        // LOW-03 — Uuid::uuid4() satisfies PayloadBuilder UUIDv4 contract
+        // (bypassed here, but mirrors MultiSiteCrossContextTest DRY pattern).
+        $sEventId = Uuid::uuid4()->toString();
         $this->seedEventLogRow($obOrder, $sEventId, self::FIXED_EVENT_TIME, EventLog::CHANNEL_CAPI, 1);
         $this->seedEventLogRow($obOrder, $sEventId, self::FIXED_EVENT_TIME, EventLog::CHANNEL_PIXEL, 1);
 
