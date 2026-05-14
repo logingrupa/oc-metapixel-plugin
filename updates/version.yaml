@@ -13,3 +13,5 @@
     - 'Phase 3.1 event-log refactor — drop meta_purchase_event_id/event_time columns from Shopaholic Orders; create plugin-owned logingrupa_metapixel_event_log table (polymorphic subject + multi-site site_id + UNIQUE race-fence).'
     - drop_meta_purchase_columns_from_orders_table.php
     - create_metapixel_event_log_table.php
+1.1.1:
+    - 'Phase 3.1-07 cross-context site_id symmetry — SiteResolver::forOrder reads Order.site_id; EventLogWriter::record accepts explicit ?int site_id; Watcher + SendCapiEvent + PurchasePixel rewired (no schema change, no migration).'
