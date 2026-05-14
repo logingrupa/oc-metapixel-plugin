@@ -8,10 +8,10 @@ last_updated: "2026-05-14T22:52:04.093Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 8
-  completed_phases: 2
-  total_plans: 16
-  completed_plans: 10
-  percent: 25
+  completed_phases: 3
+  total_plans: 21
+  completed_plans: 16
+  percent: 76
 ---
 
 # Project State
@@ -21,9 +21,15 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-22)
 
 **Core value:** Meta Ads Manager sees every purchase (including bank-transfer and admin-marked-paid), dedup ≥ 80 %, EMQ ≥ 8 for Purchase
-**Current focus:** Phase 3.1-07 — cross-context site_id symmetry CLOSED at contract level (2026-05-14, v1.1.1); operator runs BACKFILL.sql + STAGING Scenario 5; next focus = Phase 4 funnel completion
+**Current focus:** Phase 3.1-08 — dead-code + test-failure cleanup CLOSED (2026-05-14, 13/13 must-haves verified, v1.1.1 tag annotated local-only); operator runs BACKFILL.sql + STAGING Scenario 5; next focus = Phase 4 funnel completion
 
 ## Current Position
+
+Phase: 3.1-08 (dead-code cleanup) — VERIFIED 13/13 (2026-05-14); composer qa green; 171/6 → 177/0 PRIMARY; v1.1.1 tagged at cf26f3b
+Plan: 5 of 5 (Plans 03.1-08-01..05 shipped 2026-05-14 across 3 waves)
+Status: Phase 3.1 milestone-ready — awaiting operator deploy + STAGING Scenario 5 + 2-row backfill on new.nailscosmetics.lv
+
+### Prior Phase 3.1-07 Cursor (preserved for history)
 
 Phase: 3.1-07 (cross-context site_id symmetry) — CONTRACT-VERIFIED (v1.1.1); operator runs BACKFILL.sql + STAGING-RUNBOOK Scenario 5 for live closure
 Plan: 1 of 1 (03.1-07 shipped 2026-05-14)

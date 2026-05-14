@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Skeleton + cookie fix** — Plugin.php, Settings extending CommonSettings, `EnsureFbpFbcCookies` middleware, PluginGuard + PixelHead component. Fixes live empty-cookie bug. ✓ 2026-05-12
 - [ ] **Phase 3: Purchase end-to-end** — MetaClient, SendCapiEvent queue job, OrderStatusWatcher, idempotency via `meta_purchase_event_id` column (SUPERSEDED by Phase 3.1), PayloadBuilder + UserDataHasher + custom exception hierarchy. Dedup verified ≥ 80 % / EMQ ≥ 8 in Test Events.
 - [x] **Phase 3.1: Event-log refactor** (INSERTED 2026-05-13; COMPLETED 2026-05-13) — Replaced foreign-schema column idempotency with plugin-owned, multi-site `logingrupa_metapixel_event_log` table. Dropped `meta_purchase_event_id` + `meta_purchase_event_time` columns from `lovata_orders_shopaholic_orders`. Added `EventLog` model, `EventLogWriter`, `SiteResolver`. Rewired `SendCapiEvent`, `OrderStatusWatcher`, `PurchasePixel` onto UNIQUE-constraint race-fence. Suppresses Pixel re-fires across devices/sessions beyond Meta's 7-day eventID dedup window. Plugin bumped to v1.1.0; Plan 03.1-06 Wave 5 closes runtime-verification gap with PurchaseEndToEndIntegrationTest + STAGING-RUNBOOK.md.
-- [ ] **Phase 3.1-08: Dead-code + test-failure cleanup** (INSERTED 2026-05-14 — milestone-close housekeeping) — REVIEW.md findings (3 medium + 6 low) resolved; 6 pre-existing test failures from 03.1-01..06 baseline diagnosed and fixed (or formally `SKIP-BASELINE.md` documented); planning-doc cleanup (.planning/PLAN.md + PLAN-v2-original.md annotated SUPERSEDED, updates/.gitkeep removed, composer.json `_comments` stripped); composer qa green; plugin git tag v1.1.1.
+- [x] **Phase 3.1-08: Dead-code + test-failure cleanup** (INSERTED 2026-05-14; COMPLETED 2026-05-14) — REVIEW.md findings (3 medium + 6 low) resolved; 6 pre-existing test failures from 03.1-01..06 baseline FIXED PRIMARY (no SKIP-BASELINE.md fallback needed: 171/6 → 177/0); planning-doc cleanup (.planning/PLAN.md + PLAN-v2-original.md annotated SUPERSEDED, updates/.gitkeep removed, composer.json `_comments` stripped); composer qa exits 0 (pint-test + analyse + phpmd + test all green, 82.8% coverage); plugin git tag v1.1.1 annotated local-only (push deferred to operator).
 - [ ] **Phase 4: Funnel completion** — PageView, ViewContent, ViewCategory, Search, AddToCart, AddToWishlist, InitiateCheckout, AddPaymentInfo, Lead, CompleteRegistration, Contact. All share event_id + event_time. content_ids format locked to Facebook Catalog feed.
 - [ ] **Phase 5: Hardening + launch** — FailedEvents backend list + onReplay + onCheckDedup, lang/{en,lv,ru}, README with runbook, Composer marketplace listing, coverage ≥ 90 %.
 
@@ -147,7 +147,13 @@ Decimal phases appear between their surrounding integers in numeric order.
   - Phase 4 funnel-event scaffolding (FUN-* requirements unchanged).
   - Lovata upstream column changes (`site_id` remains READ-only contract).
   - phpstan baseline regeneration if narrow fix possible — only fall back to `composer baseline` when fix > 5 lines per BRIEF T5.1.
-**Plans:** (to be created by /gsd-plan-phase 03.1-08)
+**Plans:** 5 plans (3 waves)
+  - [x] 03.1-08-01-PLAN.md — Track 1: production-code dead/stale (EventLog docblock + EventLogWriter::record fail-fast + SiteResolver PHPDoc compress) ✓ 2026-05-14
+  - [x] 03.1-08-02-PLAN.md — Track 2: test-suite DRY + lint (Uuid import + hex-literal swap + stale-comment removal + strict_types + setUp docstring sync) ✓ 2026-05-14
+  - [x] 03.1-08-03-PLAN.md — Track 3: 6 baseline test failures (all PRIMARY fix, zero SKIP-BASELINE) ✓ 2026-05-14
+  - [x] 03.1-08-04-PLAN.md — Track 4: planning-doc cleanup (SUPERSEDED annotations + .gitkeep removal + composer.json schema clean) ✓ 2026-05-14
+  - [x] 03.1-08-05-PLAN.md — Track 5: milestone close (composer qa green + phpstan-baseline.neon ships 2 carryover + v1.1.1 tag + STATE.md advance) ✓ 2026-05-14
+**Verification:** 13/13 must-haves verified (`03.1-08-VERIFICATION.md` status=passed, 2026-05-14)
 
 ### Phase 4: Funnel completion
 
