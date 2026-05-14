@@ -10,39 +10,13 @@ use System\Classes\SiteManager;
 use Throwable;
 
 /**
- * Phase 3.1 site_id resolvers — Order-scoped + active-site.
- *
- * forOrder(Order): canonical Order-scoped resolver. Reads Order.site_id
- * stamped by Lovata MakeOrder at create. Deterministic across writer
- * (admin/queue) + reader (frontend) — same Order, same value.
- *
- * getActiveSiteId(): non-Order subjects (future Lead, AddToCart, ViewContent
- * in Phase 4). Reads October 4 SiteManager singleton. Request-context-
- * dependent — DO NOT use for Order-scoped paths.
- *
- * getActiveSiteId null cases:
- *   1. SiteManager class absent (single-site install w/o multi-site module).
- *   2. SiteManager::instance()->getActiveSiteId() null (CLI / queue / no req).
- *   3. Throwable on SDK probe (Tiger-Style boundary catch, T-3.1-09).
- *
- * UNIQUE on `logingrupa_metapixel_event_log` treats NULL as distinct under
- * MySQL — single-site (null) + multi-site (int) coexist on same table.
- *
- * Stateless — each call cheap `Config::get('system.active_site')` read
- * (modules/system/classes/sitemanager/HasActiveSite.php line 84). Tests
- * inject via Config::set('system.active_site', $i).
- *
- * T-3.1-09 (Info Disclosure): log carries exception class + message only —
- * no PII, no Settings values. `meta_pixel.*` namespace = operator telemetry.
- *
- * Phase 3.1-07 REFAC-12: forOrder is canonical Order-scoped resolver;
- * getActiveSiteId stays for non-Order subjects.
+ * Multi-site `site_id` resolver. Two public statics: forOrder for Order-
+ * scoped writes/reads (canonical, REFAC-12); getActiveSiteId for request-
+ * scoped non-Order subjects (Phase 4 Lead/AddToCart/ViewContent). Method
+ * docblocks below carry null-case + threat-model detail.
  *
  * @see plugins/logingrupa/metapixelshopaholic/.planning/phases/03.1-event-log-refactor/BRIEF.md REFAC-04
  * @see plugins/logingrupa/metapixelshopaholic/.planning/phases/03.1-07-multi-site-site-id-symmetry/BRIEF.md REFAC-12
- * @see modules/system/classes/SiteManager.php
- * @see modules/system/classes/sitemanager/HasActiveSite.php
- * @see plugins/logingrupa/metapixelshopaholic/classes/helper/PluginGuard.php boundary-catch precedent
  */
 final class SiteResolver
 {
