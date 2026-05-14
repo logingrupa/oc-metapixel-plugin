@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.1.0
 milestone_name: milestone
-status: executing
-stopped_at: "Phase 3.1-07 — cross-context closure at contract level (12-task plan, MVP-TDD discipline, ALL RED → GREEN cycles preserved in git log); operator runs BACKFILL.sql per affected site + deploys v1.1.1 + runs STAGING-RUNBOOK Scenario 5 → on PASS, tag v1.1.1 + `/gsd-plan-phase 4`. Next focus: Phase 4 (funnel completion — AddToCart, ViewContent, Lead) reusing Phase 3.1 API surface (EventLog + EventLogWriter::record + SiteResolver — forOrder for Order-scoped, getActiveSiteId for non-Order subjects)."
-last_updated: "2026-05-14T21:19:49.696Z"
+status: phase-3.1-milestone-ready
+stopped_at: "Phase 3.1 closed end-to-end. v1.1.1 + 03.1-cleanup landed. qa green. Awaiting operator: v1.1.1 deploy on .lv/.lt/.no + STAGING Scenario 5 per site + manual repair of 2 stranded rows on new.nailscosmetics.lv (or accept Pixel-miss). Next: /gsd-plan-phase 4 (Funnel Completion)."
+last_updated: "2026-05-14T22:52:04.093Z"
 last_activity: 2026-05-14
 progress:
   total_phases: 8
@@ -247,11 +247,14 @@ SELECT code, version FROM system_plugin_versions WHERE code = 'Logingrupa.Metapi
 | 20260513 | Phase 3.1 BRIEF + PATTERNS + 5 plans + 5 SUMMARYs shipped end-to-end. v1.1.0 published. | 2026-05-13 | ec8e25a..165d834 | Complete | `.planning/phases/03.1-event-log-refactor/` |
 | 20260514 | Phase 3.1 Wave-5 (Plan 03.1-06) — PurchaseEndToEndIntegrationTest (5 methods locking 4 BRIEF scenarios + multi-site sanity in CI) + STAGING-RUNBOOK.md operator playbook + STATE.md/ROADMAP.md runtime-verified closure. | 2026-05-14 | 632e722..22efd7b | Complete | `.planning/phases/03.1-event-log-refactor/` |
 | 20260514b | Phase 3.1-07 (Plan 03.1-07) — Cross-context site_id symmetry hotfix. SiteResolver::forOrder + EventLogWriter signature DRY + Watcher/Queue/Component rewire + BACKFILL.sql + STAGING Scenario 5 + v1.1.1 bump. Closes 2026-05-14 prod bug. | 2026-05-14 | 736b3e3..(this) | Complete | `.planning/phases/03.1-07-multi-site-site-id-symmetry/` |
+| 20260514c | Phase 3.1-08 (Plans 01..05) — dead-code + test-failure + planning-doc + composer-schema + qa-gate cleanup. 18 atomic commits across 5 plans (T1 prod docblock + signature, T2 test DRY/lint, T3 6-failure full green, T4 docs + composer schema, T5 qa-green + v1.1.1 tag + STATE close). Test suite 171→177 passed / 6→0 failed. composer qa exits 0 end-to-end. | 2026-05-14 | a64f3c3..(this) | Complete | `.planning/phases/03.1-08-dead-code-cleanup/` |
 
 ## Session Continuity
 
-Last activity: 2026-05-14 — Phase 3.1-07 (cross-context site_id symmetry) CLOSED at contract level. Plugin v1.1.1 shipped. `SiteResolver::forOrder(Order): ?int` is the canonical Order-scoped resolver; `EventLogWriter::record(...)` 7th param `?int $iSiteId` (DRY writer); `OrderStatusWatcher::alreadyDispatched` + `PurchasePixel::findEventLogRow` rewired via `forOrder`. New tests: `tests/Unit/SiteResolverTest` (3 methods) + `tests/Feature/MultiSiteCrossContextTest` (3 methods admin-flip cross-context). Extensions on `SendCapiEventEventLogTest`, `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest` (one new RED-GREEN method each). `MultiSiteEventLogTest` adjusted to new contract. `PurchaseEndToEndIntegrationTest` Scenarios 4 + multi-site adjusted (Rule 3 — auto-fix blocking from reader rewire). `BACKFILL.sql` repairs stranded prod rows pre-deploy; `STAGING-RUNBOOK Scenario 5` operator playbook. Status advanced `phase-3.1-runtime-verified` → `phase-3.1-cross-context-verified`. Closes 2026-05-14 prod bug on new.nailscosmetics.lv (orders 29802 + 29803).
+Last activity: 2026-05-14 — Phase 3.1-08 (dead-code + test-failure cleanup) CLOSED end-to-end. Plugin v1.1.1 tagged (annotated, local-only). composer qa green: pint-test + analyse + phpmd + test-cov all exit 0. Test suite 177 passed / 0 failed (531 assertions). Phpstan baseline regenerated for 2 pre-existing return.type errors (SendCapiEvent::extractFirstEvent + EventLog::subject MorphTo) per BRIEF T5.1 fallback (narrow PHPDoc fix introduced type-juggling complexity under treatPhpDocTypesAsCertain). Phpmd.xml tolerance bumped for 5 pre-existing carryover violations (3x $mId ShortVariable + 2x ExcessiveClassComplexity on PayloadBuilder/PurchasePixel) — pre-existing, surfaced first time end-to-end qa ran. Status advanced `phase-3.1-cross-context-verified` → `phase-3.1-milestone-ready`.
+
+Phase 3.1-08 owned 5 plans / 18 commits before T5 close: T1=3 (prod docblock + signature + caveman compress), T2=6 (test DRY/lint), T3=6 (failing test fixes — full green, zero SKIP-BASELINE entries), T4=3 (planning-doc SUPERSEDED + composer schema + FOLLOWUP register), T5=3 (composer qa green via pint + baseline + phpmd tolerance). The 3 T5 closure commits land in this final wave (plus the SUMMARY + this STATE.md commit + the v1.1.1 git tag = the milestone marker).
 
 Last session: 2026-05-14
-Stopped at: Phase 3.1-07 — cross-context closure at contract level (12-task plan, MVP-TDD discipline, ALL RED → GREEN cycles preserved in git log); operator runs BACKFILL.sql per affected site + deploys v1.1.1 + runs STAGING-RUNBOOK Scenario 5 → on PASS, tag v1.1.1 + `/gsd-plan-phase 4`. Next focus: Phase 4 (funnel completion — AddToCart, ViewContent, Lead) reusing Phase 3.1 API surface (EventLog + EventLogWriter::record + SiteResolver — forOrder for Order-scoped, getActiveSiteId for non-Order subjects).
+Stopped at: Phase 3.1 closed end-to-end. v1.1.1 + 03.1-cleanup landed. qa green. Awaiting operator: v1.1.1 deploy on .lv/.lt/.no + STAGING Scenario 5 per site + manual repair of 2 stranded rows on new.nailscosmetics.lv (or accept Pixel-miss). Next: /gsd-plan-phase 4 (Funnel Completion).
 Resume file: `.planning/ROADMAP.md`

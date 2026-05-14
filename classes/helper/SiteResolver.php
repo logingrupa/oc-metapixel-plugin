@@ -46,7 +46,7 @@ final class SiteResolver
     public static function getActiveSiteId(): ?int
     {
         try {
-            if (!class_exists(SiteManager::class)) {
+            if (! class_exists(SiteManager::class)) {
                 return null;
             }
 

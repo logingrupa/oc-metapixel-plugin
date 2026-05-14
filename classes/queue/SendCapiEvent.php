@@ -102,10 +102,10 @@ final class SendCapiEvent implements ShouldQueue
      * @param  string  $sEventName  Meta event name (Purchase, ViewContent, AddToCart, ...).
      * @param  array<string, mixed>  $arPayload  Envelope built by PayloadBuilder
      *                                           (`['data' => [['event_id' => ..., ...]]]`).
-     * @param  Order  $obSubject   Polymorphic subject for the EventLog race-fence row
-     *                             (v1.1.0 BREAKING — Phase 3.1 REFAC-06). Order is
-     *                             `SerializesModels`-compatible so the readonly property
-     *                             survives queue rehydrate.
+     * @param  Order  $obSubject  Polymorphic subject for the EventLog race-fence row
+     *                            (v1.1.0 BREAKING — Phase 3.1 REFAC-06). Order is
+     *                            `SerializesModels`-compatible so the readonly property
+     *                            survives queue rehydrate.
      */
     public function __construct(
         public readonly string $sEventName,

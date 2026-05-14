@@ -95,15 +95,15 @@ final class EventLog extends Model
 
     /** @var array<string,string> */
     public $rules = [
-        'event_id'     => 'required|string|max:36',
-        'event_name'   => 'required|string|max:64',
-        'channel'      => 'required|string|max:16',
+        'event_id' => 'required|string|max:36',
+        'event_name' => 'required|string|max:64',
+        'channel' => 'required|string|max:16',
         'subject_type' => 'required|string|max:255',
-        'subject_id'   => 'required|integer',
-        'secret_key'   => 'nullable|string|max:64',
-        'site_id'      => 'nullable|integer',
-        'event_time'   => 'required|integer',
-        'fired_at'     => 'required',
+        'subject_id' => 'required|integer',
+        'secret_key' => 'nullable|string|max:64',
+        'site_id' => 'nullable|integer',
+        'event_time' => 'required|integer',
+        'fired_at' => 'required',
     ];
 
     /** @var list<string> */
@@ -125,7 +125,7 @@ final class EventLog extends Model
     /** @var array<string,string> */
     public $casts = [
         'subject_id' => 'int',
-        'site_id'    => 'int',
+        'site_id' => 'int',
         'event_time' => 'int',
     ];
 
