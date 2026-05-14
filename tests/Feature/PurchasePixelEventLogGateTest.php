@@ -161,6 +161,18 @@ final class PurchasePixelEventLogGateTest extends MetapixelTestCase
     public function test_onmarkfired_second_call_returns_ok_true_no_duplicate(): void
     {
         $obOrder = OrderFixtures::makePaidOrder();
+        // 03.1-08 T3.5 — stamp Order.site_id non-null so SiteResolver::forOrder
+        // returns int 1; both Pixel inserts (first + second onMarkFired call)
+        // write site_id=1 → UNIQUE(subject_type, subject_id, event_name,
+        // channel, site_id) fences the second insert per BRIEF REFAC-02.
+        // With null site_id BOTH SQLite AND MySQL treat each NULL as distinct
+        // (UNIQUE NULL-distinct semantic), so the race-fence cannot fire on
+        // the single-site fixture path. Multi-site fixture is the canonical
+        // race-fence scenario; this test exercises that branch explicitly.
+        $obOrder->site_id = 1;
+        $obOrder->save();
+        $obOrder = $obOrder->fresh();
+
         $sUuid = Uuid::uuid4()->toString();
         $iEventTime = 1715000000;
         $this->seedEventLogRow($obOrder, $sUuid, $iEventTime, EventLog::CHANNEL_CAPI);
@@ -300,11 +312,18 @@ final class PurchasePixelEventLogGateTest extends MetapixelTestCase
 
     /**
      * Seed an event_log row for the given Order on the given channel.
-     * site_id=null mirrors the single-site test harness so the production
-     * `findEventLogRow` query's `whereNull('site_id')` branch matches.
+     * site_id mirrors Order.site_id — null for single-site default, int for
+     * multi-site fixtures (T3.5 race-fence test sets order.site_id=1 to
+     * exercise the canonical UNIQUE-fence scenario; null sites can't fence
+     * per SQLite/MySQL UNIQUE NULL-distinct rules). Reader-side
+     * `findEventLogRow` resolves via SiteResolver::forOrder(order) so the
+     * seeded site_id matches the production query branch.
      */
     private function seedEventLogRow(Order $obOrder, string $sUuid, int $iEventTime, string $sChannel): EventLog
     {
+        $mxSiteId = $obOrder->getAttribute('site_id');
+        $iSiteId = is_numeric($mxSiteId) ? (int) $mxSiteId : null;
+
         return EventLog::create([
             'event_id' => $sUuid,
             'event_name' => EventLog::EVENT_PURCHASE,
@@ -312,7 +331,7 @@ final class PurchasePixelEventLogGateTest extends MetapixelTestCase
             'subject_type' => Order::class,
             'subject_id' => (int) $obOrder->id,
             'secret_key' => (string) $obOrder->secret_key,
-            'site_id' => null,
+            'site_id' => $iSiteId,
             'event_time' => $iEventTime,
             'fired_at' => Carbon::now(),
         ]);
