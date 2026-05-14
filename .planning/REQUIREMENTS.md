@@ -57,6 +57,14 @@
 - [ ] **FUN-13**: `content_ids` format is always `SKU-{product_id}` (single-offer products) or `SKU-{product_id}-{offer_id}` (multi-offer). Helpers live in `classes/meta/ContentMapper.php` and reuse the format from `plugins/logingrupa/facebookcatalogshopaholic/classes/helper/ExportCatalogFacebookHelper.php:356` exactly. No alternative format ever emitted.
 - [ ] **FUN-14**: `order_id` in custom_data = `$obOrder->order_number` (verified live format e.g. `260422-0002`).
 
+### Maintenance / Cleanup (Phase 3.1-08, INSERTED 2026-05-14)
+
+- [ ] **CLEAN-01**: Production-code dead/stale removal. `models/EventLog.php` docblock reflects REFAC-13 caller-supplied `?int $iSiteId` contract; `classes/helper/EventLogWriter::record` 7th param hardened to required (or `@deprecated` if audit surfaces >3 implicit-null callers); `classes/helper/SiteResolver.php` class-level PHPDoc caveman-compressed (~33 lines → ~8 lines, `@see` REFAC-04/REFAC-12 preserved). Tracks T1.1–T1.3 in `phases/03.1-08-dead-code-cleanup/BRIEF.md`.
+- [ ] **CLEAN-02**: Test-suite DRY + lint cleanup. `tests/Feature/MultiSiteCrossContextTest.php` uses `use Ramsey\Uuid\Uuid;` (no inline FQN); hex literal `event_id` values in `SendCapiEventEventLogTest.php:237` + `PurchaseEndToEndIntegrationTest.php:340` replaced with `Uuid::uuid4()->toString()`; stale `$casts int` rationale comment in `PurchaseEndToEndIntegrationTest.php:482-487` removed; `tests/Feature/OrderStatusWatcherEventLogTest.php` has `declare(strict_types=1);`; `tests/Feature/SendCapiEventTest.php::setUp` docstring synced post-migration-merge (commit 08a0d12). Tracks T2.1–T2.5.
+- [ ] **CLEAN-03**: Six pre-existing test failures diagnosed and fixed (NOT baselined unless scope-blocked): `EventLogTest::test_event_id_validation_rejects_longer_than_36`, `ExceptionHierarchyTest` translation namespace, `BootsWithoutPixelIdTest::test_isdisabled_returns_false_when_pixel_id_populated`, `EnsureFbpFbcCookiesTest` toggle-OFF guard, `PurchasePixelEventLogGateTest::test_onmarkfired_second_call_returns_ok_true_no_duplicate`, `SendCapiEventEventLogTest::test_second_concurrent_dispatch_returns_false_no_http_post`. After fixes: `composer test` exits 0. Scope-blocked items go to `tests/SKIP-BASELINE.md` + `->skip('baselined: <reason>')`. Tracks T3.1–T3.6.
+- [ ] **CLEAN-04**: Planning-doc cleanup. `.planning/PLAN.md` + `.planning/PLAN-v2-original.md` annotated with `> **SUPERSEDED 2026-05-13**` block pointing to `.planning/phases/03.1-event-log-refactor/BRIEF.md`; `updates/.gitkeep` removed (directory non-empty); `composer.json` non-standard `_comments` key removed (verified by `composer validate --strict`). Tracks T4.1–T4.3.
+- [ ] **CLEAN-05**: Milestone close. `composer qa` exits 0 (pint-test + analyse + phpmd + test all green; phpstan baseline regenerated if 2 pre-existing errors can't be narrow-fixed); plugin git tag `v1.1.1` created (NOT pushed without user confirm); `.planning/STATE.md` advances to `status: phase-3.1-milestone-ready`. Tracks T5.1–T5.3.
+
 ### Hardening / Launch (Phase 5)
 
 - [ ] **HARD-01**: `controllers/FailedEvents.php` extends `Backend\Classes\Controller` with `Backend.Behaviors.ListController`. `controllers/failedevents/config_list.yaml` + `_list_toolbar.htm` render columns (event_id, event_name, http_status, attempts, created_at, graph_error snippet) with filters + search. Registered under Shopaholic backend menu.
@@ -131,6 +139,11 @@
 | PAY-09 | Phase 3 | Plan 03-02 Complete |
 | PAY-10 | Phase 3 | Pending |
 | PAY-11 | Phase 3 | Pending |
+| CLEAN-01 | Phase 3.1-08 | Pending |
+| CLEAN-02 | Phase 3.1-08 | Pending |
+| CLEAN-03 | Phase 3.1-08 | Pending |
+| CLEAN-04 | Phase 3.1-08 | Pending |
+| CLEAN-05 | Phase 3.1-08 | Pending |
 | FUN-01 | Phase 4 | Pending |
 | FUN-02 | Phase 4 | Pending |
 | FUN-03 | Phase 4 | Pending |
@@ -155,8 +168,8 @@
 | HARD-08 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 45 total
-- Mapped to phases: 45
+- v1 requirements: 50 total (45 + 5 CLEAN-* Phase 3.1-08 cleanup)
+- Mapped to phases: 50
 - Unmapped: 0 ✓
 
 ---

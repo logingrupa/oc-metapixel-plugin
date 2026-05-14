@@ -16,6 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Skeleton + cookie fix** — Plugin.php, Settings extending CommonSettings, `EnsureFbpFbcCookies` middleware, PluginGuard + PixelHead component. Fixes live empty-cookie bug. ✓ 2026-05-12
 - [ ] **Phase 3: Purchase end-to-end** — MetaClient, SendCapiEvent queue job, OrderStatusWatcher, idempotency via `meta_purchase_event_id` column (SUPERSEDED by Phase 3.1), PayloadBuilder + UserDataHasher + custom exception hierarchy. Dedup verified ≥ 80 % / EMQ ≥ 8 in Test Events.
 - [x] **Phase 3.1: Event-log refactor** (INSERTED 2026-05-13; COMPLETED 2026-05-13) — Replaced foreign-schema column idempotency with plugin-owned, multi-site `logingrupa_metapixel_event_log` table. Dropped `meta_purchase_event_id` + `meta_purchase_event_time` columns from `lovata_orders_shopaholic_orders`. Added `EventLog` model, `EventLogWriter`, `SiteResolver`. Rewired `SendCapiEvent`, `OrderStatusWatcher`, `PurchasePixel` onto UNIQUE-constraint race-fence. Suppresses Pixel re-fires across devices/sessions beyond Meta's 7-day eventID dedup window. Plugin bumped to v1.1.0; Plan 03.1-06 Wave 5 closes runtime-verification gap with PurchaseEndToEndIntegrationTest + STAGING-RUNBOOK.md.
+- [ ] **Phase 3.1-08: Dead-code + test-failure cleanup** (INSERTED 2026-05-14 — milestone-close housekeeping) — REVIEW.md findings (3 medium + 6 low) resolved; 6 pre-existing test failures from 03.1-01..06 baseline diagnosed and fixed (or formally `SKIP-BASELINE.md` documented); planning-doc cleanup (.planning/PLAN.md + PLAN-v2-original.md annotated SUPERSEDED, updates/.gitkeep removed, composer.json `_comments` stripped); composer qa green; plugin git tag v1.1.1.
 - [ ] **Phase 4: Funnel completion** — PageView, ViewContent, ViewCategory, Search, AddToCart, AddToWishlist, InitiateCheckout, AddPaymentInfo, Lead, CompleteRegistration, Contact. All share event_id + event_time. content_ids format locked to Facebook Catalog feed.
 - [ ] **Phase 5: Hardening + launch** — FailedEvents backend list + onReplay + onCheckDedup, lang/{en,lv,ru}, README with runbook, Composer marketplace listing, coverage ≥ 90 %.
 
@@ -119,6 +120,34 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Out of scope:** Lovata's `site_id` column (READ-only); SiteManager wiring; non-Order subjects (Phase 4); EventLog schema changes (none needed); migrations (none — pure code refactor).
 **Plans:**
   - [x] 03.1-07-PLAN.md — single-wave hotfix: SiteResolver::forOrder + EventLogWriter signature DRY + 3 call-site rewires + BACKFILL.sql + STAGING Scenario 5 + v1.1.1 bump ✓ 2026-05-14
+
+### Phase 3.1-08: Dead-code + test-failure cleanup (INSERTED 2026-05-14 — milestone-close housekeeping)
+
+**Goal:** Close phase 03.1-07 REVIEW.md findings + 6 pre-existing test failures + planning-doc staleness before milestone v1.1.1 ships. Plugin reaches "qa green" — `composer qa` exits 0 with zero failing tests, zero phpstan errors, zero phpmd warnings, zero pint diffs. Tracks T1 (production-code dead/stale) + T2 (test DRY) + T3 (6 baseline failures diagnosed/fixed/baselined) + T4 (planning-doc cleanup) + T5 (milestone close — qa green + git tag v1.1.1 + STATE.md advance).
+**Depends on:** Phase 3.1-07 (uses the SiteResolver::forOrder + EventLogWriter 7th-param surfaces shipped in v1.1.1).
+**Supersedes:** none — additive housekeeping on top of v1.1.1.
+**Requirements:** CLEAN-01 (production-code dead/stale: EventLog docblock + EventLogWriter::record fail-fast + SiteResolver PHPDoc compress), CLEAN-02 (test-suite DRY + lint: Uuid import + hex-literal replacement + stale-comment removal + strict_types + setUp docstring sync), CLEAN-03 (6 pre-existing test failures fixed: EventLogTest validation, ExceptionHierarchyTest translation, BootsWithoutPixelIdTest inversion, EnsureFbpFbcCookiesTest toggle guard, PurchasePixelEventLogGateTest race-loser shape, SendCapiEventEventLogTest race-fence ordering), CLEAN-04 (planning-doc cleanup: SUPERSEDED annotation on PLAN.md + PLAN-v2-original.md + .gitkeep removal + composer.json `_comments` strip), CLEAN-05 (milestone close: composer qa exit 0 + plugin git tag v1.1.1 + STATE.md advance to `phase-3.1-milestone-ready`). See `phases/03.1-08-dead-code-cleanup/BRIEF.md` for the 20-commit atomic spec across 5 tracks.
+**Success Criteria** (what must be TRUE):
+  1. `composer qa` from `plugins/logingrupa/metapixelshopaholic/` exits 0 (pint-test + analyse + phpmd + test all green).
+  2. `composer test` reports 177 passed / 0 failed (delta: +6 passed vs 03.1-07 baseline 171 passed / 6 failed). If any T3 item is formally baselined, `tests/SKIP-BASELINE.md` documents the rationale and the test method carries `->skip('baselined: <reason>')`.
+  3. `grep -rn "SiteResolver::getActiveSiteId" plugins/logingrupa/metapixelshopaholic/classes plugins/logingrupa/metapixelshopaholic/components` returns zero hits except inside `helper/SiteResolver.php` (REFAC-13 invariant preserved).
+  4. `models/EventLog.php` class-level + property-level docblocks reference REFAC-13 caller-supplied site_id contract (no stale `SiteResolver::getActiveSiteId()` narrative).
+  5. `classes/helper/EventLogWriter::record` 7th parameter is required `?int $iSiteId` (no `= null` default) OR carries `@deprecated null default — required in Phase 4` PHPDoc if audit shows >3 callers relying on implicit null.
+  6. `classes/helper/SiteResolver.php` class-level PHPDoc ≤ 10 lines, preserves `@see` REFAC-04 + REFAC-12 anchors.
+  7. `tests/Feature/MultiSiteCrossContextTest.php` imports `use Ramsey\Uuid\Uuid;` and contains zero inline `\Ramsey\Uuid\Uuid::` FQNs.
+  8. `tests/Feature/SendCapiEventEventLogTest.php` and `tests/Feature/PurchaseEndToEndIntegrationTest.php` use `Uuid::uuid4()->toString()` for event_id literals (no hardcoded hex strings).
+  9. `tests/Feature/OrderStatusWatcherEventLogTest.php` opens with `declare(strict_types=1);`.
+  10. `.planning/PLAN.md` and `.planning/PLAN-v2-original.md` begin with a `> **SUPERSEDED 2026-05-13**` annotation block pointing to `.planning/phases/03.1-event-log-refactor/BRIEF.md`.
+  11. `updates/.gitkeep` removed; `composer validate --strict` exits 0 with the `_comments` key gone from `composer.json`.
+  12. Plugin git tag `v1.1.1` annotated and present locally (push deferred to operator).
+  13. `.planning/STATE.md` `status:` advances to `phase-3.1-milestone-ready`; `stopped_at:` records milestone closure narrative.
+**Out of scope:**
+  - Any production-code change outside T1 (CLEAN-01) — no drive-by refactors. Spotted issues → `FOLLOWUP.md` per BRIEF Constraint #1.
+  - Pushing the git tag to remote (operator decision — depends on staging Scenario 5 + BACKFILL.sql success per Phase 3.1-07 closure).
+  - Phase 4 funnel-event scaffolding (FUN-* requirements unchanged).
+  - Lovata upstream column changes (`site_id` remains READ-only contract).
+  - phpstan baseline regeneration if narrow fix possible — only fall back to `composer baseline` when fix > 5 lines per BRIEF T5.1.
+**Plans:** (to be created by /gsd-plan-phase 03.1-08)
 
 ### Phase 4: Funnel completion
 
