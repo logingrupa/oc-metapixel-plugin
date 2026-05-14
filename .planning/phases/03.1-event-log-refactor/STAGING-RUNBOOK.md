@@ -226,6 +226,38 @@ immediate refresh + incognito results as the criterion-4 pass marker).
 
 ---
 
+## Scenario 5 — Cross-context admin flip + customer frontend revisit
+
+Mirrors prod bug closed by Phase 3.1-07 (REFAC-12..14).
+
+**Preconditions:** v1.1.1 deployed (`composer install && php artisan october:up && sudo systemctl reload php8.4-fpm`); BACKFILL.sql run on this site.
+
+1. Pick a bank-transfer order on `/back` (`status_id=1`, `new`). Note `order.id`, `order.secret_key`, `order.site_id` (verify `site_id IS NOT NULL` via SQL probe below — if NULL on multi-site install, abort; order predates Lovata v1.33 multi-site migration).
+2. Flip status `1 → 5` (`new-payment-received`) via admin. Save.
+3. Meta Events Manager → Test Events: observe ONE Purchase server HTTP 2xx with `test_event_code=TEST6581` (or your configured code).
+4. SQL probe:
+
+   ```sql
+   SELECT id, channel, site_id, event_id, fired_at
+     FROM logingrupa_metapixel_event_log
+    WHERE subject_id = <ORDER_ID>
+      AND subject_type = 'Lovata\\OrdersShopaholic\\Models\\Order';
+   ```
+
+   Expected: ONE row, `channel='capi'`, `site_id=<this site's id>` (NOT NULL).
+5. Incognito window. Visit `/lv/checkout/{order.secret_key}`. DevTools Network — confirm `fbq` POST to `connect.facebook.net` AND `jax.ajax('purchasePixel::onMarkFired')` XHR status 200.
+6. SQL probe again — expected TWO rows: `channel='capi'` + `channel='pixel'`, SAME `site_id`, SAME `event_id`, SAME `event_time`.
+7. Meta Events Manager → Test Events: observe ONE Purchase Browser event paired with Server from step 3 (same `event_id` → Meta dedups).
+8. STATE.md operator-append:
+
+   ```
+   - 2026-MM-DD — Scenario 5 PASSED on <site> (order #<id>): cross-context site_id symmetry verified. v1.1.1 RUNTIME-VERIFIED.
+   ```
+
+Failure mode (Phase 3.1-07 regression detector): step 5 shows NO `fbq` POST AND step 6 SQL probe shows ONE row only (`channel='capi'`, `site_id` matches but no Pixel row). Means `PurchasePixel::findEventLogRow` did NOT resolve via `forOrder` — file regression bug; BRIEF + RESEARCH for Phase 3.1-07 hold locked fix shape.
+
+---
+
 ## Step 8 — Record checkpoint pass in STATE.md
 
 Once Steps 1-7 are all PASS, append to `.planning/STATE.md` Phase 3.1
