@@ -1,3 +1,5 @@
+> **SUPERSEDED 2026-05-13**: this document describes the pre-3.1 design (idempotency via `meta_purchase_event_id` column on `lovata_orders_shopaholic_orders`). The column-based contract was replaced by the plugin-owned `logingrupa_metapixel_event_log` table in Phase 3.1. See [`.planning/phases/03.1-event-log-refactor/BRIEF.md`](phases/03.1-event-log-refactor/BRIEF.md) for the current architecture.
+
 # LoginGrupa.MetaPixelShopaholic — Implementation Plan v2
 
 > Plugin author: **LoginGrupa**
