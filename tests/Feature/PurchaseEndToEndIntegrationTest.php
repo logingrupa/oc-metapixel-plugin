@@ -28,6 +28,7 @@ use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
 use Logingrupa\Metapixelshopaholic\Tests\Support\OrderFixtures;
 use Lovata\OrdersShopaholic\Models\Order;
+use Ramsey\Uuid\Uuid;
 
 /**
  * Phase 3.1 Wave-5 REFAC-11 closure — full Purchase pipeline end-to-end
@@ -337,7 +338,9 @@ final class PurchaseEndToEndIntegrationTest extends MetapixelTestCase
         EventLog::query()->delete();
         $obOrder = Order::find($obOrder->id);
 
-        $sEventId = 'ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb';
+        // LOW-03 — Uuid::uuid4() satisfies PayloadBuilder UUIDv4 contract
+        // (bypassed here, but mirrors MultiSiteCrossContextTest DRY pattern).
+        $sEventId = Uuid::uuid4()->toString();
         $this->seedEventLogRow($obOrder, $sEventId, self::FIXED_EVENT_TIME, EventLog::CHANNEL_CAPI, 1);
         $this->seedEventLogRow($obOrder, $sEventId, self::FIXED_EVENT_TIME, EventLog::CHANNEL_PIXEL, 1);
 
@@ -479,15 +482,9 @@ final class PurchaseEndToEndIntegrationTest extends MetapixelTestCase
     }
 
     /**
-     * Pre-insert an EventLog row via the RAW DB facade — Eloquent's `$casts`
-     * coerces null site_id → 0 on model insert which would break UNIQUE
-     * collision with the writer's `DB::table(...)->insertOrIgnore(...)`
-     * path that preserves NULL. Seeding via the same DB facade guarantees
-     * the UNIQUE key tuple matches byte-for-byte against the writer's
-     * upcoming INSERT so collision semantics fire as designed.
-     *
-     * `$iSiteId` defaults to null (single-site/CLI/queue worker context);
-     * tests exercising the multi-site UNIQUE branch pass a concrete int.
+     * Pre-insert EventLog row via raw DB facade — matches writer's
+     * insertOrIgnore byte-for-byte so UNIQUE collision fires (03.1-07 REFAC-12
+     * preserves null site_id end-to-end). $iSiteId null = single-site/CLI.
      */
     private function seedEventLogRow(
         Order $obOrder,

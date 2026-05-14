@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Logingrupa\Metapixelshopaholic\Tests\Feature;
 
 require_once __DIR__.'/../MetapixelTestCase.php';

@@ -25,6 +25,7 @@ use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
 use Logingrupa\Metapixelshopaholic\Tests\Support\OrderFixtures;
 use Lovata\OrdersShopaholic\Models\Order;
+use Ramsey\Uuid\Uuid;
 
 /**
  * Phase 3.1-07 REFAC-13 cross-context spec — production bug 2026-05-14
@@ -92,7 +93,7 @@ final class MultiSiteCrossContextTest extends MetapixelTestCase
 
         // Valid UUIDv4 — PayloadBuilder rejects malformed event_id even
         // though this test only asserts the writer side.
-        $sEventId = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $sEventId = Uuid::uuid4()->toString();
         $arPayload = $this->makePayload($sEventId);
 
         $arHistory = [];
@@ -128,7 +129,7 @@ final class MultiSiteCrossContextTest extends MetapixelTestCase
 
         // Seed CAPI row matching Order.site_id=2 (truth). Valid UUIDv4 —
         // PayloadBuilder rejects malformed event_id.
-        $sUuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $sUuid = Uuid::uuid4()->toString();
         EventLog::create([
             'event_id' => $sUuid,
             'event_name' => EventLog::EVENT_PURCHASE,
@@ -166,7 +167,7 @@ final class MultiSiteCrossContextTest extends MetapixelTestCase
         $obOrder = $obOrder->fresh();
 
         // Valid UUIDv4 — PayloadBuilder rejects malformed event_id.
-        $sEventId = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        $sEventId = Uuid::uuid4()->toString();
         $arPayload = $this->makePayload($sEventId);
 
         $arHistory = [];
