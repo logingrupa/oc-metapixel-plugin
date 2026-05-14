@@ -250,6 +250,9 @@ abstract class MetapixelTestCase extends TestCase
             $obTable->string('phone')->nullable();
             $obTable->string('name')->nullable();
             $obTable->string('last_name')->nullable();
+            // Phase 3.1-07 REFAC-12: Lovata v1.33 site_id column. Nullable —
+            // single-site fixtures leave NULL; multi-site fixtures stamp int.
+            $obTable->integer('site_id')->nullable();
             $obTable->timestamps();
         });
     }
