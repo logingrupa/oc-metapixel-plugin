@@ -42,9 +42,16 @@ use October\Rain\Database\Traits\Validation;
  * `EventLogWriter::record(...)` helper returns true|false based on that race
  * outcome (insertOrIgnore affected-rows === 1 ? winner : loser).
  *
- * Multi-site: `site_id` is populated via SiteResolver::getActiveSiteId().
- * MySQL UNIQUE treats NULL as distinct, so single-site (`site_id=null`) and
- * multi-site (`site_id=int`) rows coexist correctly on the same table.
+ * Multi-site (Phase 3.1-07 REFAC-13): `site_id` is caller-supplied. Writer
+ * pure I/O — accepts explicit `?int $iSiteId` 7th arg, no internal resolve.
+ * DRY — resolution policy at call sites. Order-scoped subjects (Watcher,
+ * SendCapiEvent, PurchasePixel) pass `SiteResolver::forOrder($obOrder)` so
+ * writer+reader symmetry holds across request contexts (admin / queue /
+ * frontend) for the same Order. Future non-Order subjects (Lead, AddToCart,
+ * ViewContent — Phase 4) may use `SiteResolver::getActiveSiteId()` for
+ * request-scoped writes. MySQL UNIQUE treats NULL as distinct, so single-
+ * site (`site_id=null`) and multi-site (`site_id=int`) rows coexist on the
+ * same table.
  *
  * Append-only — no business mutation methods. Audit-trail rows. `$fillable`
  * excludes `id`, `created_at`, `updated_at` so mass-assignment cannot
