@@ -1,17 +1,8 @@
 1.0.0:
-    - 'Initial plugin scaffolding (Phase 1 + Phase 2 — no migrations).'
-1.0.1:
-    - 'Add meta_purchase_event_id + meta_purchase_event_time columns to orders table for Purchase CAPI idempotency + Pixel dedup.'
-    - add_meta_purchase_event_id_to_orders_table.php
-1.0.2:
-    - 'Create failed_events dead-letter table for permanently-failed CAPI events.'
-    - create_table_failed_events.php
-1.0.3:
-    - 'WR-07: add unique index on failed_events (event_id, http_status) to no-op double-writes of the same logical permanent failure.'
-    - add_unique_index_to_failed_events.php
+    - 'Initial plugin scaffolding (no DB).'
 1.1.0:
-    - 'Phase 3.1 event-log refactor — drop meta_purchase_event_id/event_time columns from Shopaholic Orders; create plugin-owned logingrupa_metapixel_event_log table (polymorphic subject + multi-site site_id + UNIQUE race-fence).'
-    - drop_meta_purchase_columns_from_orders_table.php
+    - 'Create plugin-owned tables — failed_events dead-letter (PAY-05 + WR-07 unique idx inline) + event_log (REFAC-02 polymorphic subject, multi-site site_id, 5-column UNIQUE race-fence, 3 read-side indices).'
+    - create_table_failed_events.php
     - create_metapixel_event_log_table.php
 1.1.1:
     - 'Phase 3.1-07 cross-context site_id symmetry — SiteResolver::forOrder reads Order.site_id; EventLogWriter::record accepts explicit ?int site_id; Watcher + SendCapiEvent + PurchasePixel rewired (no schema change, no migration).'

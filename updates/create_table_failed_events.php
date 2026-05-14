@@ -11,36 +11,34 @@ use Schema;
 /**
  * Class CreateTableFailedEvents
  *
- * PAY-05 — creates `logingrupa_metapixel_failed_events`, the dead-letter sink
- * for permanently-failed Meta CAPI events. Written by SendCapiEvent::handle()
- * (plan 03-05) via `FailedEvent::createFromPayloadAndException` when a
- * MetaApiPermanentException terminates the retry chain.
+ * PAY-05 + WR-07 — dead-letter sink for permanently-failed Meta CAPI events.
+ * Written by SendCapiEvent::handle() via FailedEvent::createFromPayloadAndException
+ * when MetaApiPermanentException terminates retry chain. Unique idx on
+ * (event_id, http_status) defends double-write across retry catch + Laravel
+ * failed() exhaustion hook.
  *
- * Schema (CONTEXT Area 4 Q1 + Q2):
- *   - id            UNSIGNED INT AUTOINCREMENT       (framework PK)
- *   - event_id      VARCHAR(36) INDEX                (UUIDv4 — admin replay key)
- *   - event_name    VARCHAR(64) INDEX                (Purchase, ViewContent, ...)
- *   - payload       LONGTEXT                          (raw JSON envelope sent to Meta)
- *   - graph_error   TEXT NULL                         (Meta Graph API error message)
- *   - http_status   SMALLINT UNSIGNED NULL INDEX     (4xx/5xx classification)
- *   - attempts      UNSIGNED INT DEFAULT 0           (queue-job retry counter)
- *   - created_at    TIMESTAMP                         (framework)
- *   - updated_at    TIMESTAMP                         (framework)
+ * Schema:
+ *   id           UNSIGNED INT AUTOINCREMENT
+ *   event_id     VARCHAR(36) INDEX                 UUIDv4 admin replay key
+ *   event_name   VARCHAR(64) INDEX                 Purchase / ViewContent / ...
+ *   payload      LONGTEXT                          raw JSON envelope
+ *   graph_error  TEXT NULL                         Meta Graph API error msg
+ *   http_status  SMALLINT UNSIGNED NULL INDEX      4xx/5xx classification
+ *   attempts     UNSIGNED INT DEFAULT 0            queue-job retry counter
+ *   created_at   TIMESTAMP
+ *   updated_at   TIMESTAMP
+ *   UNIQUE (event_id, http_status)                 WR-07 idempotency
  *
- * Phase 5 HARD-01 ships the backend list controller against this table.
- *
- * Reversible `down()` drops the table. Idempotent — `up()` no-ops if the table
- * already exists.
+ * Idempotent up() + reversible down(). Phase 5 HARD-01 ships backend list
+ * controller against this table.
  *
  * @see plugins/logingrupa/backinstockshopaholic/updates/create_table_offersubscribers.php — analog
  */
 class CreateTableFailedEvents extends Migration
 {
     const TABLE = 'logingrupa_metapixel_failed_events';
+    const UNIQUE_INDEX = 'metapixel_failed_events_event_status_unique';
 
-    /**
-     * Apply migration — create the failed_events table.
-     */
     public function up(): void
     {
         if (Schema::hasTable(self::TABLE)) {
@@ -57,12 +55,13 @@ class CreateTableFailedEvents extends Migration
             $obTable->smallInteger('http_status')->unsigned()->nullable()->index();
             $obTable->unsignedInteger('attempts')->default(0);
             $obTable->timestamps();
+
+            // WR-07: defense-in-depth uniqueness — retry catch + failed() hook
+            // cannot double-write same logical permanent failure.
+            $obTable->unique(['event_id', 'http_status'], self::UNIQUE_INDEX);
         });
     }
 
-    /**
-     * Rollback migration — drop the table.
-     */
     public function down(): void
     {
         Schema::dropIfExists(self::TABLE);

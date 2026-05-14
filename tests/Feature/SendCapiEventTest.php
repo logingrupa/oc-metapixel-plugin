@@ -6,7 +6,6 @@ require_once __DIR__.'/../MetapixelTestCase.php';
 require_once __DIR__.'/../Support/OrderFixtures.php';
 // Migration filenames are snake_case (October Updates Manager convention) — not PSR-4 discoverable.
 require_once __DIR__.'/../../updates/create_table_failed_events.php';
-require_once __DIR__.'/../../updates/add_unique_index_to_failed_events.php';
 
 use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
@@ -22,7 +21,6 @@ use Logingrupa\Metapixelshopaholic\Models\FailedEvent;
 use Logingrupa\Metapixelshopaholic\Models\Settings;
 use Logingrupa\Metapixelshopaholic\Tests\MetapixelTestCase;
 use Logingrupa\Metapixelshopaholic\Tests\Support\OrderFixtures;
-use Logingrupa\Metapixelshopaholic\Updates\AddUniqueIndexToFailedEvents;
 use Logingrupa\Metapixelshopaholic\Updates\CreateTableFailedEvents;
 use Lovata\OrdersShopaholic\Models\Order;
 use Mockery;
@@ -82,11 +80,8 @@ final class SendCapiEventTest extends MetapixelTestCase
         PluginGuard::flush();
         // Provision failed_events table via the canonical Phase-3 migration so
         // FailedEvent::create() round-trips through the real schema.
+        // WR-07 unique idx inline in CreateTableFailedEvents::up() post-cleanup.
         (new CreateTableFailedEvents)->up();
-        // WR-07: layer the unique index migration so the double-write
-        // test (test_handle_then_failed_does_not_double_write_failed_event)
-        // exercises the production schema.
-        (new AddUniqueIndexToFailedEvents)->up();
     }
 
     protected function tearDown(): void
