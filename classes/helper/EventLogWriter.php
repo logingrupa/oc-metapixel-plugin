@@ -59,16 +59,16 @@ final class EventLogWriter
      * Atomically record event_log row via UNIQUE race fence.
      * Returns true on race win, false on race loss / DB error.
      *
-     * @param  string       $sEventId   UUIDv4 paired between CAPI + Pixel for Meta dedup.
-     * @param  string       $sEventName 'Purchase' (Phase 3.1) / Phase 4 funnel events.
-     * @param  string       $sChannel   EventLog::CHANNEL_CAPI or EventLog::CHANNEL_PIXEL.
-     * @param  object       $obSubject  Polymorphic subject (Phase 3.1: only Order).
-     * @param  string|null  $sSecretKey Direct-lookup slug for /checkout/{slug}.
-     * @param  int          $iEventTime Meta-spec Unix seconds (paired browser+server).
-     * @param  ?int         $iSiteId    Caller-supplied; required (REFAC-13). Order-scoped
-     *                                  via SiteResolver::forOrder($obOrder); request-scoped
-     *                                  (Phase 4 non-Order) via SiteResolver::getActiveSiteId().
-     *                                  Explicit null = single-site / CLI / no scope.
+     * @param  string  $sEventId  UUIDv4 paired between CAPI + Pixel for Meta dedup.
+     * @param  string  $sEventName  'Purchase' (Phase 3.1) / Phase 4 funnel events.
+     * @param  string  $sChannel  EventLog::CHANNEL_CAPI or EventLog::CHANNEL_PIXEL.
+     * @param  object  $obSubject  Polymorphic subject (Phase 3.1: only Order).
+     * @param  string|null  $sSecretKey  Direct-lookup slug for /checkout/{slug}.
+     * @param  int  $iEventTime  Meta-spec Unix seconds (paired browser+server).
+     * @param  ?int  $iSiteId  Caller-supplied; required (REFAC-13). Order-scoped
+     *                         via SiteResolver::forOrder($obOrder); request-scoped
+     *                         (Phase 4 non-Order) via SiteResolver::getActiveSiteId().
+     *                         Explicit null = single-site / CLI / no scope.
      */
     public static function record(
         string $sEventId,
@@ -99,18 +99,18 @@ final class EventLogWriter
 
             // Race fence: insertOrIgnore returns affected count
             // (1 = winner, 0 = UNIQUE collision = loser).
-            $iAffected = DB::table((new EventLog())->table)->insertOrIgnore([
-                'event_id'     => $sEventId,
-                'event_name'   => $sEventName,
-                'channel'      => $sChannel,
+            $iAffected = DB::table((new EventLog)->table)->insertOrIgnore([
+                'event_id' => $sEventId,
+                'event_name' => $sEventName,
+                'channel' => $sChannel,
                 'subject_type' => $sSubjectType,
-                'subject_id'   => $iSubjectId,
-                'secret_key'   => $sSecretKey,
-                'site_id'      => $iSiteId,
-                'event_time'   => $iEventTime,
-                'fired_at'     => $sNow,
-                'created_at'   => $sNow,
-                'updated_at'   => $sNow,
+                'subject_id' => $iSubjectId,
+                'secret_key' => $sSecretKey,
+                'site_id' => $iSiteId,
+                'event_time' => $iEventTime,
+                'fired_at' => $sNow,
+                'created_at' => $sNow,
+                'updated_at' => $sNow,
             ]);
 
             return $iAffected === 1;
@@ -140,7 +140,7 @@ final class EventLogWriter
      */
     private static function extractSubjectId(object $obSubject): int
     {
-        if (!method_exists($obSubject, 'getKey')) {
+        if (! method_exists($obSubject, 'getKey')) {
             return 0;
         }
 
