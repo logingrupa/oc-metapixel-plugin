@@ -230,7 +230,7 @@ immediate refresh + incognito results as the criterion-4 pass marker).
 
 Mirrors prod bug closed by Phase 3.1-07 (REFAC-12..14).
 
-**Preconditions:** v1.1.1 deployed (`composer install && php artisan october:up && sudo systemctl reload php8.4-fpm`); BACKFILL.sql run on this site.
+**Preconditions:** v1.1.1 deployed (`composer install && php artisan october:up && sudo systemctl reload php8.4-fpm`). Fresh install — no backfill needed (BACKFILL.sql retired post-cleanup; plugin works out of box).
 
 1. Pick a bank-transfer order on `/back` (`status_id=1`, `new`). Note `order.id`, `order.secret_key`, `order.site_id` (verify `site_id IS NOT NULL` via SQL probe below — if NULL on multi-site install, abort; order predates Lovata v1.33 multi-site migration).
 2. Flip status `1 → 5` (`new-payment-received`) via admin. Save.
