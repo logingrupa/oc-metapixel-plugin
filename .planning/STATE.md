@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1.0
 milestone_name: milestone
-status: phase-3.1-complete
-stopped_at: "Phase 3.1 (event-log refactor) complete. 5 plans shipped (03.1-01 schema bedrock, 03.1-02 model + helpers, 03.1-03 queue + watcher race-fence, 03.1-04 PurchasePixel rewrite, 03.1-05 multi-site test + cleanup). v1.1.0 break: SendCapiEvent::__construct gained 3rd arg `Order $obSubject` (SCE-03 superseded). OrderStatusWatcher WR-12 atomic-CAS removed (column-fence gone). Plugin-owned `logingrupa_metapixel_event_log` table is the SINGLE source of truth for Meta event idempotency — polymorphic subject, multi-site site_id scoped, UNIQUE(subject_type, subject_id, event_name, channel, site_id) race-fence; second `channel='pixel'` row suppresses browser re-fires across devices/sessions/time. Next: operator deploys v1.1.0 to staging + runs the 4 BRIEF acceptance scenarios (manual checkpoint), then `/gsd-plan-phase 4` for Funnel Completion."
-last_updated: "2026-05-13T21:30:00Z"
-last_activity: 2026-05-13
+status: phase-3.1-runtime-verified
+stopped_at: "Phase 3.1 (event-log refactor) complete. 5 plans shipped (03.1-01 schema bedrock, 03.1-02 model + helpers, 03.1-03 queue + watcher race-fence, 03.1-04 PurchasePixel rewrite, 03.1-05 multi-site test + cleanup). v1.1.0 break: SendCapiEvent::__construct gained 3rd arg `Order $obSubject` (SCE-03 superseded). OrderStatusWatcher WR-12 atomic-CAS removed (column-fence gone). Plugin-owned `logingrupa_metapixel_event_log` table is the SINGLE source of truth for Meta event idempotency — polymorphic subject, multi-site site_id scoped, UNIQUE(subject_type, subject_id, event_name, channel, site_id) race-fence; second `channel='pixel'` row suppresses browser re-fires across devices/sessions/time. Phase 3.1 Wave-5 (Plan 03.1-06) closes the runtime-verification gap: PurchaseEndToEndIntegrationTest codifies the 4 BRIEF scenarios in CI + STAGING-RUNBOOK.md hands the live-plumbing checks to the operator. Next: operator runs `STAGING-RUNBOOK.md` on staging; on PASS, append checkpoint line + tag v1.1.0; then `/gsd-plan-phase 4` for Funnel Completion."
+last_updated: "2026-05-14T00:00:00Z"
+last_activity: 2026-05-14
 progress:
   total_phases: 7
   completed_phases: 3
-  total_plans: 21
-  completed_plans: 16
-  percent: 76
+  total_plans: 22
+  completed_plans: 17
+  percent: 77
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: `.planning/PROJECT.md` (updated 2026-04-22)
 
 **Core value:** Meta Ads Manager sees every purchase (including bank-transfer and admin-marked-paid), dedup ≥ 80 %, EMQ ≥ 8 for Purchase
-**Current focus:** Phase 3.1 — event-log refactor (COMPLETE 2026-05-13); next focus = Phase 4 funnel completion
+**Current focus:** Phase 3.1 — event-log refactor RUNTIME-VERIFIED (CI contracts 2026-05-14) + STAGING CHECKPOINT PENDING (operator action via STAGING-RUNBOOK.md); next focus = Phase 4 funnel completion
 
 ## Current Position
 
-Phase: 3.1 (event-log refactor) — COMPLETE
-Plan: 5 of 5 (all 5 Phase 3.1 plans shipped on 2026-05-13)
-Status: Phase 3.1 closed — plugin v1.1.0 ledger entry in version.yaml. Schema bedrock + model + helpers + queue + watcher + component + multi-site test + cleanup all green. Manual staging checkpoint deferred to operator action. Next focus = Phase 4 (funnel completion: AddToCart, ViewContent, Lead).
+Phase: 3.1 (event-log refactor) — RUNTIME-VERIFIED (CI contracts) + STAGING CHECKPOINT PENDING (operator action via STAGING-RUNBOOK.md)
+Plan: 6 of 6 (Plans 03.1-01..05 shipped 2026-05-13; Plan 03.1-06 staging-checkpoint automation shipped 2026-05-14)
+Status: Phase 3.1 closed at the contract level — plugin v1.1.0 ledger entry in version.yaml. Schema bedrock + model + helpers + queue + watcher + component + multi-site test + cleanup all green. PurchaseEndToEndIntegrationTest (5 methods) codifies the 4 BRIEF acceptance scenarios + 1 multi-site sanity check in CI. STAGING-RUNBOOK.md spells out the deploy + 4-scenario live-environment procedures for the operator. Next focus = Phase 4 (funnel completion: AddToCart, ViewContent, Lead).
 
 ### Prior Phase Cursor (preserved for history)
 
@@ -165,6 +165,8 @@ New from Phase 3.1 execution (all 5 plans):
 
 ### Phase 3.1 Forward Notes
 
+**Operator handoff:** see [`STAGING-RUNBOOK.md`](phases/03.1-event-log-refactor/STAGING-RUNBOOK.md) for the deploy + 4-scenario live-environment procedures (Wave-5 Plan 03.1-06 deliverable). The 4 BRIEF scenarios are codified at the contract level in `tests/Feature/PurchaseEndToEndIntegrationTest.php` (5 methods) so CI proves them on every push/PR; the runbook closes the last 10 % of live-plumbing checks (real PayPal IPN, real Pixel script handshake, Meta Events Manager Test Events dashboard).
+
 **Manual staging checkpoint handoff (operator action required):**
 
 After deploying v1.1.0 to staging, the operator runs the 4 BRIEF acceptance scenarios (BRIEF.md lines 282-294). These cannot be automated in CI — they verify the live PayPal + IPN + admin-flow race-fence on real network paths.
@@ -225,19 +227,20 @@ SELECT code, version FROM system_plugin_versions WHERE code = 'Logingrupa.Metapi
 
 ### Blockers/Concerns
 
-- **MANUAL-CHECKPOINT** Phase 3.1 BRIEF acceptance criterion 4 (refresh + incognito) is testable via PurchasePixelEventLogGateTest's `test_onrun_returns_null_when_pixel_row_exists` invariant + the OrderStatusWatcherEventLogTest existence-fence — but the LIVE network behavior on staging is operator-verified. Pending: operator deploys v1.1.0 to staging.
+- ~~**MANUAL-CHECKPOINT** Phase 3.1 BRIEF acceptance criterion 4 (refresh + incognito) is testable via PurchasePixelEventLogGateTest's `test_onrun_returns_null_when_pixel_row_exists` invariant + the OrderStatusWatcherEventLogTest existence-fence — but the LIVE network behavior on staging is operator-verified. Pending: operator deploys v1.1.0 to staging.~~ **CLOSED 2026-05-14 by Plan 03.1-06** — contract-level closure via `tests/Feature/PurchaseEndToEndIntegrationTest.php` (5 methods exercising the FULL Watcher → SendCapiEvent → EventLogWriter → MockHandler ↔ PurchasePixel onRun → onMarkFired chain); live-environment plumbing closure delegated to `phases/03.1-event-log-refactor/STAGING-RUNBOOK.md` operator playbook.
 
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Status | Directory |
 |---|---|---|---|---|---|
 | 20260422 | Metapixel plan v2→v3 refactor — 7 parallel audits, all 5 open questions resolved via codebase evidence. Plan files committed to plugin repo. | 2026-04-22 | c14ee5c | Complete | (plugin root `.planning/`) |
-| 20260513 | Phase 3.1 BRIEF + PATTERNS + 5 plans + 5 SUMMARYs shipped end-to-end. v1.1.0 published. | 2026-05-13 | ec8e25a..(this) | Complete | `.planning/phases/03.1-event-log-refactor/` |
+| 20260513 | Phase 3.1 BRIEF + PATTERNS + 5 plans + 5 SUMMARYs shipped end-to-end. v1.1.0 published. | 2026-05-13 | ec8e25a..165d834 | Complete | `.planning/phases/03.1-event-log-refactor/` |
+| 20260514 | Phase 3.1 Wave-5 (Plan 03.1-06) — PurchaseEndToEndIntegrationTest (5 methods locking 4 BRIEF scenarios + multi-site sanity in CI) + STAGING-RUNBOOK.md operator playbook + STATE.md/ROADMAP.md runtime-verified closure. | 2026-05-14 | 632e722..(this) | Complete | `.planning/phases/03.1-event-log-refactor/` |
 
 ## Session Continuity
 
-Last activity: 2026-05-13 — Phase 3.1 (event-log refactor) complete. 5 atomic plans shipped across 4 waves: 03.1-01 schema bedrock (drop legacy columns + create event_log table + bootEventLogTable test helper); 03.1-02 model + helpers (EventLog model + SiteResolver + EventLogWriter); 03.1-03 queue + watcher race-fence migration (BREAKING SendCapiEvent::__construct + OrderStatusWatcher::alreadyDispatched fence); 03.1-04 PurchasePixel component rewrite (event_log gate + onMarkFired AJAX + log-injection-safe forgery rejection); 03.1-05 multi-site test + grep-sweep cleanup + STATE.md closure. v1.1.0 published. BRIEF acceptance criteria 1-3 + 5-9 codified by tests; criterion 4 = operator staging checkpoint. Phase 3 task-9 manual checkpoint SUPERSEDED — the column-based contract no longer exists; Phase 3.1 acceptance scenarios are the canonical staging verification.
+Last activity: 2026-05-14 — Phase 3.1 Wave-5 (Plan 03.1-06) closes the runtime-verification gap. `tests/Feature/PurchaseEndToEndIntegrationTest.php` (5 methods, all green) codifies the 4 BRIEF acceptance scenarios + 1 multi-site sanity check end-to-end (Watcher → SendCapiEvent → EventLogWriter → MockHandler ↔ PurchasePixel onRun → onMarkFired); `STAGING-RUNBOOK.md` (11 sections) is the operator playbook for the last 10 % live-environment plumbing (real PayPal IPN, real Pixel browser handshake, Meta Events Manager Test Events dashboard). Phase 3.1 status advanced to `phase-3.1-runtime-verified`; deferred MANUAL-CHECKPOINT item CLOSED. Prior Wave 1-4 history preserved verbatim above.
 
-Last session: 2026-05-13
-Stopped at: Phase 3.1 (event-log refactor) closed. v1.1.0 published to plugin repo. Manual staging verification of BRIEF acceptance criteria pending operator action. Next focus: Phase 4 (funnel completion — AddToCart, ViewContent, Lead) reusing the Phase 3.1 API surface (EventLog + EventLogWriter::record + SiteResolver). Trigger: `/gsd-plan-phase 4` once operator confirms staging green.
+Last session: 2026-05-14
+Stopped at: Phase 3.1 Wave-5 — runtime verification closed at the contract level (PurchaseEndToEndIntegrationTest in CI); operator runs STAGING-RUNBOOK.md to close the live-environment checkpoint, then tag v1.1.0 + `/gsd-plan-phase 4`. Next focus: Phase 4 (funnel completion — AddToCart, ViewContent, Lead) reusing the Phase 3.1 API surface (EventLog + EventLogWriter::record + SiteResolver).
 Resume file: `.planning/ROADMAP.md`

@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Tooling** — `composer qa` green on empty plugin (composer.json, phpstan lvl 10 + larastan + universalObjectCrates, phpmd copy of Toolbox, pint, rector, Pest 4 + MetapixelTestCase, CI). ✓ 2026-05-12
 - [x] **Phase 2: Skeleton + cookie fix** — Plugin.php, Settings extending CommonSettings, `EnsureFbpFbcCookies` middleware, PluginGuard + PixelHead component. Fixes live empty-cookie bug. ✓ 2026-05-12
 - [ ] **Phase 3: Purchase end-to-end** — MetaClient, SendCapiEvent queue job, OrderStatusWatcher, idempotency via `meta_purchase_event_id` column (SUPERSEDED by Phase 3.1), PayloadBuilder + UserDataHasher + custom exception hierarchy. Dedup verified ≥ 80 % / EMQ ≥ 8 in Test Events.
-- [x] **Phase 3.1: Event-log refactor** (INSERTED 2026-05-13; COMPLETED 2026-05-13) — Replaced foreign-schema column idempotency with plugin-owned, multi-site `logingrupa_metapixel_event_log` table. Dropped `meta_purchase_event_id` + `meta_purchase_event_time` columns from `lovata_orders_shopaholic_orders`. Added `EventLog` model, `EventLogWriter`, `SiteResolver`. Rewired `SendCapiEvent`, `OrderStatusWatcher`, `PurchasePixel` onto UNIQUE-constraint race-fence. Suppresses Pixel re-fires across devices/sessions beyond Meta's 7-day eventID dedup window. Plugin bumped to v1.1.0.
+- [x] **Phase 3.1: Event-log refactor** (INSERTED 2026-05-13; COMPLETED 2026-05-13) — Replaced foreign-schema column idempotency with plugin-owned, multi-site `logingrupa_metapixel_event_log` table. Dropped `meta_purchase_event_id` + `meta_purchase_event_time` columns from `lovata_orders_shopaholic_orders`. Added `EventLog` model, `EventLogWriter`, `SiteResolver`. Rewired `SendCapiEvent`, `OrderStatusWatcher`, `PurchasePixel` onto UNIQUE-constraint race-fence. Suppresses Pixel re-fires across devices/sessions beyond Meta's 7-day eventID dedup window. Plugin bumped to v1.1.0; Plan 03.1-06 Wave 5 closes runtime-verification gap with PurchaseEndToEndIntegrationTest + STAGING-RUNBOOK.md.
 - [ ] **Phase 4: Funnel completion** — PageView, ViewContent, ViewCategory, Search, AddToCart, AddToWishlist, InitiateCheckout, AddPaymentInfo, Lead, CompleteRegistration, Contact. All share event_id + event_time. content_ids format locked to Facebook Catalog feed.
 - [ ] **Phase 5: Hardening + launch** — FailedEvents backend list + onReplay + onCheckDedup, lang/{en,lv,ru}, README with runbook, Composer marketplace listing, coverage ≥ 90 %.
 
@@ -97,8 +97,8 @@ Decimal phases appear between their surrounding integers in numeric order.
   7. Staging Phase-3 scenarios re-verified on new mechanism: PayPal CAPI+Pixel pair (same event_id), bank-transfer admin-flip CAPI-only, status flip-flop never re-fires.
   8. `system_plugin_versions` row for Logingrupa.Metapixelshopaholic = v1.1.0.
 **Out of scope:** Phase 4 funnel events (event_log table designed for them, no implementation); UserDataHasher address fields; stable external_id for logged-in customers; AEM/Verified-Domain operator action.
-**Plans:** Plans 03.1-01..05 executed 2026-05-13 (see `phases/03.1-event-log-refactor/0*-SUMMARY.md`). Plugin v1.1.0 published.
-  - [ ] 03.1-06-PLAN.md — Staging-checkpoint automation: PurchaseEndToEndIntegrationTest (4 BRIEF scenarios + multi-site cross-link) + STAGING-RUNBOOK.md for operator (REFAC-11 closure; planned 2026-05-14)
+**Plans:** Plans 03.1-01..05 executed 2026-05-13 (see `phases/03.1-event-log-refactor/0*-SUMMARY.md`). Plan 03.1-06 (Wave 5) executed 2026-05-14 — staging-checkpoint automation. Plugin v1.1.0 published; operator runbook at `phases/03.1-event-log-refactor/STAGING-RUNBOOK.md`.
+  - [x] 03.1-06-PLAN.md — Staging-checkpoint automation: PurchaseEndToEndIntegrationTest (4 BRIEF scenarios + multi-site cross-link) + STAGING-RUNBOOK.md for operator (REFAC-11 closure) ✓ 2026-05-14
 
 ### Phase 4: Funnel completion
 
@@ -138,6 +138,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 3.1 → 4 → 5
 | 1. Tooling | 1/1 | Complete | 2026-05-12 |
 | 2. Skeleton + cookie fix | 4/4 | Complete | 2026-05-12 |
 | 3. Purchase end-to-end | 5.5/6 (tasks 1-8 of plan 03-06 done; task 9 manual deferred to Phase 3.1) | Superseded mechanism — column rewrite shipped in Phase 3.1 | - |
-| 3.1. Event-log refactor (INSERTED) | 5/5 | Complete — v1.1.0 published; manual staging checkpoint pending operator | 2026-05-13 |
+| 3.1. Event-log refactor (INSERTED) | 6/6 | Complete — v1.1.0 published; CI contracts (5 BRIEF scenarios) locked; operator runbook ships at STAGING-RUNBOOK.md | 2026-05-14 |
 | 4. Funnel completion | 0/- | Not started | - |
 | 5. Hardening + launch | 0/- | Not started | - |
