@@ -482,15 +482,9 @@ final class PurchaseEndToEndIntegrationTest extends MetapixelTestCase
     }
 
     /**
-     * Pre-insert an EventLog row via the RAW DB facade — Eloquent's `$casts`
-     * coerces null site_id → 0 on model insert which would break UNIQUE
-     * collision with the writer's `DB::table(...)->insertOrIgnore(...)`
-     * path that preserves NULL. Seeding via the same DB facade guarantees
-     * the UNIQUE key tuple matches byte-for-byte against the writer's
-     * upcoming INSERT so collision semantics fire as designed.
-     *
-     * `$iSiteId` defaults to null (single-site/CLI/queue worker context);
-     * tests exercising the multi-site UNIQUE branch pass a concrete int.
+     * Pre-insert EventLog row via raw DB facade — matches writer's
+     * insertOrIgnore byte-for-byte so UNIQUE collision fires (03.1-07 REFAC-12
+     * preserves null site_id end-to-end). $iSiteId null = single-site/CLI.
      */
     private function seedEventLogRow(
         Order $obOrder,
