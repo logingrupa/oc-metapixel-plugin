@@ -115,8 +115,10 @@ final class MultiSiteEventLogTest extends MetapixelTestCase
     {
         $obOrder = OrderFixtures::makePaidOrder();
 
-        // Site A — bind active_site=1, record CAPI dispatch.
-        Config::set('system.active_site', 1);
+        // Phase 3.1-07 REFAC-13: writer takes caller-supplied ?int site_id
+        // as 7th arg (DRY). Tests now pass site_id explicitly instead of
+        // relying on Config::active_site driving SiteResolver::getActiveSiteId.
+        // Site A — pass site_id=1 explicitly.
         $bWonA = EventLogWriter::record(
             'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
             EventLog::EVENT_PURCHASE,
@@ -124,10 +126,10 @@ final class MultiSiteEventLogTest extends MetapixelTestCase
             $obOrder,
             (string) $obOrder->secret_key,
             self::FIXED_EVENT_TIME,
+            1,
         );
 
-        // Site B — switch active_site=2, record CAPI dispatch for SAME Order id.
-        Config::set('system.active_site', 2);
+        // Site B — pass site_id=2 explicitly for SAME Order id.
         $bWonB = EventLogWriter::record(
             'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
             EventLog::EVENT_PURCHASE,
@@ -135,6 +137,7 @@ final class MultiSiteEventLogTest extends MetapixelTestCase
             $obOrder,
             (string) $obOrder->secret_key,
             self::FIXED_EVENT_TIME,
+            2,
         );
 
         $this->assertTrue($bWonA, 'Site A insert must win its race (no prior row).');
@@ -195,8 +198,8 @@ final class MultiSiteEventLogTest extends MetapixelTestCase
     {
         $obOrder = OrderFixtures::makePaidOrder();
 
+        // Phase 3.1-07 REFAC-13: writer takes explicit ?int site_id (DRY).
         // Seed site 1 row.
-        Config::set('system.active_site', 1);
         EventLogWriter::record(
             'dddddddd-dddd-dddd-dddd-dddddddddddd',
             EventLog::EVENT_PURCHASE,
@@ -204,10 +207,10 @@ final class MultiSiteEventLogTest extends MetapixelTestCase
             $obOrder,
             (string) $obOrder->secret_key,
             self::FIXED_EVENT_TIME,
+            1,
         );
 
         // Seed site 2 row (different Pixel = different site_id row).
-        Config::set('system.active_site', 2);
         EventLogWriter::record(
             'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
             EventLog::EVENT_PURCHASE,
@@ -215,14 +218,18 @@ final class MultiSiteEventLogTest extends MetapixelTestCase
             $obOrder,
             (string) $obOrder->secret_key,
             self::FIXED_EVENT_TIME,
+            2,
         );
 
-        // Read scoped to site 1 — site 2 row must NOT appear.
-        Config::set('system.active_site', 1);
-        $iCount = EventLog::where('site_id', SiteResolver::getActiveSiteId())->count();
+        // Read scoped to site 1 via Order.site_id — mirrors new contract.
+        // Stamp Order.site_id=1; reader resolves via forOrder.
+        $obOrder->site_id = 1;
+        $obOrder->save();
+        $obOrder = $obOrder->fresh();
+        $iCount = EventLog::where('site_id', SiteResolver::forOrder($obOrder))->count();
 
         $this->assertSame(1, $iCount, 'Site-scoped read MUST exclude rows from other sites.');
-        // Sanity — both rows still exist on the table; only the scoped query filters.
+        // Sanity — both rows still exist on table; only scoped query filters.
         $this->assertSame(2, EventLog::count(), 'Both seeded rows must persist on the table.');
     }
 }
