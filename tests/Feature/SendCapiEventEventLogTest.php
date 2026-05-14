@@ -234,7 +234,9 @@ final class SendCapiEventEventLogTest extends MetapixelTestCase
         // Diverge active_site from Order.site_id (admin /back context lies).
         Config::set('system.active_site', null);
 
-        $sEventId = '77777777-7777-7777-7777-777777777777';
+        // LOW-02 — Uuid::uuid4() satisfies PayloadBuilder UUIDv4 contract
+        // (bypassed here, but mirrors MultiSiteCrossContextTest DRY pattern).
+        $sEventId = Uuid::uuid4()->toString();
         $iEventTime = 1715000000;
         $arPayload = $this->makePayload($sEventId, $iEventTime);
 
