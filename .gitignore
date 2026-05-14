@@ -5,7 +5,6 @@
 /.phpunit.result.cache
 /.phpunit.cache/
 /.phpstan-cache/
-/phpstan-baseline.neon
 .DS_Store
 composer.phar
 composer.lock
