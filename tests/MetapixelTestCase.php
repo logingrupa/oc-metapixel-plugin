@@ -187,6 +187,25 @@ abstract class MetapixelTestCase extends TestCase
     }
 
     /**
+     * 03.1-08 T3.2 — bind plugin's `lang/` directory to the October translation
+     * namespace `logingrupa.metapixelshopaholic`. autoRegister=false skips the
+     * full PluginManager::registerPlugin chain that normally calls
+     * `$translator->addNamespace($pluginNamespace, $langPath)` (modules/system/
+     * classes/PluginManager.php:252). Without that bind, `Lang::get(
+     * 'logingrupa.metapixelshopaholic::lang.<...>')` returns the raw key —
+     * ExceptionHierarchyTest::test_every_lang_key_resolves_to_a_string fails.
+     *
+     * Called from subclass setUp() after parent::setUp() — keeps the hermetic-
+     * opt-in pattern (HR-02). Idempotent — Laravel translator dedupes
+     * namespaces via array key.
+     */
+    protected function bootTranslations(): void
+    {
+        $sLangPath = __DIR__.'/../lang';
+        $this->app['translator']->addNamespace('logingrupa.metapixelshopaholic', $sLangPath);
+    }
+
+    /**
      * Provision a minimal `lovata_orders_shopaholic_statuses` table seeded with
      * the canonical Lovata statuses + the custom `new-payment-received` row.
      * `Settings::getPaidStatusCodeOptions()` queries this via
