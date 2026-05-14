@@ -11,56 +11,53 @@ use Logingrupa\Metapixelshopaholic\Models\EventLog;
 use Throwable;
 
 /**
- * Phase 3.1 REFAC-05 race-fence writer.
+ * Phase 3.1 REFAC-05 race-fence writer — pure I/O primitive (SRP).
  *
- * Inserts a row into `logingrupa_metapixel_event_log` using `insertOrIgnore`
- * so the database UNIQUE constraint
+ * Inserts row into `logingrupa_metapixel_event_log` via `insertOrIgnore`.
+ * Database UNIQUE constraint
  *   (subject_type, subject_id, event_name, channel, site_id)
- * is the atomic race fence. Concurrent INSERTs collide on the constraint;
- * exactly one wins — Laravel 12's `insertOrIgnore` returns the affected-row
- * count, which is the race-winner signal:
- *   - $iAffected === 1 → row created  (race winner — proceed)
- *   - $iAffected === 0 → UNIQUE blocked  (race loser — abort)
+ * is the atomic race fence. Concurrent INSERTs collide; exactly one wins.
+ * Laravel 12 `insertOrIgnore` returns affected-row count = race-winner signal:
+ *   - $iAffected === 1 → row created (race winner — proceed)
+ *   - $iAffected === 0 → UNIQUE blocked (race loser — abort)
  *
  * Used by:
  *   - Wave 3 SendCapiEvent::handle  — channel='capi',  BEFORE MetaClient::send.
  *   - Wave 3 PurchasePixel::onMarkFired — channel='pixel', AFTER browser fbq.
  *
- * Single helper per concern — Tiger-Style "No duplicate code". Both consumers
- * import this class instead of duplicating insertOrIgnore call sites.
+ * Single helper per concern — Tiger-Style "No duplicate code".
  *
- * Tiger-Style boundary catch on Throwable: DB-write failure during record()
- * does NOT cascade. Returns false on DB error (treats infra failure as
- * "lost race" — fail-safe: peer assumed to have won → no double-fire of
- * HTTP POST / fbq call). Mirrors SendCapiEvent::writeFailedEvent silent-catch
- * precedent (Phase 3 T-03-22 lock).
+ * Tiger-Style boundary catch on Throwable: DB-write failure does NOT cascade.
+ * Returns false on DB error (fail-safe: peer assumed to have won → no
+ * double-fire of HTTP POST / fbq). Mirrors SendCapiEvent::writeFailedEvent
+ * silent-catch precedent (Phase 3 T-03-22 lock).
  *
- * Subject extraction (extractSubjectId): rejects objects without a numeric
+ * Subject extraction (extractSubjectId): rejects objects without numeric
  * getKey() — returns 0 → record() returns false + logs warning. T-3.1-06
- * mitigation. Phase 3.1 callers always pass Order instances which always
- * have integer keys; the guard exists for future-Phase 4 subjects.
+ * mitigation. Phase 3.1 callers pass Order (always int key); guard exists
+ * for future Phase 4 subjects.
  *
- * Site scoping: SiteResolver::getActiveSiteId() populates site_id. NULL on
- * single-site installs / CLI / queue context — UNIQUE NULL-distinct semantics
- * keep these rows separate from multi-site rows on the same table.
+ * Site scoping: Phase 3.1-07 REFAC-13 DRY — writer is pure I/O. Caller
+ * passes ?int $iSiteId (resolution policy at call sites). NULL on
+ * single-site / CLI / queue context — UNIQUE NULL-distinct keeps rows
+ * separate from multi-site rows on same table.
  *
  * Threat model:
  *   - T-3.1-06 (Spoofing): invalid subject id → return false + warn.
- *   - T-3.1-08 (Denial of Service): DB outage → return false → caller does
- *     NOT POST to Meta → no cascading Meta-API hammering.
- *   - T-3.1-11 (Repudiation): fired_at + created_at timestamps written on
- *     every INSERT; UNIQUE prevents row mutation → append-only audit trail.
+ *   - T-3.1-08 (DoS): DB outage → return false → caller no Meta POST.
+ *   - T-3.1-11 (Repudiation): fired_at + created_at on every INSERT;
+ *     UNIQUE prevents mutation → append-only audit trail.
  *
  * @see plugins/logingrupa/metapixelshopaholic/.planning/phases/03.1-event-log-refactor/BRIEF.md REFAC-05
- * @see plugins/logingrupa/metapixelshopaholic/models/EventLog.php (canonical table-name source)
- * @see plugins/logingrupa/metapixelshopaholic/classes/helper/SiteResolver.php (site_id source)
- * @see plugins/logingrupa/postnordshippingshopaholic/updates/create_order_properties.php line 38 — insertOrIgnore idiom
+ * @see plugins/logingrupa/metapixelshopaholic/.planning/phases/03.1-07-multi-site-site-id-symmetry/BRIEF.md REFAC-13
+ * @see plugins/logingrupa/metapixelshopaholic/models/EventLog.php
+ * @see plugins/logingrupa/postnordshippingshopaholic/updates/create_order_properties.php line 38 insertOrIgnore idiom
  */
 final class EventLogWriter
 {
     /**
-     * Atomically record an event_log row, leveraging the UNIQUE constraint as
-     * race fence. Returns true on race win, false on race loss / DB error.
+     * Atomically record event_log row via UNIQUE race fence.
+     * Returns true on race win, false on race loss / DB error.
      *
      * @param  string       $sEventId   UUIDv4 paired between CAPI + Pixel for Meta dedup.
      * @param  string       $sEventName 'Purchase' (Phase 3.1) / Phase 4 funnel events.
@@ -68,6 +65,7 @@ final class EventLogWriter
      * @param  object       $obSubject  Polymorphic subject (Phase 3.1: only Order).
      * @param  string|null  $sSecretKey Direct-lookup slug for /checkout/{slug}.
      * @param  int          $iEventTime Meta-spec Unix seconds (paired browser+server).
+     * @param  ?int         $iSiteId    Caller-resolved site_id (Phase 3.1-07 REFAC-13 DRY).
      */
     public static function record(
         string $sEventId,
@@ -76,6 +74,7 @@ final class EventLogWriter
         object $obSubject,
         ?string $sSecretKey,
         int $iEventTime,
+        ?int $iSiteId = null,
     ): bool {
         try {
             $sSubjectType = get_class($obSubject);
@@ -93,10 +92,9 @@ final class EventLogWriter
                 return false;
             }
 
-            $iSiteId = SiteResolver::getActiveSiteId();
             $sNow = (string) Carbon::now();
 
-            // Race fence: insertOrIgnore returns affected-row count
+            // Race fence: insertOrIgnore returns affected count
             // (1 = winner, 0 = UNIQUE collision = loser).
             $iAffected = DB::table((new EventLog())->table)->insertOrIgnore([
                 'event_id'     => $sEventId,
@@ -115,11 +113,10 @@ final class EventLogWriter
             return $iAffected === 1;
         } catch (Throwable $obException) {
             // silent: DB-write failure must NOT cascade — Tiger-Style boundary.
-            // Fail-safe: return false treats this as "lost race" → caller does
-            // NOT proceed with HTTP POST / fbq call. Mirrors SendCapiEvent
-            // writeFailedEvent silent-catch (Phase 3 T-03-22 lock). T-3.1-08
-            // mitigation: surfaces infra failure to operators via Log::critical
-            // without hammering the Meta API on every retry.
+            // Fail-safe: return false → caller no HTTP POST / fbq. Mirrors
+            // SendCapiEvent writeFailedEvent silent-catch (Phase 3 T-03-22).
+            // T-3.1-08 surfaces infra failure via Log::critical without
+            // hammering Meta API on every retry.
             Log::critical('Metapixel: EventLogWriter::record DB write FAILED', [
                 'meta_pixel.event_id' => $sEventId,
                 'meta_pixel.event_name' => $sEventName,
@@ -133,10 +130,10 @@ final class EventLogWriter
     }
 
     /**
-     * Narrow `$obSubject->getKey()` to an int, returning 0 on no-match.
-     * Mirrors OrderStatusWatcher::intOrZero (Phase 3 PHPSTAN-01 narrowing
-     * pattern). Phpstan level 10 accepts the explicit is_int / is_string +
-     * is_numeric narrowing without `@var` or `assert`.
+     * Narrow $obSubject->getKey() to int, 0 on no-match. Mirrors
+     * OrderStatusWatcher::intOrZero (Phase 3 PHPSTAN-01 narrowing).
+     * Phpstan level 10 accepts is_int / is_string + is_numeric narrow
+     * without `@var` or `assert`.
      */
     private static function extractSubjectId(object $obSubject): int
     {

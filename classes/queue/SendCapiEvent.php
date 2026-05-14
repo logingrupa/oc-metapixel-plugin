@@ -16,6 +16,7 @@ use Logingrupa\Metapixelshopaholic\Classes\Exception\MetaPixelException;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\MissingCapiTokenException;
 use Logingrupa\Metapixelshopaholic\Classes\Exception\MissingPixelConfigException;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\EventLogWriter;
+use Logingrupa\Metapixelshopaholic\Classes\Helper\SiteResolver;
 use Logingrupa\Metapixelshopaholic\Classes\Meta\MetaClient;
 use Logingrupa\Metapixelshopaholic\Models\EventLog;
 use Logingrupa\Metapixelshopaholic\Models\FailedEvent;
@@ -217,6 +218,7 @@ final class SendCapiEvent implements ShouldQueue
             $this->obSubject,
             $this->stringOrNull($this->obSubject->getAttribute('secret_key')),
             $iEventTime,
+            SiteResolver::forOrder($this->obSubject),
         );
     }
 

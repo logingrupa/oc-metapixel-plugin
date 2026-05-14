@@ -278,6 +278,7 @@ final class PurchasePixel extends ComponentBase
             $obOrder,
             $sSecretKey === '' ? null : $sSecretKey,
             (int) $obCapiRow->event_time,
+            SiteResolver::forOrder($obOrder),
         );
 
         // 'won_race' is a runtime extension for tests (REFAC-11 second-call
