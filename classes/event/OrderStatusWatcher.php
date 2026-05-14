@@ -55,11 +55,16 @@ use Throwable;
  * OrderProcessor / Campaign / PromoMechanism).
  *
  * Multi-site (T-3.1-16 mitigation): alreadyDispatched branches on
- * SiteResolver::getActiveSiteId() — `whereNull('site_id')` for single-site
+ * SiteResolver::forOrder(\$obOrder) — `whereNull('site_id')` for single-site
  * installs / CLI / queue, `where('site_id', $iSiteId)` for multi-site.
  * One site's "already dispatched" decision never suppresses another site's
  * legitimate dispatch for the same Order id (rare-but-valid scenario in
  * October 4 multi-site installations).
+ *
+ * Phase 3.1-07 REFAC-13: alreadyDispatched resolves via SiteResolver::forOrder
+ * — eliminates cross-context site_id divergence (writer admin context vs
+ * reader frontend context). Order.site_id stamped by Lovata MakeOrder at
+ * create = deterministic source of truth. Closes 2026-05-14 prod bug.
  *
  * Threat model (T-03-26..28 + Phase 3.1 T-3.1-16):
  *   - The legacy idempotency column is no longer written here (columns
@@ -245,16 +250,18 @@ final class OrderStatusWatcher
     }
 
     /**
-     * Existence check on event_log for a CAPI Purchase row scoped to this
-     * Order + active site_id. Replaces the legacy Phase-3 column-NULL
-     * check on Lovata's orders table (columns deleted in Wave-1 REFAC-01).
+     * Existence check on event_log for CAPI Purchase row scoped to this
+     * Order + Order.site_id. Replaces legacy Phase-3 column-NULL check
+     * on Lovata's orders table (columns deleted Wave-1 REFAC-01).
      *
-     * Multi-site (T-3.1-16 mitigation): single-site / CLI / queue context
-     * → SiteResolver returns null → `whereNull('site_id')` matches rows
-     * inserted by EventLogWriter with site_id=NULL. Multi-site context →
-     * SiteResolver returns int → `where('site_id', $iSiteId)`. MySQL UNIQUE
-     * treats NULL as distinct under the composite key, so single-site and
-     * multi-site rows coexist correctly on the same table.
+     * Phase 3.1-07 REFAC-13: resolves via SiteResolver::forOrder(\$obOrder)
+     * — eliminates cross-context site_id divergence (writer admin context
+     * vs reader frontend context). Same Order, same value, every caller.
+     *
+     * Multi-site (T-3.1-16): forOrder null → whereNull('site_id') matches
+     * single-site / pre-Lovata-v1.33 rows. forOrder int → where equality.
+     * MySQL UNIQUE NULL-distinct keeps single-site + multi-site rows on
+     * same table without collision.
      */
     private function alreadyDispatched(Order $obOrder): bool
     {
@@ -262,7 +269,7 @@ final class OrderStatusWatcher
         if ($iSubjectId <= 0) {
             return false;
         }
-        $iSiteId = SiteResolver::getActiveSiteId();
+        $iSiteId = SiteResolver::forOrder($obOrder);
 
         $obQuery = EventLog::where('subject_type', Order::class)
             ->where('subject_id', $iSubjectId)

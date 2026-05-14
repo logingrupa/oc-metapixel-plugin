@@ -321,17 +321,22 @@ final class PurchaseEndToEndIntegrationTest extends MetapixelTestCase
      */
     public function test_pixel_row_suppresses_refire_across_devices_and_sessions(): void
     {
-        // Bind a non-null active_site so the UNIQUE composite's site_id is a
-        // concrete int on both seeded rows AND the writer's upcoming
-        // insertOrIgnore call. Under SQLite (test DB) and MySQL (production)
-        // UNIQUE treats NULL values as DISTINCT — two rows with NULL site_id
-        // can coexist even when other columns match. Binding site_id=1 here
-        // exercises the multi-site UNIQUE collision branch that production
-        // staging hits when the operator runs October 4 with the multi-site
-        // module installed (BRIEF.md REFAC-04 + sibling MultiSiteEventLogTest).
+        // Phase 3.1-07 REFAC-13: site_id resolution moved from active_site
+        // (request-context-dependent) to Order.site_id (deterministic). Stamp
+        // Order.site_id=1 so writer (forOrder=1) + reader (forOrder=1) agree.
+        // UNIQUE composite includes site_id; multi-site collision branch
+        // exercised when Order.site_id non-null (matches production staging
+        // with October 4 multi-site module installed).
         Config::set('system.active_site', 1);
 
         $obOrder = OrderFixtures::makePaidOrder();
+        // Bypass model events — direct DB update so Watcher::handleUpdated
+        // does not fire on save. (makePaidOrder's eloquent.created already
+        // auto-dispatched; we wipe + re-seed below to control state.)
+        Order::where('id', $obOrder->id)->update(['site_id' => 1]);
+        EventLog::query()->delete();
+        $obOrder = Order::find($obOrder->id);
+
         $sEventId = 'ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb';
         $this->seedEventLogRow($obOrder, $sEventId, self::FIXED_EVENT_TIME, EventLog::CHANNEL_CAPI, 1);
         $this->seedEventLogRow($obOrder, $sEventId, self::FIXED_EVENT_TIME, EventLog::CHANNEL_PIXEL, 1);
@@ -379,13 +384,21 @@ final class PurchaseEndToEndIntegrationTest extends MetapixelTestCase
     {
         $obOrder = OrderFixtures::makePaidOrder();
 
+        // Wipe auto-dispatched row from makePaidOrder so the two site-bound
+        // dispatches below own the entire EventLog state.
+        EventLog::query()->delete();
+
         $arHistory = [];
         $this->bindMetaClientWithMockResponses([
             new Response(200, [], '{"events_received": 1, "fbtrace_id": "site-1"}'),
             new Response(200, [], '{"events_received": 1, "fbtrace_id": "site-2"}'),
         ], $arHistory);
 
-        // Site A — active_site=1.
+        // Phase 3.1-07 REFAC-13: site_id driven by Order.site_id (forOrder),
+        // not Config active_site. Direct DB update bypasses model events so
+        // Watcher::handleUpdated does not double-fire on save.
+        Order::where('id', $obOrder->id)->update(['site_id' => 1]);
+        $obOrder = Order::find($obOrder->id);
         Config::set('system.active_site', 1);
         (new OrderStatusWatcher)->handleUpdated($obOrder);
         $this->assertCount(1, $arHistory, 'Multi-site: site 1 dispatch MUST POST once.');
@@ -394,7 +407,9 @@ final class PurchaseEndToEndIntegrationTest extends MetapixelTestCase
         $obFirst = EventLog::first();
         $this->assertSame(1, (int) $obFirst->site_id, 'Multi-site: first row site_id = 1.');
 
-        // Site B — active_site=2 for SAME Order id.
+        // Site B — re-stamp Order.site_id=2 for SAME Order id.
+        Order::where('id', $obOrder->id)->update(['site_id' => 2]);
+        $obOrder = Order::find($obOrder->id);
         Config::set('system.active_site', 2);
         (new OrderStatusWatcher)->handleUpdated($obOrder);
 

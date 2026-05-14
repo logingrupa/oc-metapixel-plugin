@@ -16,7 +16,6 @@ use GuzzleHttp\Psr7\Response;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\DB;
 use Logingrupa\Metapixelshopaholic\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixelshopaholic\Classes\Meta\MetaClient;
 use Logingrupa\Metapixelshopaholic\Classes\Queue\SendCapiEvent;
@@ -63,8 +62,8 @@ final class MultiSiteCrossContextTest extends MetapixelTestCase
         Settings::clearInternalCache();
         PluginGuard::flush();
         Carbon::setTestNow(Carbon::createFromTimestamp(self::FIXED_EVENT_TIME));
-        $this->primeSettings();
         $this->primePluginGuardEnabled('123456789012345');
+        $this->primeSettings();
     }
 
     protected function tearDown(): void
@@ -91,7 +90,9 @@ final class MultiSiteCrossContextTest extends MetapixelTestCase
         $obOrder->save();
         $obOrder = $obOrder->fresh();
 
-        $sEventId = '11111111-1111-1111-1111-111111111111';
+        // Valid UUIDv4 — PayloadBuilder rejects malformed event_id even
+        // though this test only asserts the writer side.
+        $sEventId = \Ramsey\Uuid\Uuid::uuid4()->toString();
         $arPayload = $this->makePayload($sEventId);
 
         $arHistory = [];
@@ -125,19 +126,19 @@ final class MultiSiteCrossContextTest extends MetapixelTestCase
         $obOrder->save();
         $obOrder = $obOrder->fresh();
 
-        // Seed CAPI row matching Order.site_id=2 (truth).
-        DB::table('logingrupa_metapixel_event_log')->insert([
-            'event_id' => '22222222-2222-2222-2222-222222222222',
+        // Seed CAPI row matching Order.site_id=2 (truth). Valid UUIDv4 —
+        // PayloadBuilder rejects malformed event_id.
+        $sUuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
+        EventLog::create([
+            'event_id' => $sUuid,
             'event_name' => EventLog::EVENT_PURCHASE,
             'channel' => EventLog::CHANNEL_CAPI,
             'subject_type' => Order::class,
-            'subject_id' => $obOrder->id,
+            'subject_id' => (int) $obOrder->id,
             'secret_key' => (string) $obOrder->secret_key,
             'site_id' => 2,
             'event_time' => self::FIXED_EVENT_TIME,
-            'fired_at' => (string) Carbon::now(),
-            'created_at' => (string) Carbon::now(),
-            'updated_at' => (string) Carbon::now(),
+            'fired_at' => Carbon::now(),
         ]);
 
         // Frontend FPM lies — active_site=1, diverges from Order.site_id=2.
@@ -150,10 +151,7 @@ final class MultiSiteCrossContextTest extends MetapixelTestCase
             $obComponent->arMetaEvent,
             'Frontend reader MUST find CAPI row via SiteResolver::forOrder(\$obOrder).',
         );
-        $this->assertSame(
-            '22222222-2222-2222-2222-222222222222',
-            $obComponent->arMetaEvent['event_id'],
-        );
+        $this->assertSame($sUuid, $obComponent->arMetaEvent['event_id']);
     }
 
     /**
@@ -167,7 +165,8 @@ final class MultiSiteCrossContextTest extends MetapixelTestCase
         $obOrder = OrderFixtures::makePaidOrder();   // site_id stays NULL
         $obOrder = $obOrder->fresh();
 
-        $sEventId = '33333333-3333-3333-3333-333333333333';
+        // Valid UUIDv4 — PayloadBuilder rejects malformed event_id.
+        $sEventId = \Ramsey\Uuid\Uuid::uuid4()->toString();
         $arPayload = $this->makePayload($sEventId);
 
         $arHistory = [];

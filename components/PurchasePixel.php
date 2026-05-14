@@ -288,17 +288,22 @@ final class PurchasePixel extends ComponentBase
     }
 
     /**
-     * Query event_log for a row matching (Order, channel) scoped by the
-     * SiteResolver-resolved active site_id. Reusable across `onRun` (CAPI
-     * presence + Pixel presence checks) and `onMarkFired` (CAPI presence
-     * + event_id match).
+     * Query event_log for row matching (Order, channel) scoped by
+     * Order.site_id (Phase 3.1-07 REFAC-13: forOrder, not getActiveSiteId).
+     * Reusable across `onRun` (CAPI + Pixel presence) and `onMarkFired`
+     * (CAPI presence + event_id match).
      *
-     * Site_id branch: NULL → `whereNull('site_id')`; non-null → equality.
-     * Mirrors `OrderStatusWatcher::alreadyDispatched` Phase 3.1 Wave-3 idiom.
+     * Site_id branch: forOrder null → `whereNull('site_id')`; int → equality.
+     * Mirrors OrderStatusWatcher::alreadyDispatched Phase 3.1 idiom.
+     *
+     * Phase 3.1-07 REFAC-13: findEventLogRow resolves via forOrder
+     * — eliminates cross-context site_id divergence (writer admin context
+     * vs reader frontend context). Closes 2026-05-14 prod bug (orders
+     * 29802 + 29803 on new.nailscosmetics.lv).
      *
      * MC-05 narrowing: `Builder::first()` returns `?Model`; explicit
      * `instanceof EventLog` narrow keeps phpstan level 10 happy without
-     * `@var` / `assert` and locks the typed `?EventLog` return.
+     * `@var` / `assert` and locks typed `?EventLog` return.
      */
     private function findEventLogRow(Order $obOrder, string $sChannel): ?EventLog
     {
@@ -307,7 +312,7 @@ final class PurchasePixel extends ComponentBase
             return null;
         }
 
-        $iSiteId = SiteResolver::getActiveSiteId();
+        $iSiteId = SiteResolver::forOrder($obOrder);
 
         $obQuery = EventLog::where('subject_type', Order::class)
             ->where('subject_id', $iSubjectId)
