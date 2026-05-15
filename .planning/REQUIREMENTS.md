@@ -42,13 +42,15 @@
 - [ ] **ADAP-10**: `Classes\Queue\SendCapiEvent` constructor adds `string $sAdapterClass` 4th arg. `handle()` resolves adapter via `AdapterRegistry::resolveByClass($sAdapterClass)`. `BindingResolutionException` boundary catch writes FailedEvent + log critical.
 - [ ] **ADAP-11**: All 177 v1.x tests adapt via `FakeAdapter` test double. `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest`, `SendCapiEventEventLogTest`, `MultiSiteEventLogTest` regreen.
 
-### ShopaholicAdapter (Phase 3 — non-regression port)
+### ShopaholicAdapter (Phase 3 — fresh implementation, modern OctoberCMS patterns)
 
-- [ ] **SHOP-01**: `Classes\Adapter\Shopaholic\ShopaholicOrderAdapter` implements `EventSubjectAdapter`. `getSubjectType()` returns `'shopaholic.order'` (alias, NOT `\Lovata\OrdersShopaholic\Models\Order::class`). `getSiteId()` reads `$obOrder->getAttribute('site_id')` (Lovata column).
-- [ ] **SHOP-02**: `Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver` implements `ValueResolver`. `resolveContentIds()` matches Facebook Catalog feed exporter format `SKU-{product_id}[-{offer_id}]`. 4-step currency fallback (relation → field → Settings → throw).
-- [ ] **SHOP-03**: `Classes\Event\Adapter\Shopaholic\OrderStatusWatcher` moved from `Classes\Event\OrderStatusWatcher`. Watches `eloquent.updated` + `eloquent.created` on Order. On `paid_status_code` match + EventLog row absent, dispatches `SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class)`.
-- [ ] **SHOP-04**: `Plugin::boot()` conditionally registers ShopaholicOrderAdapter + subscribes OrderStatusWatcher only when `PluginManager::instance()->exists('Lovata.OrdersShopaholic')` is true.
-- [ ] **SHOP-05**: ShopaholicAdapter non-regression test suite — identical Pixel + CAPI traffic to v1.1.1 on nailscosmetics.* fixture data. Same event_id round-trip, same EventLog rows, same Meta Test Events events.
+Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_ids = `SKU-{product_id}[-{offer_id}]`, paid_status_code dropdown) but writes FRESH code following current October 4 + Laravel 12 + Lovata.Toolbox idioms. NOT a v1.x port.
+
+- [ ] **SHOP-01**: `Classes\Adapter\Shopaholic\ShopaholicOrderAdapter` implements `EventSubjectAdapter`. `getSubjectType()` returns `'shopaholic.order'` (opaque alias, NOT class FQN). `getSiteId()` reads `$obOrder->getAttribute('site_id')` (Lovata column written by `OrderProcessor`).
+- [ ] **SHOP-02**: `Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver` implements `ValueResolver`. `resolveContentIds()` returns Facebook Catalog feed format `SKU-{product_id}[-{offer_id}]`. Currency resolves in order: Order.currency relation → Order.currency_code field → adapter Settings default → throw `OrderHasNoCurrencyException`.
+- [ ] **SHOP-03**: `Classes\Event\Adapter\Shopaholic\OrderStatusWatcher` subscribes `eloquent.updated` + `eloquent.created` on Order. On `paid_status_code` Settings match + EventLog row absent, dispatches `SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class)`. One responsibility per method, ≤70 LOC.
+- [ ] **SHOP-04**: `Plugin::boot()` conditionally registers ShopaholicOrderAdapter + subscribes OrderStatusWatcher only when `PluginManager::instance()->exists('Lovata.OrdersShopaholic')` is true. Composer-dependency-analyser enforces no `Lovata\OrdersShopaholic\*` imports outside `Classes\Adapter\Shopaholic\` directory.
+- [ ] **SHOP-05**: Pest integration test exercises end-to-end Purchase flow on a generic Order fixture (`example.test` host, hermetic SQLite): status flip to `new-payment-received` → dispatch → `EventLogWriter::record` race-fence (channel=capi) → MetaClient mocked via Guzzle MockHandler → assert payload shape, event_id round-trip, dedup contract. Second admin-flip flow asserts EventLog row prevents re-fire.
 
 ### ThemeActionAdapter (Phase 3 — generic theme tracking)
 
@@ -57,10 +59,12 @@
 - [ ] **THEM-03**: `Classes\Adapter\Theme\ThemeEventCollector` request-scoped singleton. Accumulates events pushed via Twig API. Reset between requests; test teardown calls explicit `flush()`.
 - [ ] **THEM-04**: `Plugin::registerMarkupTags()` registers `this.metapixel.pushEvent(arEvent)` Twig helper. Theme layouts call `{% do this.metapixel.pushEvent({name: 'ViewContent', action_key: 'product-view:' ~ product.id, content_ids: [...], value: 12.50, currency: 'EUR'}) %}` before PixelHead renders.
 - [ ] **THEM-05**: `Classes\Adapter\Theme\ThemeAjaxHandler` listens on `cms.ajax.beforeRunHandler` for `Metapixel::onFireEvent`. Validates against `EVENT_NAME_ALLOWLIST` (Meta-standard event names), enforces CSRF token, rate-limits per IP+session, JS-escapes returned payload. Dispatches `SendCapiEvent` + emits `<script>fbq(...)</script>` response fragment.
-- [ ] **THEM-06**: `Components\SubjectPixel` (generalizes v1.x `PurchasePixel`). Properties: `subject_class`, `subject_slug_field`. Resolves adapter via `AdapterRegistry::resolveByClass($sSubjectClass)`. `onMarkFired` AJAX handler writes `channel='pixel'` row to EventLog with event_id validation.
+- [ ] **THEM-06**: `Components\EventPixel` — browser-side fbq() renderer for any server-confirmed subject. Operator places on thank-you/confirmation pages. Properties: `subject_class` (e.g. `Lovata\OrdersShopaholic\Models\Order`) + `subject_slug_field` (e.g. `secret_key`). On run: queries EventLog for matching CAPI row; if present + Pixel row absent, emits inline `fbq('track', name, data, {eventID})` with the server-supplied event_id. `onMarkFired` AJAX writes `channel='pixel'` row to EventLog with event_id validation.
 - [ ] **THEM-07**: `Components\PixelHead` extended with Twig API surface — reads `ThemeEventCollector` accumulator, emits `fbq('track', ...)` script blocks per pushed event. Optional `also_dispatch_capi: true` triggers CAPI mirror.
 
 ### Multisite + Settings rework (Phase 4)
+
+**Settings UX:** October-native Multisite — operator picks site from backend top-bar site picker; per-site values stored as separate `system_settings` rows by October. NOT a custom repeater field. Single-site installs see no UX change (default row primary). Per-adapter Settings (paid_status_code, currency_code) ship dynamic dropdowns sourced from cart-plugin (`Status::lists()` for Shopaholic).
 
 - [ ] **MULT-01**: `models/Settings.php` adds `use Multisite;` trait. `protected $propagatable = []` (empty whitelist — explicit per-field opt-in).
 - [ ] **MULT-02**: `pixel_id` + `capi_access_token` fields marked per-site via Multisite trait (NOT in `$propagatable`). Each OctoberCMS site row stores independent value.
@@ -72,7 +76,7 @@
 ### TrustedHosts + php-domain-parser (Phase 4)
 
 - [ ] **HOST-01**: `trusted_hosts` Settings field (textarea, one host per line). Empty default; operator populates with own production domains. Validates host syntax on save.
-- [ ] **HOST-02**: `Classes\Helper\HostIndexResolver` wraps `jeremykendall/php-domain-parser ^6.4`. Derives subdomain index from `Request::getHost()` using PSL. Handles multi-part TLDs (`.co.uk`, `.com.au`, `.com.br`). Returns 1 for apex, 2 for `www.` subdomain, etc.
+- [ ] **HOST-02**: `Classes\Helper\HostIndexResolver` wraps `jeremykendall/php-domain-parser ^6.4`. Why this lib: October provides no PSL-aware host parser (`SiteManager` knows site URLs, not eTLD+1 boundaries); naive `count(explode('.', $sHost)) - 1` is wrong for multi-TLD `.co.uk` / `.com.br` / `.com.au` (counts public suffix as subdomain). PDP uses Public Suffix List to compute correct subdomain offset. Returns 1 for apex (`example.com`, `example.co.uk`), 2 for `www.example.com` / `www.example.co.uk`, 3 for `a.b.example.com`.
 - [ ] **HOST-03**: PSL data shipped at `resources/data/public_suffix_list.dat`. `metapixel:refresh-psl` artisan command updates PSL from upstream. Cache parsed `Rules` in `storage/app/metapixel/psl/`.
 - [ ] **HOST-04**: `EnsureFbpFbcCookies` middleware reads `trusted_hosts` Setting + `HostIndexResolver`. Untrusted host → middleware skips cookie-set (fail-safe). CR-02 host-spoofing threat preserved.
 - [ ] **HOST-05**: Multi-TLD test matrix — fixtures for apex `example.test`, `www.example.test`, `example.co.uk`, `www.example.co.uk`, `subdomain.example.com.br`, IDN host `xn--bcher-kva.example`. All resolve correctly via PSL.
@@ -173,8 +177,84 @@
 
 ## Traceability
 
-(Filled by roadmapper agent.)
+**Coverage:** 61/61 v2 requirements mapped to exactly one phase (100%). 0 orphans. 0 duplicates.
+
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| TOOL-01 | Phase 1 | Pending |
+| TOOL-02 | Phase 1 | Pending |
+| TOOL-03 | Phase 1 | Pending |
+| TOOL-04 | Phase 1 | Pending |
+| TOOL-05 | Phase 1 | Pending |
+| TOOL-06 | Phase 1 | Pending |
+| TOOL-07 | Phase 1 | Pending |
+| TOOL-08 | Phase 1 | Pending |
+| TOOL-09 | Phase 1 | Pending |
+| TOOL-10 | Phase 1 | Pending |
+| TOOL-11 | Phase 1 | Pending |
+| ADAP-01 | Phase 2 | Pending |
+| ADAP-02 | Phase 2 | Pending |
+| ADAP-03 | Phase 2 | Pending |
+| ADAP-04 | Phase 2 | Pending |
+| ADAP-05 | Phase 2 | Pending |
+| ADAP-06 | Phase 2 | Pending |
+| ADAP-07 | Phase 2 | Pending |
+| ADAP-08 | Phase 2 | Pending |
+| ADAP-09 | Phase 2 | Pending |
+| ADAP-10 | Phase 2 | Pending |
+| ADAP-11 | Phase 2 | Pending |
+| SHOP-01 | Phase 3 | Pending |
+| SHOP-02 | Phase 3 | Pending |
+| SHOP-03 | Phase 3 | Pending |
+| SHOP-04 | Phase 3 | Pending |
+| SHOP-05 | Phase 3 | Pending |
+| THEM-01 | Phase 3 | Pending |
+| THEM-02 | Phase 3 | Pending |
+| THEM-03 | Phase 3 | Pending |
+| THEM-04 | Phase 3 | Pending |
+| THEM-05 | Phase 3 | Pending |
+| THEM-06 | Phase 3 | Pending |
+| THEM-07 | Phase 3 | Pending |
+| MULT-01 | Phase 4 | Pending |
+| MULT-02 | Phase 4 | Pending |
+| MULT-03 | Phase 4 | Pending |
+| MULT-04 | Phase 4 | Pending |
+| MULT-05 | Phase 4 | Pending |
+| MULT-06 | Phase 4 | Pending |
+| HOST-01 | Phase 4 | Pending |
+| HOST-02 | Phase 4 | Pending |
+| HOST-03 | Phase 4 | Pending |
+| HOST-04 | Phase 4 | Pending |
+| HOST-05 | Phase 4 | Pending |
+| HOST-06 | Phase 4 | Pending |
+| COOK-01 | Phase 4 | Pending |
+| COOK-02 | Phase 4 | Pending |
+| COOK-03 | Phase 4 | Pending |
+| FAIL-01 | Phase 4 | Pending |
+| FAIL-02 | Phase 4 | Pending |
+| FAIL-03 | Phase 4 | Pending |
+| LANG-01 | Phase 4 | Pending |
+| DOCS-01 | Phase 5 | Pending |
+| DOCS-02 | Phase 5 | Pending |
+| DOCS-03 | Phase 5 | Pending |
+| MKT-01 | Phase 5 | Pending |
+| MKT-02 | Phase 5 | Pending |
+| MKT-03 | Phase 5 | Pending |
+| MKT-04 | Phase 5 | Pending |
+| MKT-05 | Phase 5 | Pending |
+
+### Per-Phase Requirement Counts (verification)
+
+| Phase | Requirements mapped | Categories |
+|-------|---------------------|-----------|
+| Phase 1 | 11 | TOOL-01..11 |
+| Phase 2 | 11 | ADAP-01..11 |
+| Phase 3 | 12 | SHOP-01..05 + THEM-01..07 |
+| Phase 4 | 19 | MULT-01..06 + HOST-01..06 + COOK-01..03 + FAIL-01..03 + LANG-01 |
+| Phase 5 | 8 | DOCS-01..03 + MKT-01..05 |
+| **Total** | **61** | (matches Coverage Summary above) |
 
 ---
 *Requirements defined: 2026-05-15*
+*Traceability filled by roadmapper: 2026-05-15*
 *Milestone: v2.0.0 — Generic-event-tracking marketplace plugin*
