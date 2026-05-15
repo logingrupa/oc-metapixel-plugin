@@ -6,31 +6,55 @@
 
 **Phase 4 (Funnel) + Phase 5 (Hardening + launch) DROPPED** at milestone close (2026-05-15). Architecture pivot to v2.0 generic-event-tracking marketplace plugin. See [`milestones/v1.1.1-ROADMAP.md`](milestones/v1.1.1-ROADMAP.md) for full v1.1.1 archive and [`milestones/v1.1.1-REQUIREMENTS.md`](milestones/v1.1.1-REQUIREMENTS.md) for requirement outcomes.
 
-## Next Milestone Goals (v2.0.0 — pending `/gsd-new-milestone`)
+## Current Milestone: v2.0.0 — Generic-event-tracking marketplace plugin
 
-Marketplace-grade Meta Pixel + Conversions API plugin sellable to any OctoberCMS operator regardless of cart-plugin. Decoupling from Shopaholic via adapter pattern (`EventSubjectAdapter` + `ValueResolver` interfaces). Per-cart adapters: Shopaholic (port v1.x logic), MelonCart, Mall, ThemeAction (generic theme events: PageView, click, form submit). Plugin works on any OctoberCMS site at any TLD without code edits.
+**Goal:** Decouple plugin from Shopaholic via Lovata-style extensible adapter pattern. Marketplace-grade Meta Pixel + Conversions API plugin sellable to any OctoberCMS operator regardless of cart-plugin. Third parties can register custom adapters without modifying plugin core. PHP 8.3 + 8.4 dual support.
+
+**Target features:**
+- **Generic core** — `MetaClient` + `PayloadBuilder` + `UserDataHasher` + `EventLogWriter` decoupled from `Order` model. Generic event envelope shape.
+- **Adapter contracts** — `EventSubjectAdapter` + `ValueResolver` interfaces. `AdapterRegistry::register()` callable from any plugin's `Plugin::boot()`. Boot-time auto-detection of shipped adapters.
+- **Lovata-style extensibility** — `Event::fire('metapixel.event.before_dispatch', ...)` decision-point hooks; `Component::extend(...)`, `addDynamicMethod()` patterns for third-party hookpoints; service-container bindings for HTTP client swap.
+- **ShopaholicAdapter** — port v1.x Order/Cart/CartPosition logic behind adapter. v2.0 still works on nailscosmetics.* sites.
+- **ThemeActionAdapter** — generic theme-action tracking: PageView, ViewContent, custom events via Twig + Larajax API. Operators wire any event from theme without writing PHP.
+- **Settings rework** — `trusted_hosts` (operator allowlist + `jeremykendall/php-domain-parser` for multi-TLD index derivation), Multisite trait on `pixel_id` + `capi_access_token` (per-site overrides). All v1.x Settings keep working.
+- **Plugin manifest rename** — namespace `Logingrupa\Metapixel`, dir `plugins/logingrupa/metapixel/`, composer package generic name, generic description.
+- **Composer suggest pattern** — `lovata/shopaholic-plugin` becomes `suggest:` not `require:`. Plugin works without Shopaholic.
+- **Documentation** — `README.md` install guide (< 10 min: composer require → first CAPI event). Per-adapter setup. Pixel + CAPI token acquisition walkthrough. Custom-adapter authoring guide.
+- **FailedEvents backend audit** — replay + dedup status check (v1.x HARD-01..03 re-derived against new namespace).
+- **Translations** — en/lv/ru lang files for Settings + FailedEvents UI.
+- **CI green** — `composer qa` exits 0 on fresh OctoberCMS + Shopaholic install AND fresh OctoberCMS without Shopaholic. ≥90% coverage.
+- **Marketplace launch** — installable via `composer require logingrupa/oc-metapixel-plugin` from clean OctoberCMS 4.x.
 
 **Locked v2.0 decisions** (carry forward from v1.x — do not re-derive):
-- CR-02 TrustedHosts allowlist (operator-supplied Settings + `jeremykendall/php-domain-parser` for multi-TLD index derivation)
+- CR-02 TrustedHosts allowlist (operator-supplied Settings + `jeremykendall/php-domain-parser` for multi-TLD)
 - CR-03 fbclid `[A-Za-z0-9_-]` charset, ≤255 chars
 - event_id direction = server → frontend only; dedup contract on same UUIDv4 + event_time
 - EventLog UNIQUE race-fence on `(subject_type, subject_id, event_name, channel, site_id)`
 - PluginGuard empty-pixel-id → disabled + warn (never throw at boot)
 - Tooling: phpstan lvl 10 + larastan + universalObjectCrates + phpmd Toolbox + Pest 4 + pint
+- No `assert()`, no `declare(strict_types=1)` enforcement (optional per-file)
+- Fail-fast `throw` at boundaries; catch only to log-and-rethrow OR dead-letter-persist
+- Settings extends `Lovata\Toolbox\Models\CommonSettings`
+- Hungarian notation (`$ob`, `$s`, `$i`, `$f`, `$b`, `$ar`); PHPMD `ShortVariable min=4`
+
+**v2.0 code style additions** (from `feedback-lovata-extensibility-pattern` memory):
+- DRY — no repeated logic across adapters; lift to abstract/trait
+- SRP — adapters do NOT mix value-resolution + event-dispatch + payload-build
+- Self-explanatory variable names — prefer `$obSubjectAdapter` over `$mId` or `$tmp`
+- Laravel short docblocks — one-line summary + `@param` + `@return`; no multi-paragraph narrative
+- No phase/CR/incident markers in code; workflow refs go in commits/PRs only
 
 **v2.0 architecture lock-in:**
-- Namespace rename: `Logingrupa\Metapixel` (drop "Shopaholic" suffix)
-- Plugin dir rename: `plugins/logingrupa/metapixel/`
-- Composer package: drop "shopaholic" from name; `lovata/shopaholic-plugin` becomes `suggest:` not `require:` (auto-detect at boot)
-- PHP support: `"php": "^8.3 || ^8.4"` (v1.x was 8.4-only; v2.0 broadens for marketplace reach — avoid PHP 8.4-only syntax: no property hooks, no asymmetric visibility, no `array_find`/`array_any`)
-- Multisite trait: per-site `pixel_id` + `capi_access_token` overrides
+- Namespace: `Logingrupa\Metapixel` (drop "Shopaholic")
+- Plugin dir: `plugins/logingrupa/metapixel/`
+- Composer: `lovata/shopaholic-plugin` in `suggest:` not `require:`
+- PHP support: `"php": "^8.3 || ^8.4"` — avoid PHP 8.4-only syntax (no property hooks, no asymmetric visibility, no `array_find`/`array_any`/`array_all`, no `#[\Deprecated]`)
+- Multisite trait on `pixel_id` + `capi_access_token`
 
 **Out of scope for v2.0** (carried forward unchanged):
 - GDPR / cookie-consent banner integration — live theme has no banner
 - Custom Graph API endpoint version other than v20 — pinned
 - `declare(strict_types=1)` enforcement — optional per-file
-
-Run `/gsd-new-milestone` to define v2.0 requirements + roadmap.
 
 ---
 

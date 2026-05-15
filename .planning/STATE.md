@@ -1,35 +1,38 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.1.1
-milestone_name: shopaholic-coupled-metapixel-archived
-status: milestone-closed
-stopped_at: "Milestone v1.1.1 closed 2026-05-15. Architecture pivot to v2.0 generic-event-tracking plugin. v1.1.1 codebase frozen on legacy/v1.1.1 git branch (SHA 3f32ca6); annotated tag v1.1.1 local-only. Next: /gsd-new-milestone for v2.0 (namespace Logingrupa\\Metapixel, plugin dir logingrupa/metapixel, adapter pattern, PHP 8.3+8.4)."
-last_updated: "2026-05-15T00:00:00.000Z"
+milestone: v2.0.0
+milestone_name: Generic-event-tracking marketplace plugin
+status: planning
+last_updated: "2026-05-15T11:04:19.552Z"
 last_activity: 2026-05-15
 progress:
-  total_phases: 8
-  completed_phases: 5
-  dropped_phases: 2
-  superseded_phases: 1
-  total_plans: 21
-  completed_plans: 16
-  percent: 76
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
 
-## Active Milestone
+## Active Milestone: v2.0.0 — Generic-event-tracking marketplace plugin
 
-> _No active milestone. Run `/gsd-new-milestone` to start v2.0.0._
+**Goal:** Decouple plugin from Shopaholic via Lovata-style extensible adapter pattern. Marketplace-grade Meta Pixel + CAPI plugin sellable to any OctoberCMS operator regardless of cart-plugin. Third parties can register custom adapters without modifying plugin core. PHP 8.3 + 8.4 dual support.
 
-## Last Shipped Milestone: v1.1.1
+See `.planning/PROJECT.md` "Current Milestone" section for full feature list + locked decisions.
 
-**Status:** Closed 2026-05-15. Partial close — Phase 4 + 5 dropped on architecture pivot.
+## Current Position
 
-See [`milestones/v1.1.1-ROADMAP.md`](milestones/v1.1.1-ROADMAP.md) for the full archived snapshot:
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-05-15 — Milestone v2.0.0 started; v1.1.1 archived; phase dirs moved to `.planning/archive/v1.1.1/`
+
+## Previously Shipped: v1.1.1
+
+Closed 2026-05-15. Partial close — Phase 4 + 5 dropped on architecture pivot. See [`milestones/v1.1.1-ROADMAP.md`](milestones/v1.1.1-ROADMAP.md) for full archive.
+
 - 5 phases complete (1, 2, 3.1, 3.1-07, 3.1-08)
-- 1 phase superseded (3 — column-fence replaced by 3.1 UNIQUE race-fence)
-- 2 phases DROPPED (4 Funnel + 5 Hardening — re-derived in v2.0)
 - 28/50 v1 requirements validated; 22 dropped; 2 staging-deferred to operator
 - 16/21 plans (76%)
 - 207 commits, 11,027 PHP lines
@@ -38,26 +41,45 @@ See [`milestones/v1.1.1-ROADMAP.md`](milestones/v1.1.1-ROADMAP.md) for the full 
 - Tag `v1.1.1` annotated local-only at SHA `3f32ca6`
 - Legacy branch `legacy/v1.1.1` preserves full v1.x codebase + tests + `.planning/`
 
-## Pivot to v2.0
+## Accumulated Context
 
-**Decision (2026-05-15):** Decouple plugin from Shopaholic. Marketplace-grade plugin for any OctoberCMS operator regardless of cart-plugin. Adapter pattern.
+### Decisions carried forward from v1.x (locked, do NOT re-derive)
 
-**Carry-forward locked decisions** (do not re-derive in v2.0):
-- CR-02 TrustedHosts allowlist (operator-supplied via Settings + `jeremykendall/php-domain-parser`)
-- CR-03 fbclid `[A-Za-z0-9_-]` ≤255 chars
-- event_id server-direction dedup contract
-- EventLog UNIQUE race-fence on `(subject_type, subject_id, event_name, channel, site_id)`
-- PluginGuard empty-pixel-id → disabled + warn (never throw at boot)
-- Tooling thresholds: phpstan lvl 10 + larastan + universalObjectCrates + phpmd Toolbox + Pest 4 + pint
+- **event_id direction = server → frontend.** Meta dedupes on event_id match within ±10s. Never reverse.
+- **CR-02 TrustedHosts allowlist.** v1.x hardcoded HOST_INDEX_MAP; v2.0 operator-supplies via Settings + `jeremykendall/php-domain-parser` for multi-TLD index derivation. Untrusted host → skip cookies (fail-safe).
+- **CR-03 fbclid validation.** `[A-Za-z0-9_-]` charset, ≤255 chars. Invalid → skip `_fbc`.
+- **Idempotency via EventLog UNIQUE race-fence.** `(subject_type, subject_id, event_name, channel, site_id)`. `EventLogWriter::record` returns false on collision or DB failure (fail-safe).
+- **Multi-site site_id from Subject model attribute.** v1.x reads `Order.site_id` (Lovata column); v2.0 generalizes to `EventSubjectAdapter::getSiteId(object $obSubject): ?int`.
+- **PluginGuard pattern.** Empty `pixel_id` → `Log::warning` + disabled flag, never throw at boot.
+- **No `assert()`** — prod `zend.assertions=0` silently no-ops. Enforced by `spaze/phpstan-disallowed-calls`.
+- **content_ids format = `SKU-{product_id}[-{offer_id}]`** for Shopaholic adapter (matches Facebook Catalog feed). Other adapters define own format via `ValueResolver::resolveContentIds()`.
+- **Anonymous external_id** = sha256 of subject's unique token (Order.secret_key, Session id, etc.) per adapter.
 
-**v2.0 changes:**
-- Namespace rename: `Logingrupa\Metapixel`
-- Plugin dir rename: `plugins/logingrupa/metapixel/`
-- Composer package: drop "shopaholic" from name
-- Architecture: `EventSubjectAdapter` + `ValueResolver` interfaces; per-cart adapters (Shopaholic port, MelonCart, Mall, ThemeAction)
-- Composer `lovata/shopaholic-plugin` → `suggest:` not `require:`
-- PHP support: `"php": "^8.3 || ^8.4"` (v1.x was 8.4-only)
+### v2.0 architectural decisions (new — locked at milestone start)
 
-## Next Action
+- **Namespace:** `Logingrupa\Metapixel` (drop "Shopaholic").
+- **Plugin dir:** `plugins/logingrupa/metapixel/`.
+- **PHP support:** `"php": "^8.3 || ^8.4"` — avoid 8.4-only syntax (no property hooks, asymmetric visibility, `array_find`/`array_any`, `#[\Deprecated]`).
+- **Composer suggest pattern** — `lovata/shopaholic-plugin` becomes `suggest:`. Plugin works without Shopaholic.
+- **Lovata-style extensibility:**
+  - `AdapterRegistry::register(string $sSubjectClass, string $sAdapterClass)` — third parties register custom adapters from their `Plugin::boot()`
+  - `Event::fire('metapixel.event.before_dispatch', [$obAdapter, $obSubject, &$arPayload])` at decision boundaries
+  - `Component::extend(...)` + `addDynamicMethod(...)` on PixelHead and FailedEvents controller
+  - Service container bindings for `MetaClientInterface` swap
+- **Multisite trait** on `pixel_id` + `capi_access_token` Settings fields (per-site overrides).
+- **Code style additions:** DRY, SRP, self-explanatory variable names (no `$mId`, `$tmp`), Laravel short docblocks (one-line summary + `@param` + `@return`; no multi-paragraph narrative), no phase/CR/incident markers in code.
 
-Run `/gsd-new-milestone` to define v2.0 requirements + roadmap.
+### Pending Todos
+
+(none — v2.0 milestone just started; requirements + roadmap to be defined)
+
+### Blockers/Concerns
+
+(none)
+
+## Session Continuity
+
+Last session: 2026-05-15 — v1.1.1 milestone archived; v2.0.0 milestone initialized; entering research + requirements definition phase.
+
+Stopped at: post-milestone-switch. Next: 4 parallel `gsd-project-researcher` agents (STACK + FEATURES + ARCHITECTURE + PITFALLS), then `gsd-research-synthesizer` → SUMMARY.md → requirements definition → roadmapper.
+Resume file: `.planning/PROJECT.md`
