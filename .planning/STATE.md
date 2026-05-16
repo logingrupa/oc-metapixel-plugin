@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
-status: executing_phase_1_wave_2_pending
-last_updated: "2026-05-16T05:25:00.000Z"
+status: executing_phase_1_wave_3_pending
+last_updated: "2026-05-16T05:32:00.000Z"
 last_activity: 2026-05-16
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
-  percent: 6
+  completed_plans: 2
+  percent: 13
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 1 — Tooling + composer + namespace rename + CI matrix
-Plan: 01-01 SHIPPED — next: 01-02 (TOOL-04..07, 10, 11 — phpstan/rector/pint/phpmd configs + composer qa chain + dependency-analyser)
-Status: Plan 01-01 complete; awaiting Plan 01-02 execution
-Last activity: 2026-05-16 — Plan 01-01 executed: v1.x source removed, v2.0 minimal scaffold written (Plugin.php + plugin.yaml + composer.json + lang/{en,lv}/lang.php), directory filesystem-renamed metapixelshopaholic → metapixel
+Plan: 01-02 SHIPPED — next: 01-03 (Pest scaffold + phpunit.xml + tests/ + .github/workflows/metapixel-qa.yml CI matrix)
+Status: Plan 01-02 complete; awaiting Plan 01-03 execution (final plan in Phase 1)
+Last activity: 2026-05-16 — Plan 01-02 executed: phpstan/rector/pint/phpmd/composer-dependency-analyser configs written; composer.json qa chain wired + require-dev populated; Plugin.php pint-reformatted; single commit 62dae98
 
-**Next action:** `/gsd-execute-plan 01-02` to execute Phase 1 Plan 02 (tooling configs + composer qa chain).
+**Next action:** `/gsd-execute-plan 01-03` to execute Phase 1 Plan 03 (Pest scaffold + CI matrix).
 
 ## Roadmap Snapshot
 
@@ -100,23 +100,25 @@ Anchored CRITICALs:
 
 ### Pending Todos
 
-- `/gsd-execute-plan 01-02` to execute Phase 1 Plan 02 (phpstan/rector/pint/phpmd configs + composer qa chain + composer-dependency-analyser).
-- `/gsd-execute-plan 01-03` to execute Phase 1 Plan 03 (Pest scaffold + .github/workflows/metapixel-qa.yml CI matrix).
+- `/gsd-execute-plan 01-03` to execute Phase 1 Plan 03 (Pest scaffold + phpunit.xml + tests/ + .github/workflows/metapixel-qa.yml CI matrix).
+- Plan 01-03 CI step MUST add `composer deps` alongside `composer qa` to enforce TOOL-11 in CI (deps-check is intentionally NOT in plugin qa chain per executor override; see 01-02 Deviation 3).
+- Phase 2 PHPStan `paths` reopen: when classes/, models/, components/ land, append each to phpstan.neon paths list.
 
 ### Blockers/Concerns
 
-(none — Plan 01-01 shipped cleanly; standalone-repo composer install limitation documented in 01-01-SUMMARY.md "Deviations". Full autoload smoke-test deferred to host-repo integration.)
+(none — Plan 01-02 shipped cleanly; standalone-repo composer install limitation persists from 01-01 — smoke tests executed via host vendor symlink, documented in 01-02-SUMMARY.md "Deviation 1". Full qa chain integration smoke deferred to host-repo consumption.)
 
 ## Session Continuity
 
-Last session: 2026-05-16 — Plan 01-01 executed. Plugin source reset on master to v2.0 minimal scaffold (Plugin.php + plugin.yaml + composer.json + lang/{en,lv}/lang.php). Containing dir filesystem-renamed metapixelshopaholic → metapixel. v1.x preserved on legacy/v1.1.1 branch (SHA 3f32ca6).
+Last session: 2026-05-16 — Plan 01-02 executed. Tooling configs landed at plugin root: phpstan.neon (level 10 + phpVersion 80300 + larastan + spaze disallowed-calls banning PHP 8.4-only syntax), rector.php (withPhpSets(php83: true)), pint.json (Laravel preset + nullable rule), phpmd.xml (Lovata.Toolbox-derived, v1.x tolerances stripped), composer-dependency-analyser.php (classes/adapter/shopaholic/ pre-allowlist for Phase 3). composer.json scripts.qa wired to [@pint-test, @analyse, @phpmd, @test-cov]; require-dev populated with 10 dev deps. Plugin.php re-formatted by pint. Single atomic commit 62dae98. Plan task 8 (parent composer.json) skipped per Option-A.
 
-Stopped at: post-Plan 01-01 ship. Next: `/gsd-execute-plan 01-02` for tooling configs + composer qa chain.
+Stopped at: post-Plan 01-02 ship. Next: `/gsd-execute-plan 01-03` for Pest scaffold + phpunit.xml + tests/ + .github/workflows/metapixel-qa.yml CI matrix (final Phase 1 plan).
 
-Resume file: `.planning/phases/01-tooling-composer-namespace-rename-ci-matrix/01-02-PLAN.md`.
+Resume file: `.planning/phases/01-tooling-composer-namespace-rename-ci-matrix/01-03-PLAN.md`.
 
 ## Performance Metrics
 
 | Phase | Plan | Duration | Tasks | Files | Date |
 |-------|------|----------|-------|-------|------|
 | 1 | 01-01 | ~12 min | 6 (4 active, 2 deferred) | 5 created, 71 deleted | 2026-05-16 |
+| 1 | 01-02 | ~14 min | 9 (7 active, 1 skipped, 1 smoke-only) | 5 created, 2 modified | 2026-05-16 |

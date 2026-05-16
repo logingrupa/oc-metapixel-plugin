@@ -168,8 +168,8 @@ class Plugin extends PluginBase {
 
 **Plans:** 3 plans
 
-- [ ] `01-01-PLAN.md` — Directory rename + namespace rewrite + composer.json TOOL-01 shape (TOOL-01, TOOL-02, TOOL-03)
-- [ ] `01-02-PLAN.md` — Tooling configs: phpstan, rector, pint, phpmd, composer-dependency-analyser, qa script chain (TOOL-04, TOOL-05, TOOL-06, TOOL-07, TOOL-10, TOOL-11)
+- [x] `01-01-PLAN.md` — Directory rename + namespace rewrite + composer.json TOOL-01 shape (TOOL-01, TOOL-02, TOOL-03) — SHIPPED 2026-05-16
+- [x] `01-02-PLAN.md` — Tooling configs: phpstan, rector, pint, phpmd, composer-dependency-analyser, qa script chain (TOOL-04, TOOL-05, TOOL-06, TOOL-07, TOOL-10, TOOL-11) — SHIPPED 2026-05-16
 - [ ] `01-03-PLAN.md` — Pest 4 test scaffold (MetapixelTestCase + ShopaholicAdapterTestCase) + GitHub Actions 2x2 CI matrix (TOOL-08, TOOL-09)
 
 ### Phase 2: Adapter system core — contracts + registry + extension hooks

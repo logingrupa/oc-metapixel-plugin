@@ -13,16 +13,16 @@
 - [ ] **TOOL-01**: `composer.json` declares `"name": "logingrupa/oc-metapixel-plugin"`, `"php": "^8.3 || ^8.4"`, generic description (no "shopaholic" or vendor-specific terms). `lovata/shopaholic-plugin` + `lovata/ordersshopaholic-plugin` + `lovata/buddies-plugin` move from `require:` to `suggest:`. Stay in `require-dev:` so test suite exercises ShopaholicAdapter. PSR-4 autoload uses `Logingrupa\\Metapixel\\` namespace.
 - [ ] **TOOL-02**: Plugin directory renamed from `plugins/logingrupa/metapixelshopaholic/` to `plugins/logingrupa/metapixel/`. PSR-4 + October PluginManager identifier `Logingrupa.Metapixel`. v1.x source on `legacy/v1.1.1` branch; master tree contains only v2.0 source.
 - [ ] **TOOL-03**: Namespace rename `Logingrupa\Metapixelshopaholic` → `Logingrupa\Metapixel` across all source. Lang keys `logingrupa.metapixelshopaholic::lang.*` → `logingrupa.metapixel::lang.*`.
-- [ ] **TOOL-04**: `phpstan.neon` config: `phpVersion: 80300` (PHP 8.3 baseline), level 10, larastan, spaze/phpstan-disallowed-calls bans `assert()`, `@` suppression, `array_find()`, `array_any()`, `array_all()`, `array_find_key()`, property hooks, asymmetric visibility, `#[\Deprecated]`. `universalObjectCratesClasses` covers `Lovata\Toolbox\Classes\Item\ElementItem` + `ElementCollection`. `reportUnmatchedIgnoredErrors: true`, `treatPhpDocTypesAsCertain: true`, `checkUninitializedProperties: true`.
-- [ ] **TOOL-05**: `rector.php` config: `LevelSetList::UP_TO_PHP_83` (NOT 84 — caps upgrade rewrites at 8.3-safe), `SetList::CODE_QUALITY`, `SetList::DEAD_CODE`, `SetList::EARLY_RETURN`, `SetList::TYPE_DECLARATION`.
-- [ ] **TOOL-06**: `pint.json` Laravel preset + `nullable_type_declaration_for_default_null_value` (PHP 8.4 implicit nullable deprecation), `ordered_imports: alpha`, `no_unused_imports`, `single_quote`, `binary_operator_spaces: single_space`, `exclude: [updates]`.
-- [ ] **TOOL-07**: `phpmd.xml` copied from Lovata.Toolbox PHPMD_custom.xml. `LongVariable max=40`, `ShortVariable min=4` (allows `$ob`, `$ar`, `$iN`), CyclomaticComplexity reportLevel=10, ExcessiveClassLength minimum=1000.
+- [x] **TOOL-04**: `phpstan.neon` config: `phpVersion: 80300` (PHP 8.3 baseline), level 10, larastan, spaze/phpstan-disallowed-calls bans `assert()`, `@` suppression, `array_find()`, `array_any()`, `array_all()`, `array_find_key()`, property hooks, asymmetric visibility, `#[\Deprecated]`. `universalObjectCratesClasses` covers `Lovata\Toolbox\Classes\Item\ElementItem` + `ElementCollection`. `reportUnmatchedIgnoredErrors: true`, `treatPhpDocTypesAsCertain: true`, `checkUninitializedProperties: true`.
+- [x] **TOOL-05**: `rector.php` config: `LevelSetList::UP_TO_PHP_83` (NOT 84 — caps upgrade rewrites at 8.3-safe), `SetList::CODE_QUALITY`, `SetList::DEAD_CODE`, `SetList::EARLY_RETURN`, `SetList::TYPE_DECLARATION`.
+- [x] **TOOL-06**: `pint.json` Laravel preset + `nullable_type_declaration_for_default_null_value` (PHP 8.4 implicit nullable deprecation), `ordered_imports: alpha`, `no_unused_imports`, `single_quote`, `binary_operator_spaces: single_space`, `exclude: [updates]`.
+- [x] **TOOL-07**: `phpmd.xml` copied from Lovata.Toolbox PHPMD_custom.xml. `LongVariable max=40`, `ShortVariable min=4` (allows `$ob`, `$ar`, `$iN`), CyclomaticComplexity reportLevel=10, ExcessiveClassLength minimum=1000.
 - [ ] **TOOL-08**: Pest 4 scaffold — two test bases:
   - `tests/MetapixelTestCase.php` — base, no cart-plugin dependencies
   - `tests/ShopaholicAdapterTestCase.php` — extends MetapixelTestCase, boots Lovata Orders table (Run A)
 - [ ] **TOOL-09**: `.github/workflows/metapixel-qa.yml` runs CI matrix: `php: [8.3, 8.4]` × `install: [full-lovata, minimal]`. Full-Lovata Run A: install Lovata.Toolbox + Lovata.Shopaholic + Lovata.OrdersShopaholic, run all tests, coverage ≥90% gate. Minimal Run B: install only Lovata.Toolbox, run `MetapixelTestCase` subsets, no coverage gate.
-- [ ] **TOOL-10**: `composer qa` script chains `pint-test` → `analyse` → `phpmd` → `test-cov`. Exits 0 on fresh clone (both Run A and Run B branches).
-- [ ] **TOOL-11**: `shipmonk/composer-dependency-analyser` dev dependency + config enforces no Lovata.OrdersShopaholic / Lovata.Shopaholic imports outside `Classes\Adapter\Shopaholic\` directory.
+- [x] **TOOL-10**: `composer qa` script chains `pint-test` → `analyse` → `phpmd` → `test-cov`. Exits 0 on fresh clone (both Run A and Run B branches).
+- [x] **TOOL-11**: `shipmonk/composer-dependency-analyser` dev dependency + config enforces no Lovata.OrdersShopaholic / Lovata.Shopaholic imports outside `Classes\Adapter\Shopaholic\` directory.
 
 ### Adapter system core (Phase 2 — contracts + registry + extension hooks)
 
@@ -184,14 +184,14 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | TOOL-01 | Phase 1 | Pending |
 | TOOL-02 | Phase 1 | Pending |
 | TOOL-03 | Phase 1 | Pending |
-| TOOL-04 | Phase 1 | Pending |
-| TOOL-05 | Phase 1 | Pending |
-| TOOL-06 | Phase 1 | Pending |
-| TOOL-07 | Phase 1 | Pending |
+| TOOL-04 | Phase 1 | Complete (01-02) |
+| TOOL-05 | Phase 1 | Complete (01-02) |
+| TOOL-06 | Phase 1 | Complete (01-02) |
+| TOOL-07 | Phase 1 | Complete (01-02) |
 | TOOL-08 | Phase 1 | Pending |
 | TOOL-09 | Phase 1 | Pending |
-| TOOL-10 | Phase 1 | Pending |
-| TOOL-11 | Phase 1 | Pending |
+| TOOL-10 | Phase 1 | Complete (01-02) |
+| TOOL-11 | Phase 1 | Complete (01-02) |
 | ADAP-01 | Phase 2 | Pending |
 | ADAP-02 | Phase 2 | Pending |
 | ADAP-03 | Phase 2 | Pending |
