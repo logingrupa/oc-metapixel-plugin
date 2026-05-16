@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
-status: executing_phase_1_wave_3_pending
-last_updated: "2026-05-16T05:32:00.000Z"
+status: phase_1_executed_pending_verification
+last_updated: "2026-05-16T06:05:00.000Z"
 last_activity: 2026-05-16
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 2
-  percent: 13
+  completed_plans: 3
+  percent: 20
 ---
 
 # Project State
@@ -25,18 +25,18 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 1 — Tooling + composer + namespace rename + CI matrix
-Plan: 01-02 SHIPPED — next: 01-03 (Pest scaffold + phpunit.xml + tests/ + .github/workflows/metapixel-qa.yml CI matrix)
-Status: Plan 01-02 complete; awaiting Plan 01-03 execution (final plan in Phase 1)
-Last activity: 2026-05-16 — Plan 01-02 executed: phpstan/rector/pint/phpmd/composer-dependency-analyser configs written; composer.json qa chain wired + require-dev populated; Plugin.php pint-reformatted; single commit 62dae98
+Phase: 1 — Tooling + composer + namespace rename + CI matrix — EXECUTED (3/3 plans shipped)
+Plan: 01-03 SHIPPED — Phase 1 awaiting verification (`/gsd-verify-phase 01`)
+Status: All 3 plans complete; Phase 1 execution closed; TOOL-01..11 (11) requirements satisfied
+Last activity: 2026-05-16 — Plan 01-03 executed: phpunit.xml + tests/MetapixelTestCase + tests/ShopaholicAdapterTestCase + tests/Pest.php + tests/Unit/PluginSanityTest.php + .github/workflows/metapixel-qa.yml landed in single atomic commit 64b5762; smoke chain green (pint+phpstan+phpmd+pest), Plugin.php coverage 100%
 
-**Next action:** `/gsd-execute-plan 01-03` to execute Phase 1 Plan 03 (Pest scaffold + CI matrix).
+**Next action:** `/gsd-verify-phase 01` to run Phase 1 verifier — then `/gsd-execute-phase 02` for Adapter system core.
 
 ## Roadmap Snapshot
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
-| 1 | Tooling + composer + namespace rename + CI matrix | TOOL-01..11 (11) | Ready to plan |
+| 1 | Tooling + composer + namespace rename + CI matrix | TOOL-01..11 (11) | Executed (3/3 plans) — pending verification |
 | 2 | Adapter system core | ADAP-01..11 (11) | Not started |
 | 3 | ShopaholicAdapter + ThemeActionAdapter | SHOP-01..05 + THEM-01..07 (12) | Not started |
 | 4 | Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations | MULT-01..06 + HOST-01..06 + COOK-01..03 + FAIL-01..03 + LANG-01 (19) | Not started |
@@ -100,21 +100,23 @@ Anchored CRITICALs:
 
 ### Pending Todos
 
-- `/gsd-execute-plan 01-03` to execute Phase 1 Plan 03 (Pest scaffold + phpunit.xml + tests/ + .github/workflows/metapixel-qa.yml CI matrix).
-- Plan 01-03 CI step MUST add `composer deps` alongside `composer qa` to enforce TOOL-11 in CI (deps-check is intentionally NOT in plugin qa chain per executor override; see 01-02 Deviation 3).
+- `/gsd-verify-phase 01` to verify Phase 1 execution outcomes (3 plans / 11 TOOL-* requirements).
 - Phase 2 PHPStan `paths` reopen: when classes/, models/, components/ land, append each to phpstan.neon paths list.
+- Phase 2+ phpunit.xml `<source><include>` reopen: when classes/, models/, components/, middleware/, controllers/, console/ land, add each as `<directory>` entry alongside existing `Plugin.php`.
+- Phase 3 SHOP-* adds `<testsuite name="Metapixel Adapter Tests">` block to phpunit.xml when tests/Unit/Adapter/Shopaholic + tests/Feature/Adapter/Shopaholic land (Run B's --exclude-testsuite='Metapixel Adapter Tests' becomes a real exclude then; currently a no-op).
+- Phase 2 ADAP-03 wires AdapterRegistry::flush() call into MetapixelTestCase::flushModelEventListeners() (currently absent — Phase 1 plan 01-03 intentionally did not add a placeholder comment).
 
 ### Blockers/Concerns
 
-(none — Plan 01-02 shipped cleanly; standalone-repo composer install limitation persists from 01-01 — smoke tests executed via host vendor symlink, documented in 01-02-SUMMARY.md "Deviation 1". Full qa chain integration smoke deferred to host-repo consumption.)
+(none — Plan 01-03 shipped cleanly; standalone-repo composer install limitation persists from 01-01/01-02 — smoke tests executed via host vendor binaries, documented in 01-03-SUMMARY.md "Smoke-Test Path Deviations". Full qa chain integration smoke (including composer-dependency-analyser) deferred to CI matrix.)
 
 ## Session Continuity
 
-Last session: 2026-05-16 — Plan 01-02 executed. Tooling configs landed at plugin root: phpstan.neon (level 10 + phpVersion 80300 + larastan + spaze disallowed-calls banning PHP 8.4-only syntax), rector.php (withPhpSets(php83: true)), pint.json (Laravel preset + nullable rule), phpmd.xml (Lovata.Toolbox-derived, v1.x tolerances stripped), composer-dependency-analyser.php (classes/adapter/shopaholic/ pre-allowlist for Phase 3). composer.json scripts.qa wired to [@pint-test, @analyse, @phpmd, @test-cov]; require-dev populated with 10 dev deps. Plugin.php re-formatted by pint. Single atomic commit 62dae98. Plan task 8 (parent composer.json) skipped per Option-A.
+Last session: 2026-05-16 — Plan 01-03 executed. Pest 4 test scaffold + GitHub Actions CI matrix landed: phpunit.xml (PHPUnit 12 config + 2 testsuites + SQLite-in-memory), tests/MetapixelTestCase.php (170 LOC, no cart deps), tests/ShopaholicAdapterTestCase.php (85 LOC, Lovata Orders hermetic), tests/Pest.php (uses() binding for both bases), tests/Unit/PluginSanityTest.php (3 tests / 5 assertions / 100% Plugin.php coverage), .github/workflows/metapixel-qa.yml (2x2 matrix php:[8.3,8.4] × install:[full-lovata,minimal], Run A --min=90, Run B excludes Adapter testsuite). Single atomic commit 64b5762. Auto-fixes during smoke: Plugin instantiation (`new Plugin($this->app)`) + register/boot coverage (3rd test method).
 
-Stopped at: post-Plan 01-02 ship. Next: `/gsd-execute-plan 01-03` for Pest scaffold + phpunit.xml + tests/ + .github/workflows/metapixel-qa.yml CI matrix (final Phase 1 plan).
+Stopped at: post-Plan 01-03 ship. Phase 1 EXECUTED (3/3 plans, 11/11 TOOL-* requirements). Next: `/gsd-verify-phase 01`, then `/gsd-execute-phase 02` for ADAP-01..11 (adapter system core).
 
-Resume file: `.planning/phases/01-tooling-composer-namespace-rename-ci-matrix/01-03-PLAN.md`.
+Resume file: `.planning/STATE.md` — Phase 1 closed; choose `/gsd-verify-phase 01` to verify, or `/gsd-plan-phase 02` to start next.
 
 ## Performance Metrics
 
@@ -122,3 +124,4 @@ Resume file: `.planning/phases/01-tooling-composer-namespace-rename-ci-matrix/01
 |-------|------|----------|-------|-------|------|
 | 1 | 01-01 | ~12 min | 6 (4 active, 2 deferred) | 5 created, 71 deleted | 2026-05-16 |
 | 1 | 01-02 | ~14 min | 9 (7 active, 1 skipped, 1 smoke-only) | 5 created, 2 modified | 2026-05-16 |
+| 1 | 01-03 | ~18 min | 8 (7 active, 1 smoke-only) | 6 created, 0 modified | 2026-05-16 |

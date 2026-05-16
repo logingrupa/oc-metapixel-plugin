@@ -170,7 +170,7 @@ class Plugin extends PluginBase {
 
 - [x] `01-01-PLAN.md` — Directory rename + namespace rewrite + composer.json TOOL-01 shape (TOOL-01, TOOL-02, TOOL-03) — SHIPPED 2026-05-16
 - [x] `01-02-PLAN.md` — Tooling configs: phpstan, rector, pint, phpmd, composer-dependency-analyser, qa script chain (TOOL-04, TOOL-05, TOOL-06, TOOL-07, TOOL-10, TOOL-11) — SHIPPED 2026-05-16
-- [ ] `01-03-PLAN.md` — Pest 4 test scaffold (MetapixelTestCase + ShopaholicAdapterTestCase) + GitHub Actions 2x2 CI matrix (TOOL-08, TOOL-09)
+- [x] `01-03-PLAN.md` — Pest 4 test scaffold (MetapixelTestCase + ShopaholicAdapterTestCase) + GitHub Actions 2x2 CI matrix (TOOL-08, TOOL-09) — SHIPPED 2026-05-16
 
 ### Phase 2: Adapter system core — contracts + registry + extension hooks
 
@@ -267,7 +267,7 @@ class Plugin extends PluginBase {
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Tooling + composer + namespace rename + CI matrix | 0/3 | Planned | — |
+| 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
 | 2. Adapter system core | 0/0 | Not started | — |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 0/0 | Not started | — |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 0/0 | Not started | — |

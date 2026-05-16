@@ -17,10 +17,10 @@
 - [x] **TOOL-05**: `rector.php` config: `LevelSetList::UP_TO_PHP_83` (NOT 84 — caps upgrade rewrites at 8.3-safe), `SetList::CODE_QUALITY`, `SetList::DEAD_CODE`, `SetList::EARLY_RETURN`, `SetList::TYPE_DECLARATION`.
 - [x] **TOOL-06**: `pint.json` Laravel preset + `nullable_type_declaration_for_default_null_value` (PHP 8.4 implicit nullable deprecation), `ordered_imports: alpha`, `no_unused_imports`, `single_quote`, `binary_operator_spaces: single_space`, `exclude: [updates]`.
 - [x] **TOOL-07**: `phpmd.xml` copied from Lovata.Toolbox PHPMD_custom.xml. `LongVariable max=40`, `ShortVariable min=4` (allows `$ob`, `$ar`, `$iN`), CyclomaticComplexity reportLevel=10, ExcessiveClassLength minimum=1000.
-- [ ] **TOOL-08**: Pest 4 scaffold — two test bases:
+- [x] **TOOL-08**: Pest 4 scaffold — two test bases:
   - `tests/MetapixelTestCase.php` — base, no cart-plugin dependencies
   - `tests/ShopaholicAdapterTestCase.php` — extends MetapixelTestCase, boots Lovata Orders table (Run A)
-- [ ] **TOOL-09**: `.github/workflows/metapixel-qa.yml` runs CI matrix: `php: [8.3, 8.4]` × `install: [full-lovata, minimal]`. Full-Lovata Run A: install Lovata.Toolbox + Lovata.Shopaholic + Lovata.OrdersShopaholic, run all tests, coverage ≥90% gate. Minimal Run B: install only Lovata.Toolbox, run `MetapixelTestCase` subsets, no coverage gate.
+- [x] **TOOL-09**: `.github/workflows/metapixel-qa.yml` runs CI matrix: `php: [8.3, 8.4]` × `install: [full-lovata, minimal]`. Full-Lovata Run A: install Lovata.Toolbox + Lovata.Shopaholic + Lovata.OrdersShopaholic, run all tests, coverage ≥90% gate. Minimal Run B: install only Lovata.Toolbox, run `MetapixelTestCase` subsets, no coverage gate.
 - [x] **TOOL-10**: `composer qa` script chains `pint-test` → `analyse` → `phpmd` → `test-cov`. Exits 0 on fresh clone (both Run A and Run B branches).
 - [x] **TOOL-11**: `shipmonk/composer-dependency-analyser` dev dependency + config enforces no Lovata.OrdersShopaholic / Lovata.Shopaholic imports outside `Classes\Adapter\Shopaholic\` directory.
 
@@ -188,8 +188,8 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | TOOL-05 | Phase 1 | Complete (01-02) |
 | TOOL-06 | Phase 1 | Complete (01-02) |
 | TOOL-07 | Phase 1 | Complete (01-02) |
-| TOOL-08 | Phase 1 | Pending |
-| TOOL-09 | Phase 1 | Pending |
+| TOOL-08 | Phase 1 | Complete (01-03) |
+| TOOL-09 | Phase 1 | Complete (01-03) |
 | TOOL-10 | Phase 1 | Complete (01-02) |
 | TOOL-11 | Phase 1 | Complete (01-02) |
 | ADAP-01 | Phase 2 | Pending |
