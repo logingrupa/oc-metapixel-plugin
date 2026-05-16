@@ -21,6 +21,9 @@
     "require-dev": {
         "larastan/larastan": "^3.0",
         "laravel/pint": "^1.26",
+        "lovata/buddies-plugin": "^1.10",
+        "lovata/ordersshopaholic-plugin": "^1.33",
+        "lovata/shopaholic-plugin": "^1.32",
         "mockery/mockery": "^1.6",
         "pestphp/pest": "^4.1",
         "pestphp/pest-plugin-drift": "^4.0",

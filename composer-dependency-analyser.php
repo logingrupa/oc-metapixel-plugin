@@ -23,15 +23,8 @@ foreach (['/lang', '/updates', '/.planning', '/.github'] as $sPath) {
     }
 }
 
-// Lovata cart plugins live in composer "suggest" (production) and "require-dev"
-// (test suite). The analyser would flag them as dev-deps used in prod if any
-// src file outside the adapter directory imports them.
-$obConfig->ignoreErrorsOnPackage('lovata/shopaholic-plugin', [ErrorType::DEV_DEPENDENCY_IN_PROD]);
-$obConfig->ignoreErrorsOnPackage('lovata/ordersshopaholic-plugin', [ErrorType::DEV_DEPENDENCY_IN_PROD]);
-$obConfig->ignoreErrorsOnPackage('lovata/buddies-plugin', [ErrorType::DEV_DEPENDENCY_IN_PROD]);
-
-// The adapter directory IS allowed to import Lovata cart classes.
-// Phase 3 lands classes/adapter/shopaholic/; this pre-wires the allowlist.
+// Lovata cart imports allowed ONLY inside the adapter directory. Any import
+// outside it raises DEV_DEPENDENCY_IN_PROD (Lovata cart is require-dev only).
 $obConfig->ignoreErrorsOnPackageAndPath(
     'lovata/shopaholic-plugin',
     __DIR__.'/classes/adapter/shopaholic',
@@ -39,6 +32,11 @@ $obConfig->ignoreErrorsOnPackageAndPath(
 );
 $obConfig->ignoreErrorsOnPackageAndPath(
     'lovata/ordersshopaholic-plugin',
+    __DIR__.'/classes/adapter/shopaholic',
+    [ErrorType::DEV_DEPENDENCY_IN_PROD],
+);
+$obConfig->ignoreErrorsOnPackageAndPath(
+    'lovata/buddies-plugin',
     __DIR__.'/classes/adapter/shopaholic',
     [ErrorType::DEV_DEPENDENCY_IN_PROD],
 );

@@ -10,9 +10,9 @@
 
 ### Tooling (Phase 1 — composer.json + namespace rename + CI)
 
-- [ ] **TOOL-01**: `composer.json` declares `"name": "logingrupa/oc-metapixel-plugin"`, `"php": "^8.3 || ^8.4"`, generic description (no "shopaholic" or vendor-specific terms). `lovata/shopaholic-plugin` + `lovata/ordersshopaholic-plugin` + `lovata/buddies-plugin` move from `require:` to `suggest:`. Stay in `require-dev:` so test suite exercises ShopaholicAdapter. PSR-4 autoload uses `Logingrupa\\Metapixel\\` namespace.
-- [ ] **TOOL-02**: Plugin directory renamed from `plugins/logingrupa/metapixelshopaholic/` to `plugins/logingrupa/metapixel/`. PSR-4 + October PluginManager identifier `Logingrupa.Metapixel`. v1.x source on `legacy/v1.1.1` branch; master tree contains only v2.0 source.
-- [ ] **TOOL-03**: Namespace rename `Logingrupa\Metapixelshopaholic` → `Logingrupa\Metapixel` across all source. Lang keys `logingrupa.metapixelshopaholic::lang.*` → `logingrupa.metapixel::lang.*`.
+- [x] **TOOL-01**: `composer.json` declares `"name": "logingrupa/oc-metapixel-plugin"`, `"php": "^8.3 || ^8.4"`, generic description (no "shopaholic" or vendor-specific terms). `lovata/shopaholic-plugin` + `lovata/ordersshopaholic-plugin` + `lovata/buddies-plugin` move from `require:` to `suggest:`. Stay in `require-dev:` so test suite exercises ShopaholicAdapter. PSR-4 autoload uses `Logingrupa\\Metapixel\\` namespace.
+- [x] **TOOL-02**: Plugin directory renamed from `plugins/logingrupa/metapixelshopaholic/` to `plugins/logingrupa/metapixel/`. PSR-4 + October PluginManager identifier `Logingrupa.Metapixel`. v1.x source on `legacy/v1.1.1` branch; master tree contains only v2.0 source.
+- [x] **TOOL-03**: Namespace rename `Logingrupa\Metapixelshopaholic` → `Logingrupa\Metapixel` across all source. Lang keys `logingrupa.metapixelshopaholic::lang.*` → `logingrupa.metapixel::lang.*`.
 - [x] **TOOL-04**: `phpstan.neon` config: `phpVersion: 80300` (PHP 8.3 baseline), level 10, larastan, spaze/phpstan-disallowed-calls bans `assert()`, `@` suppression, `array_find()`, `array_any()`, `array_all()`, `array_find_key()`, property hooks, asymmetric visibility, `#[\Deprecated]`. `universalObjectCratesClasses` covers `Lovata\Toolbox\Classes\Item\ElementItem` + `ElementCollection`. `reportUnmatchedIgnoredErrors: true`, `treatPhpDocTypesAsCertain: true`, `checkUninitializedProperties: true`.
 - [x] **TOOL-05**: `rector.php` config: `LevelSetList::UP_TO_PHP_83` (NOT 84 — caps upgrade rewrites at 8.3-safe), `SetList::CODE_QUALITY`, `SetList::DEAD_CODE`, `SetList::EARLY_RETURN`, `SetList::TYPE_DECLARATION`.
 - [x] **TOOL-06**: `pint.json` Laravel preset + `nullable_type_declaration_for_default_null_value` (PHP 8.4 implicit nullable deprecation), `ordered_imports: alpha`, `no_unused_imports`, `single_quote`, `binary_operator_spaces: single_space`, `exclude: [updates]`.
@@ -181,9 +181,9 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TOOL-01 | Phase 1 | Pending |
-| TOOL-02 | Phase 1 | Pending |
-| TOOL-03 | Phase 1 | Pending |
+| TOOL-01 | Phase 1 | Complete (01-01 + 01-04) |
+| TOOL-02 | Phase 1 | Complete (01-01) |
+| TOOL-03 | Phase 1 | Complete (01-01) |
 | TOOL-04 | Phase 1 | Complete (01-02) |
 | TOOL-05 | Phase 1 | Complete (01-02) |
 | TOOL-06 | Phase 1 | Complete (01-02) |

@@ -13,6 +13,10 @@
         <testsuite name="Metapixel Feature Tests">
             <directory>./tests/Feature</directory>
         </testsuite>
+        <testsuite name="Metapixel Adapter Tests">
+            <directory>./tests/Unit/Adapter</directory>
+            <directory>./tests/Feature/Adapter</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

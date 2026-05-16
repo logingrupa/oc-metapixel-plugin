@@ -45,7 +45,7 @@ parameters:
             function: 'array_all()'
             message: 'PHP 8.4-only — use array_filter or foreach'
 
-    disallowedClasses:
+    disallowedAttributes:
         -
-            class: 'Deprecated'
+            attribute: 'Deprecated'
             message: 'PHP 8.4-only attribute — use @deprecated docblock instead'
