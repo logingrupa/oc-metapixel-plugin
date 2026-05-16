@@ -1,0 +1,6 @@
+plugin:
+    name: 'logingrupa.metapixel::lang.plugin.name'
+    description: 'logingrupa.metapixel::lang.plugin.description'
+    author: Logingrupa
+    icon: icon-bullseye
+    homepage: 'https://github.com/logingrupa/oc-metapixel-plugin'

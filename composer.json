@@ -1,0 +1,43 @@
+{
+    "name": "logingrupa/oc-metapixel-plugin",
+    "type": "october-plugin",
+    "description": "Meta Pixel + Conversions API for OctoberCMS",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "Logingrupa",
+            "email": "info@logingrupa.lv"
+        }
+    ],
+    "require": {
+        "php": "^8.3 || ^8.4",
+        "october/system": "^4.0",
+        "lovata/toolbox-plugin": "^2.2"
+    },
+    "suggest": {
+        "lovata/shopaholic-plugin": "Use ShopaholicAdapter to track Lovata Shopaholic Orders",
+        "lovata/ordersshopaholic-plugin": "Use ShopaholicAdapter to track Lovata Orders Shopaholic Orders"
+    },
+    "require-dev": {},
+    "autoload": {
+        "psr-4": {
+            "Logingrupa\\Metapixel\\": ""
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Logingrupa\\Metapixel\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "qa": []
+    },
+    "extra": {
+        "october": {
+            "plugin": "Logingrupa.Metapixel",
+            "installer-name": "metapixel"
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
