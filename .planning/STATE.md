@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
-status: ready_to_plan_phase_1
-last_updated: "2026-05-15T12:00:00.000Z"
-last_activity: 2026-05-15
+status: executing_phase_1_wave_2_pending
+last_updated: "2026-05-16T05:25:00.000Z"
+last_activity: 2026-05-16
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
-  percent: 0
+  total_plans: 3
+  completed_plans: 1
+  percent: 6
 ---
 
 # Project State
@@ -26,11 +26,11 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 1 — Tooling + composer + namespace rename + CI matrix
-Plan: — (next: `/gsd-plan-phase 1`)
-Status: Roadmap approved; awaiting Phase 1 plan creation
-Last activity: 2026-05-15 — ROADMAP.md written; 61/61 requirements mapped to 5 phases; coverage validated
+Plan: 01-01 SHIPPED — next: 01-02 (TOOL-04..07, 10, 11 — phpstan/rector/pint/phpmd configs + composer qa chain + dependency-analyser)
+Status: Plan 01-01 complete; awaiting Plan 01-02 execution
+Last activity: 2026-05-16 — Plan 01-01 executed: v1.x source removed, v2.0 minimal scaffold written (Plugin.php + plugin.yaml + composer.json + lang/{en,lv}/lang.php), directory filesystem-renamed metapixelshopaholic → metapixel
 
-**Next action:** `/gsd-plan-phase 1` to decompose Phase 1 (TOOL-01..11) into executable plans.
+**Next action:** `/gsd-execute-plan 01-02` to execute Phase 1 Plan 02 (tooling configs + composer qa chain).
 
 ## Roadmap Snapshot
 
@@ -100,16 +100,23 @@ Anchored CRITICALs:
 
 ### Pending Todos
 
-- `/gsd-plan-phase 1` to decompose Phase 1 (TOOL-01..11) into executable plans.
+- `/gsd-execute-plan 01-02` to execute Phase 1 Plan 02 (phpstan/rector/pint/phpmd configs + composer qa chain + composer-dependency-analyser).
+- `/gsd-execute-plan 01-03` to execute Phase 1 Plan 03 (Pest scaffold + .github/workflows/metapixel-qa.yml CI matrix).
 
 ### Blockers/Concerns
 
-(none — research complete, requirements locked, roadmap approved)
+(none — Plan 01-01 shipped cleanly; standalone-repo composer install limitation documented in 01-01-SUMMARY.md "Deviations". Full autoload smoke-test deferred to host-repo integration.)
 
 ## Session Continuity
 
-Last session: 2026-05-15 — ROADMAP.md written; REQUIREMENTS.md Traceability table filled; STATE.md advanced to Phase 1 ready.
+Last session: 2026-05-16 — Plan 01-01 executed. Plugin source reset on master to v2.0 minimal scaffold (Plugin.php + plugin.yaml + composer.json + lang/{en,lv}/lang.php). Containing dir filesystem-renamed metapixelshopaholic → metapixel. v1.x preserved on legacy/v1.1.1 branch (SHA 3f32ca6).
 
-Stopped at: post-roadmap. Next: `/gsd-plan-phase 1` to plan Phase 1 (Tooling + composer + namespace rename + CI matrix; 11 requirements: TOOL-01..11).
+Stopped at: post-Plan 01-01 ship. Next: `/gsd-execute-plan 01-02` for tooling configs + composer qa chain.
 
-Resume file: `.planning/ROADMAP.md` (Phase 1 detail section).
+Resume file: `.planning/phases/01-tooling-composer-namespace-rename-ci-matrix/01-02-PLAN.md`.
+
+## Performance Metrics
+
+| Phase | Plan | Duration | Tasks | Files | Date |
+|-------|------|----------|-------|-------|------|
+| 1 | 01-01 | ~12 min | 6 (4 active, 2 deferred) | 5 created, 71 deleted | 2026-05-16 |
