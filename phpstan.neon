@@ -1,0 +1,51 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/spaze/phpstan-disallowed-calls/extension.neon
+
+parameters:
+    level: 10
+    phpVersion: 80300
+
+    paths:
+        - Plugin.php
+
+    excludePaths:
+        - tests (?)
+        - updates (?)
+        - lang (?)
+        - .github (?)
+
+    tmpDir: .phpstan-cache
+
+    reportUnmatchedIgnoredErrors: true
+    treatPhpDocTypesAsCertain: true
+    checkUninitializedProperties: true
+
+    universalObjectCratesClasses:
+        - Lovata\Toolbox\Classes\Item\ElementItem
+        - Lovata\Toolbox\Classes\Collection\ElementCollection
+
+    disallowedFunctionCalls:
+        -
+            function: 'assert()'
+            message: 'use throw — assert() is a silent no-op when zend.assertions=0 (production default)'
+        -
+            function: '@'
+            message: 'no @ suppression — handle errors explicitly'
+        -
+            function: 'array_find()'
+            message: 'PHP 8.4-only — use array_filter + early return or foreach'
+        -
+            function: 'array_find_key()'
+            message: 'PHP 8.4-only — use array_keys + array_filter or foreach'
+        -
+            function: 'array_any()'
+            message: 'PHP 8.4-only — use array_filter or foreach with early return'
+        -
+            function: 'array_all()'
+            message: 'PHP 8.4-only — use array_filter or foreach'
+
+    disallowedClasses:
+        -
+            class: 'Deprecated'
+            message: 'PHP 8.4-only attribute — use @deprecated docblock instead'

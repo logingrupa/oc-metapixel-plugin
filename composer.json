@@ -18,7 +18,18 @@
         "lovata/shopaholic-plugin": "Use ShopaholicAdapter to track Lovata Shopaholic Orders",
         "lovata/ordersshopaholic-plugin": "Use ShopaholicAdapter to track Lovata Orders Shopaholic Orders"
     },
-    "require-dev": {},
+    "require-dev": {
+        "larastan/larastan": "^3.0",
+        "laravel/pint": "^1.26",
+        "mockery/mockery": "^1.6",
+        "pestphp/pest": "^4.1",
+        "pestphp/pest-plugin-drift": "^4.0",
+        "phpmd/phpmd": "^2.15",
+        "phpunit/phpunit": "^12",
+        "rector/rector": "^2.0",
+        "shipmonk/composer-dependency-analyser": "^1.8",
+        "spaze/phpstan-disallowed-calls": "^4.0"
+    },
     "autoload": {
         "psr-4": {
             "Logingrupa\\Metapixel\\": ""
@@ -30,7 +41,15 @@
         }
     },
     "scripts": {
-        "qa": []
+        "qa": ["@pint-test", "@analyse", "@phpmd", "@test-cov"],
+        "pint-test": "pint --test",
+        "pint": "pint",
+        "analyse": "phpstan analyse",
+        "phpmd": "phpmd Plugin.php text phpmd.xml",
+        "test": "pest",
+        "test-cov": "pest --coverage --min=90",
+        "rector": "rector process --dry-run",
+        "deps": "composer-dependency-analyser"
     },
     "extra": {
         "october": {

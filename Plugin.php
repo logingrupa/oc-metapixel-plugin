@@ -21,19 +21,15 @@ class Plugin extends PluginBase
     public function pluginDetails(): array
     {
         return [
-            'name'        => 'logingrupa.metapixel::lang.plugin.name',
+            'name' => 'logingrupa.metapixel::lang.plugin.name',
             'description' => 'logingrupa.metapixel::lang.plugin.description',
-            'author'      => 'Logingrupa',
-            'icon'        => 'icon-bullseye',
-            'homepage'    => 'https://github.com/logingrupa/oc-metapixel-plugin',
+            'author' => 'Logingrupa',
+            'icon' => 'icon-bullseye',
+            'homepage' => 'https://github.com/logingrupa/oc-metapixel-plugin',
         ];
     }
 
-    public function register(): void
-    {
-    }
+    public function register(): void {}
 
-    public function boot(): void
-    {
-    }
+    public function boot(): void {}
 }
