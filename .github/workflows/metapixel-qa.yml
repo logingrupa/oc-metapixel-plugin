@@ -1,0 +1,99 @@
+name: metapixel-qa
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    paths:
+      - 'plugins/logingrupa/metapixel/**'
+      - '.github/workflows/metapixel-qa.yml'
+
+# Least-privilege: this is a read-only QA gate. Override the default
+# GITHUB_TOKEN scope so a compromised step cannot push refs or releases.
+permissions:
+  contents: read
+
+jobs:
+  qa:
+    name: composer qa (PHP ${{ matrix.php }} / ${{ matrix.install }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        php: ['8.3', '8.4']
+        install: [full-lovata, minimal]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP ${{ matrix.php }}
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ matrix.php }}
+          tools: composer
+          coverage: xdebug
+          extensions: dom, json, libxml, mbstring, pdo, pdo_sqlite, sqlite3, intl, fileinfo
+
+      - name: composer install (repo root, full Lovata)
+        if: matrix.install == 'full-lovata'
+        run: composer install --no-progress --prefer-dist --no-interaction
+
+      - name: composer install (repo root, minimal — Lovata cart plugins removed)
+        if: matrix.install == 'minimal'
+        run: |
+          # Remove Lovata cart plugins from the repo-root composer.json's require/require-dev
+          # so the install does not load them. This mirrors a marketplace install where the
+          # operator has NOT yet installed lovata/shopaholic / lovata/ordersshopaholic / lovata/buddies.
+          composer remove --dev --no-update --no-interaction \
+            lovata/shopaholic-plugin \
+            lovata/ordersshopaholic-plugin \
+            lovata/buddies-plugin || true
+          composer remove --no-update --no-interaction \
+            lovata/shopaholic-plugin \
+            lovata/ordersshopaholic-plugin \
+            lovata/buddies-plugin || true
+          composer install --no-progress --prefer-dist --no-interaction
+
+      - name: composer install (plugin, full Lovata)
+        if: matrix.install == 'full-lovata'
+        working-directory: plugins/logingrupa/metapixel
+        run: composer install --no-progress --prefer-dist --no-interaction
+
+      - name: composer install (plugin, minimal)
+        if: matrix.install == 'minimal'
+        working-directory: plugins/logingrupa/metapixel
+        run: |
+          # Plugin composer.json keeps Lovata in require-dev for the test-suite-with-cart shape.
+          # For Run B, strip the cart packages from the plugin's require-dev so pest under the
+          # plugin scope does not load adapter tests that pull in Lovata classes.
+          composer remove --dev --no-update --no-interaction \
+            lovata/shopaholic-plugin \
+            lovata/ordersshopaholic-plugin \
+            lovata/buddies-plugin || true
+          composer install --no-progress --prefer-dist --no-interaction
+
+      - name: composer qa (full Lovata — Run A, coverage gate)
+        if: matrix.install == 'full-lovata'
+        working-directory: plugins/logingrupa/metapixel
+        run: |
+          composer run-script pint-test
+          composer run-script analyse
+          composer run-script phpmd
+          composer run-script deps
+          # Run test-cov with coverage gate. Pest 4 honors --min on the line coverage threshold.
+          ../../../vendor/bin/pest --configuration phpunit.xml --coverage --min=90
+
+      - name: composer qa (minimal — Run B, no coverage gate, exclude Adapter testsuite)
+        if: matrix.install == 'minimal'
+        working-directory: plugins/logingrupa/metapixel
+        run: |
+          composer run-script pint-test
+          composer run-script analyse
+          composer run-script phpmd
+          composer run-script deps
+          # Minimal install excludes the Adapter testsuite (Lovata-coupled tests).
+          ../../../vendor/bin/pest --configuration phpunit.xml --exclude-testsuite='Metapixel Adapter Tests'
