@@ -55,14 +55,14 @@ classes/adapter/theme/                     # ThemeActionAdapter (Twig + Larajax 
 
 ## Extensibility contract
 
-Third parties hook the plugin via:
+Third parties hook the plugin via, in order of preference:
 
-- `AdapterRegistry::register($sSubjectClass, $sAdapterClass)` from their `Plugin::boot()`
-- `Event::listen('metapixel.event.before_dispatch', ...)` — payload mutation / dispatch halt
-- `Event::listen('metapixel.event.after_dispatch', ...)` — observability tap
-- `Event::listen('metapixel.event.dead_letter', ...)` — alerting on permanent failure
-- `Component::extend(PixelHead::class, ...)` + `addDynamicMethod(...)` — custom script injection
-- `App::bind(MetaClientInterface::class, ...)` — HTTP client swap
+1. **`AdapterRegistry::register($sSubjectClass, $sAdapterClass)`** from their `Plugin::boot()` — register an adapter for any subject class.
+2. **`Event::listen('metapixel.event.before_dispatch', ...)`** — halt-able payload mutation hook (third arg `$halt = true`; listener returning `false` vetoes dispatch). MUST NOT mutate `event_id` or `event_time` (dedup contract anchor).
+3. **`Event::listen('metapixel.event.after_dispatch', ...)`** — observe-only successful-dispatch tap.
+4. **`Event::listen('metapixel.event.dead_letter', ...)`** — observe-only permanent-failure alert hook.
+5. **`App::bind(MetaClientInterface::class, ...)`** — HTTP client swap (testing or alternative transport).
+6. **`Component::extend(PixelHead::class, ...)` + `addDynamicMethod(...)`** — LAST RESORT. Use ONLY when an Event::fire hook does not exist for your use case. Unbounded surface (every method can be replaced) — third parties must scope dynamic methods with an `onMetapixel*` prefix to avoid collisions.
 
 Additional 5 `Event::fire` hooks deferred to v2.1 (adapter.resolve, value.resolve, user_data.resolve, pixel.before_render, settings.lookup). Add when a real third-party use case surfaces.
 
