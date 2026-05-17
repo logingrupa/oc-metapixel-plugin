@@ -2,12 +2,13 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
-status: phase_1_executed_pending_verification
-last_updated: "2026-05-16T06:05:00.000Z"
-last_activity: 2026-05-16
+status: completed
+stopped_at: Phase 2 context gathered
+last_updated: "2026-05-17T15:33:48.005Z"
+last_activity: "2026-05-16 — Plan 01-03 executed: phpunit.xml + tests/MetapixelTestCase + tests/ShopaholicAdapterTestCase + tests/Pest.php + tests/Unit/PluginSanityTest.php + .github/workflows/metapixel-qa.yml landed in single atomic commit 64b5762; smoke chain green (pint+phpstan+phpmd+pest), Plugin.php coverage 100%"
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
   completed_plans: 3
   percent: 20
@@ -92,6 +93,7 @@ Closed 2026-05-15. Partial close — Phase 4 + 5 dropped on architecture pivot. 
 See ROADMAP.md "Pitfall Coverage Map" section.
 
 Anchored CRITICALs:
+
 - **P-01 Cross-context resolution drift** (Phase 3.1-07 production bug anchor): Phase 2 ADAP-06 prevents via SiteResolver::forSubject + PHPStan disallowed-calls + contract test.
 - **P-03 Hidden Lovata imports outside adapter dir**: Phase 1 TOOL-11 prevents via composer-dependency-analyser; Phase 3 SHOP-04 enforces at adapter boundary.
 - **P-05 EventLog subject_type alias ambiguity**: Phase 2 ADAP-01 locks alias-string convention; Phase 3 SHOP-01 returns `'shopaholic.order'`.
@@ -112,11 +114,11 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-05-16 — Plan 01-03 executed. Pest 4 test scaffold + GitHub Actions CI matrix landed: phpunit.xml (PHPUnit 12 config + 2 testsuites + SQLite-in-memory), tests/MetapixelTestCase.php (170 LOC, no cart deps), tests/ShopaholicAdapterTestCase.php (85 LOC, Lovata Orders hermetic), tests/Pest.php (uses() binding for both bases), tests/Unit/PluginSanityTest.php (3 tests / 5 assertions / 100% Plugin.php coverage), .github/workflows/metapixel-qa.yml (2x2 matrix php:[8.3,8.4] × install:[full-lovata,minimal], Run A --min=90, Run B excludes Adapter testsuite). Single atomic commit 64b5762. Auto-fixes during smoke: Plugin instantiation (`new Plugin($this->app)`) + register/boot coverage (3rd test method).
+Last session: 2026-05-17T15:33:47.982Z
 
-Stopped at: post-Plan 01-03 ship. Phase 1 EXECUTED (3/3 plans, 11/11 TOOL-* requirements). Next: `/gsd-verify-phase 01`, then `/gsd-execute-phase 02` for ADAP-01..11 (adapter system core).
+Stopped at: Phase 2 context gathered
 
-Resume file: `.planning/STATE.md` — Phase 1 closed; choose `/gsd-verify-phase 01` to verify, or `/gsd-plan-phase 02` to start next.
+Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-CONTEXT.md
 
 ## Performance Metrics
 
