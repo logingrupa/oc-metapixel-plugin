@@ -1,0 +1,16 @@
+fields:
+    pixel_id:
+        label: logingrupa.metapixel::lang.settings.fields.pixel_id_label
+        commentAbove: logingrupa.metapixel::lang.settings.fields.pixel_id_comment
+        type: text
+        span: full
+    capi_access_token:
+        label: logingrupa.metapixel::lang.settings.fields.capi_access_token_label
+        commentAbove: logingrupa.metapixel::lang.settings.fields.capi_access_token_comment
+        type: password
+        span: full
+    test_event_code:
+        label: logingrupa.metapixel::lang.settings.fields.test_event_code_label
+        commentAbove: logingrupa.metapixel::lang.settings.fields.test_event_code_comment
+        type: text
+        span: full
