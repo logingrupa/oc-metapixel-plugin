@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
-status: executing
-stopped_at: "Plan 02-06 closed (commits 394f212, 6e6e81f, 956f8ed, e14cf1e, 604fd7e) — Wave 4 SendCapiEvent + 3 Event::fire hooks shipped; ADAP-04/05/10 closed; plan 02-07 next sequentially on master"
-last_updated: "2026-05-17T22:47:55.704Z"
-last_activity: 2026-05-17 — Plan 02-06 closed (SendCapiEvent + 3 Event::fire hooks shipped; ADAP-04/05/10 closed)
+status: verifying
+stopped_at: Plan 02-07 closed (commit 3edf0d6) — EventSubjectAdapterContractTestCase + FakeAdapter smoke + BackboneIntegration (M-5 serialize round-trip); 02-VERIFICATION-INPUTS.md scaffolded with M-7 flag; composer qa green; Phase 2 closed (8/8 plans, 11/11 ADAP-*, P-01/P-02/P-05/P-08/P-13)
+last_updated: "2026-05-17T23:06:03.441Z"
+last_activity: 2026-05-17
 progress:
   total_phases: 5
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 11
   completed_plans: 11
-  percent: 22
+  percent: 40
 ---
 
 # Project State
@@ -26,20 +26,23 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — EXECUTING
-Plan: 8 of 8
-Plans: 02-01..02-07 (with 02-03a + 02-03b split) — RESEARCH.md + 8 PLAN files + 2 PLAN-CHECK reports committed
-Status: 02-06 CLOSED — SendCapiEvent queue job (308 LOC final ShouldQueue with 4-arg constructor + 3 hook constants + handle/failed/5 private helpers) + 3 Event::fire hooks at decision boundaries (halt-able before_dispatch + observe-only after_dispatch + dead_letter) + listener-isolation try/catch envelopes on every fire site (D-16) + P-08 snapshot+restore on before_dispatch (T12 enforces) + H-2 writeFailedEvent(?EventSubjectAdapter) populates subject_type/id from adapter on every non-rehydrate-failure path + L-5 failed() retry-exhaustion handler resolves adapter via AdapterRegistry::resolveByClass + MetaClient final-drop fix (Rule 1 carry-over from 02-05 SpyMetaClient). 11 new test methods + 50 assertions under tests/Unit/Hook/ (4 files) + tests/Feature/Queue/ (7 files — 5 plan + 2 supplemental for branch coverage). composer qa green — 96 tests / 259 assertions / 99.3% total coverage / 98.3% on SendCapiEvent. ADAP-04 + ADAP-05 + ADAP-10 closed.
-Last activity: 2026-05-17 — Plan 02-06 closed (commits 394f212, 6e6e81f, 956f8ed, e14cf1e, 604fd7e)
+Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — READY FOR VERIFICATION
+Plan: 8 of 8 (CLOSED)
+Plans: 02-01..02-07 (with 02-03a + 02-03b split) — all 8 PLAN files + 8 SUMMARY files committed + 02-VERIFICATION-INPUTS.md scaffolded
+Status: 02-07 CLOSED — EventSubjectAdapterContractTestCase abstract base under classes/testing/ (production namespace `Logingrupa\Metapixel\Classes\Testing`; extends `Logingrupa\Metapixel\Tests\MetapixelTestCase` per R2 YAGNI override; orchestra/testbench DROPPED) + 10 invariants + M-6 tearDown forgets AdapterRegistry singleton + FakeAdapterContractTest (10 invariants pass against FakeAdapter — ADAP-11 smoke) + ContractTestCaseSmokeTest (SC1 PayloadBuilder envelope + registry round-trip) + BackboneIntegrationTest (SC1 + SC5 end-to-end — happy-path + dedup with Middleware::history per H-7 + M-5 serialize round-trip) + phpunit.xml + phpstan.neon symmetric-exclude classes/testing/ + 02-VERIFICATION-INPUTS.md scaffolded with M-7 ROADMAP.md SC5 mismatch flagged for orchestrator. composer qa green — 111 tests / 332 assertions / 99.3% total / 98.3% SendCapiEvent. ADAP-11 closed.
 
-**Next action:** Plan 02-07 (FakeAdapter + ContractTestCase + smoke test) — Wave 5 final plan of Phase 2. Will consume SendCapiEvent::dispatchSync for the contract round-trip + M-5 serialize round-trip smoke.
+**Phase 2 closure:** 8 plans shipped (02-01 + 02-02 + 02-03a + 02-03b + 02-04 + 02-05 + 02-06 + 02-07). 11/11 ADAP-* requirements + 5/5 in-Phase-2 pitfalls (P-01 cross-context resolution drift + P-02 boot-order race + P-05 EventLog subject_type alias ambiguity + P-08 Event::fire mutable payload + P-13 Plugin CLAUDE.md preference ranking) closed. 111 tests / 332 assertions / 99.3% coverage.
+
+Last activity: 2026-05-17 — Plan 02-07 closed (commit 3edf0d6) — Phase 2 closed.
+
+**Next action:** `/gsd:verify-phase 02-adapter-system-core-contracts-registry-extension-hooks` — gsd-verifier consumes 02-VERIFICATION-INPUTS.md + produces 02-VERIFICATION.md keyed against SC1..SC5 evidence checklist. Post-verification: apply M-7 ROADMAP.md SC5 wording fix + flip REQUIREMENTS.md ADAP-01..11 to `[x]` + update ROADMAP.md Phase 2 status to "Complete" + advance STATE.md current position to Phase 3.
 
 ## Roadmap Snapshot
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 1 | Tooling + composer + namespace rename + CI matrix | TOOL-01..11 (11) | Executed (3/3 plans) — pending verification |
-| 2 | Adapter system core | ADAP-01..11 (11) | Executing (7/8 plans — ADAP-01/02/03/04/05/06/07/08/09/10 closed; 02-02 P-01 static enforcement live; 02-03a storage backbone live; 02-03b Settings + PluginGuard + exception hierarchy live; 02-04 SiteResolver + EventLogWriter live; 02-05 MetaClient + PayloadBuilder + UserDataHasher live; 02-06 SendCapiEvent + 3 Event::fire hooks live) |
+| 2 | Adapter system core | ADAP-01..11 (11) | Executed — pending verification (8/8 plans; 11/11 ADAP-*; P-01 P-02 P-05 P-08 P-13 closed; 02-07 contract base + FakeAdapter smoke + backbone integration shipped 2026-05-17) |
 | 3 | ShopaholicAdapter + ThemeActionAdapter | SHOP-01..05 + THEM-01..07 (12) | Not started |
 | 4 | Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations | MULT-01..06 + HOST-01..06 + COOK-01..03 + FAIL-01..03 + LANG-01 (19) | Not started |
 | 5 | Documentation + marketplace launch | DOCS-01..03 + MKT-01..05 (8) | Not started |
@@ -122,6 +125,11 @@ Closed 2026-05-15. Partial close — Phase 4 + 5 dropped on architecture pivot. 
 - **writeFailedEvent ?EventSubjectAdapter contract (H-2 resolution).** Helper signature `writeFailedEvent(Throwable $obException, ?int $iHttpStatus, ?EventSubjectAdapter $obAdapter): void`. When `$obAdapter` is non-null, populates `subject_type` + `subject_id` from `getSubjectType` + `getSubjectId`. Only the BindingResolutionException early-return path passes null (legitimate — adapter does not exist; re-resolution is impossible). Phase 4 admin UI (FAIL-01..03) re-resolution depends on subject_type + subject_id being populated on every other failure path. T18 verifies the null path (legitimate); T21 + T14 verify the populated path. Owned by Phase 2 plan 02-06.
 - **L-5 failed() retry-exhaustion adapter-resolve.** `failed(Throwable)` resolves adapter via `app(AdapterRegistry::class)->resolveByClass($this->sAdapterClass)` the same way handle() does, then writes FailedEvent + fires dead_letter. Inner try/catch swallows resolution failure (worker reload scenario) so the FailedEvent can still be written with null subject_type/id (same fail-safe as handle()'s BindingResolutionException). Keeps failed_events row state consistent across handle / failed paths. SendCapiEventFailedHandlerTest 2 cases (adapter-resolve + unresolvable-fallback) enforce. Owned by Phase 2 plan 02-06.
 - **Listener-isolation try/catch envelope around every Event::fire (D-16 + ADAP-05).** Every Event::fire site is wrapped in try/catch — Throwable → Log::warning + continue (treat as abstain on before_dispatch; observed on after_dispatch + dead_letter). Listener exceptions never propagate to dispatch. T13 + SendCapiEventBranchCoverageTest::test_after_dispatch_listener_exception_is_swallowed + test_dead_letter_listener_exception_is_swallowed enforce on each of the 3 hooks. Owned by Phase 2 plan 02-06.
+- **EventSubjectAdapterContractTestCase abstract base locked.** `abstract class Logingrupa\Metapixel\Classes\Testing\EventSubjectAdapterContractTestCase extends Logingrupa\Metapixel\Tests\MetapixelTestCase` (R2 YAGNI override per commit db89398 — orchestra/testbench DROPPED for Phase 2). Two abstract factory methods: `makeAdapter(): EventSubjectAdapter` + `makeSubject(): object`. 10 public `test_invariant_NN_*` methods enforce the EventSubjectAdapter marketplace contract: 01 subject_type opaque alias (no backslash, ≤ 64 chars), 02 subject_id positive int, 03 getSiteId deterministic across successive calls, 04 getSiteId returns ?int (no Request side effect), 05 getSecretKey ?string never throws, 06 getValueResolver returns ValueResolver instance, 07 getUserData allowed-key set (13-key Meta CAPI subset, string|null values), 08 getSupportedEvents shape (string event name → list of {capi,pixel} channels), 09 registry round-trip via AdapterRegistry::register + resolveFor, 10 PayloadBuilder envelope shape with 6 inner keys. M-6 tearDown forgets AdapterRegistry singleton after invariant 09's registration so subclasses + concrete tests are isolated. Phase 3 first-party adapters (ShopaholicOrderAdapterContractTest + ThemeActionAdapterContractTest) extend this base + supply makeAdapter() / makeSubject(); third-party marketplace adapters revisit at v2.1 (Testbench swap OR copy-this-file pattern via docs/CUSTOM-ADAPTERS.md). Owned by Phase 2 plan 02-07.
+- **classes/testing/ symmetric exclusion from phpstan + phpunit coverage.** The contract base imports `Logingrupa\Metapixel\Tests\MetapixelTestCase` (autoload-dev) from a production PSR-4 directory. phpstan's production-scan path includes `classes/`, so it tries to load MetapixelTestCase + its October test traits (`InteractsWithAuthentication`, `PerformsMigrations`, `PerformsRegistrations`) which are not present outside the test bootstrap → phpstan fatals with `Trait not found`. Fix: add `classes/testing (?)` to `phpstan.neon` excludePaths + `/home/forge/nailscosmetics.lv/plugins/logingrupa/metapixel/classes/testing (?)` to `/tmp/metapixel-phpstan-smoke.neon`. Symmetric with phpunit.xml's `<source><exclude><directory>./classes/testing</directory></exclude>` (test-helper code, not production runtime behaviour). Belt-and-braces: phpstan exclusion prevents static-analysis trip; phpunit exclusion prevents coverage dilution from the 10 invariant test bodies (which ARE executed via concrete subclasses + Pest, but their coverage shape is test-helper, not production). Owned by Phase 2 plan 02-07.
+- **M-5 serialize round-trip smoke pattern.** Synchronous tests (handle() direct invocation) skip the serialize/unserialize cycle production Laravel queue workers execute. BackboneIntegrationTest::test_serialize_round_trip_job_unserializes_and_runs_handle confirms `unserialize(serialize($obJob))->handle()` writes EventLog — catches SerializesModels-for-subject failure mode that pure-sync tests miss. Pattern applies to any future v2.x ShouldQueue job. Phase 3 SendShopaholicCapiEvent + SendThemeActionCapiEvent (if separate jobs land) MUST add the same smoke. Owned by Phase 2 plan 02-07.
+- **H-7 Middleware::history > MockHandler queue count pattern.** MockHandler internal queue count is unreliable for HTTP-call-count assertions — pending mocks stay queued; assertCount on the handler does not match request count. Push `Middleware::history($arHistory)` onto the HandlerStack BEFORE the MockHandler; assert `count($arHistory)` for accurate call count. BackboneIntegrationTest::test_dedup_second_dispatch_for_same_subject_short_circuits_no_http_call uses this pattern. Carry forward to Phase 3 + Phase 4 integration tests. Owned by Phase 2 plan 02-07.
+- **M-7 ROADMAP.md SC5 mismatch flag (orchestrator action pending).** ROADMAP.md Phase 2 SC5 wording references 4 v1.x test files (`OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest`, `SendCapiEventEventLogTest`, `MultiSiteEventLogTest`) that OQ-1 reframes as Phase 3 work alongside ShopaholicOrderAdapter (SHOP-03). Plan 02-07 does NOT update ROADMAP.md (per plan must_haves lock); the mismatch is flagged in 02-VERIFICATION-INPUTS.md with suggested replacement wording. Orchestrator (NOT executor) applies the ROADMAP.md edit post-`/gsd:verify-phase`. Owned by Phase 2 plan 02-07 (flag only) + orchestrator (apply fix).
 
 ### Pitfall ownership (each CRITICAL/HIGH pitfall mapped to a phase)
 
@@ -150,11 +158,11 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-05-17T22:47:42.721Z
+Last session: 2026-05-17T23:05:41.795Z
 
-Stopped at: Plan 02-06 closed (commits 394f212, 6e6e81f, 956f8ed, e14cf1e, 604fd7e) — Wave 4 SendCapiEvent + 3 Event::fire hooks shipped; ADAP-04/05/10 closed; plan 02-07 next sequentially on master
+Stopped at: Plan 02-07 closed (commit 3edf0d6) — EventSubjectAdapterContractTestCase + FakeAdapter smoke + BackboneIntegration (M-5 serialize round-trip); 02-VERIFICATION-INPUTS.md scaffolded with M-7 flag; composer qa green; Phase 2 closed (8/8 plans, 11/11 ADAP-*, P-01/P-02/P-05/P-08/P-13)
 
-Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-07-PLAN.md
+Resume file: /gsd:verify-phase 02-adapter-system-core-contracts-registry-extension-hooks
 
 ## Performance Metrics
 
@@ -170,3 +178,4 @@ Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extensio
 | 2 | 02-04 | ~6 min | 5 tasks (2 feat + 2 test + 1 QA-gate fix) | 4 created, 0 modified | 2026-05-17 |
 | 2 | 02-05 | ~11 min | 7 tasks (1 composer + 3 RED + 3 GREEN + 1 SpyMetaClient + 1 QA-gate fix; 9 commits total) | 7 created, 1 modified | 2026-05-17 |
 | 2 | 02-06 | ~11 min | 4 tasks (1 feat + 1 Rule-1 MetaClient final-drop fix + 2 test + 1 QA-gate fix; 5 commits total) | 12 created, 1 modified | 2026-05-17 |
+| 2 | 02-07 | ~8 min | 5 tasks (Task 1 dropped per R2 YAGNI; 4 active across 1 contract base + 3 test files + 1 verification scaffold + phpstan/phpunit exclude; 1 atomic commit for Phase 2 close) | 5 created, 2 modified | 2026-05-17 |

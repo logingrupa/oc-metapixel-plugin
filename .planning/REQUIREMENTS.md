@@ -40,7 +40,7 @@
 - [x] **ADAP-08**: `Classes\Meta\UserDataHasher::forSubject(EventSubjectAdapter $obAdapter, object $obSubject): array` replaces `forOrder(Order)`. Adapter provides raw fields; Hasher does only sha256 + per-request CCache.
 - [x] **ADAP-09**: `Classes\Meta\MetaClient::sendForPixel(string $sPixelId, string $sToken, array $arPayload): array` replaces singleton-reading `send(array)`. Graph API version pinned to `v23.0` (constant `META_GRAPH_API_VERSION = 'v23.0'`, no operator override — v20 expires 2026-09-24).
 - [x] **ADAP-10**: `Classes\Queue\SendCapiEvent` constructor adds `string $sAdapterClass` 4th arg. `handle()` resolves adapter via `AdapterRegistry::resolveByClass($sAdapterClass)`. `BindingResolutionException` boundary catch writes FailedEvent + log critical.
-- [ ] **ADAP-11**: All 177 v1.x tests adapt via `FakeAdapter` test double. `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest`, `SendCapiEventEventLogTest`, `MultiSiteEventLogTest` regreen.
+- [x] **ADAP-11**: All 177 v1.x tests adapt via `FakeAdapter` test double. `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest`, `SendCapiEventEventLogTest`, `MultiSiteEventLogTest` regreen.
 
 ### ShopaholicAdapter (Phase 3 — fresh implementation, modern OctoberCMS patterns)
 
@@ -202,7 +202,7 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | ADAP-08 | Phase 2 | Complete |
 | ADAP-09 | Phase 2 | Complete |
 | ADAP-10 | Phase 2 | Complete |
-| ADAP-11 | Phase 2 | Pending |
+| ADAP-11 | Phase 2 | Complete |
 | SHOP-01 | Phase 3 | Pending |
 | SHOP-02 | Phase 3 | Pending |
 | SHOP-03 | Phase 3 | Pending |

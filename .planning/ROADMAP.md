@@ -144,7 +144,7 @@ class Plugin extends PluginBase {
 ## Phases
 
 - [ ] **Phase 1: Tooling + composer + namespace rename + CI matrix** — Quality bar + PHP 8.3/8.4 dual-CI green before any business code; namespace `Logingrupa\Metapixel` lands.
-- [ ] **Phase 2: Adapter system core — contracts + registry + extension hooks** — `EventSubjectAdapter` + `ValueResolver` + `AdapterRegistry` + 3 `Event::fire` hooks; v1.x I/O backbone refactored behind adapter signatures; 177 tests adapted via FakeAdapter.
+- [x] **Phase 2: Adapter system core — contracts + registry + extension hooks** — `EventSubjectAdapter` + `ValueResolver` + `AdapterRegistry` + 3 `Event::fire` hooks; v1.x I/O backbone refactored behind adapter signatures; 177 tests adapted via FakeAdapter. (completed 2026-05-17)
 - [ ] **Phase 3: ShopaholicAdapter + ThemeActionAdapter parallel wave** — Non-regression port of v1.x Order/Cart logic behind ShopaholicAdapter; generic theme-action tracking via Twig + Larajax for operators without a supported cart.
 - [ ] **Phase 4: Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations** — Per-site `pixel_id`/`capi_access_token`; operator-supplied `trusted_hosts` + PSL-aware index derivation; FailedEvents backend UI; en/lv translations.
 - [ ] **Phase 5: Documentation + marketplace launch** — README install guide (<10 min), custom-adapter authoring guide, marketplace assets, `v2.0.0` tag, `composer require` green on clean OctoberCMS 4.x.
@@ -187,7 +187,7 @@ class Plugin extends PluginBase {
   4. `MetaClient::sendForPixel(string $sPixelId, string $sToken, array $arPayload)` accepts per-call credentials (no more singleton Settings read); `PayloadBuilder::buildEventPayload(string $sEventName, EventSubjectAdapter, object $obSubject, ValueResolver, string $sEventId, int $iEventTime, array $arEventExtras)` is subject-agnostic; Graph API pinned to `v23.0` constant. `SendCapiEvent` constructor accepts a 4th `string $sAdapterClass` arg; `handle()` rehydrates the adapter via `AdapterRegistry::resolveByClass()` and writes FailedEvent on `BindingResolutionException`.
   5. All 177 v1.x tests regreen via a `FakeAdapter` test double standing in for ShopaholicOrderAdapter. `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest`, `SendCapiEventEventLogTest`, `MultiSiteEventLogTest` pass without touching real Lovata Order code.
 
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans complete
 
 ### Phase 3: ShopaholicAdapter + ThemeActionAdapter parallel wave
 
@@ -268,7 +268,7 @@ class Plugin extends PluginBase {
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
-| 2. Adapter system core | 7/8 | In Progress|  |
+| 2. Adapter system core | 8/8 | Complete   | 2026-05-17 |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 0/0 | Not started | — |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 0/0 | Not started | — |
 | 5. Documentation + marketplace launch | 0/0 | Not started | — |
