@@ -14,6 +14,7 @@ use Logingrupa\Metapixel\Classes\Exception\MissingCapiTokenException;
 use Logingrupa\Metapixel\Classes\Exception\MissingPixelConfigException;
 use Logingrupa\Metapixel\Classes\Meta\MetaClient;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 final class MetaClientTest extends MetapixelTestCase
 {
@@ -60,9 +61,7 @@ final class MetaClientTest extends MetapixelTestCase
         ];
     }
 
-    /**
-     * @dataProvider provideTransientStatusCodes
-     */
+    #[DataProvider('provideTransientStatusCodes')]
     public function test_throws_transient_on_status(int $iStatus): void
     {
         $obMock = new MockHandler([
@@ -88,9 +87,7 @@ final class MetaClientTest extends MetapixelTestCase
         ];
     }
 
-    /**
-     * @dataProvider providePermanentStatusCodes
-     */
+    #[DataProvider('providePermanentStatusCodes')]
     public function test_throws_permanent_on_status(int $iStatus): void
     {
         $obMock = new MockHandler([
