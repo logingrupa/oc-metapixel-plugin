@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: completed
-stopped_at: Phase 2 context gathered
-last_updated: "2026-05-17T15:33:48.005Z"
-last_activity: "2026-05-16 — Plan 01-03 executed: phpunit.xml + tests/MetapixelTestCase + tests/ShopaholicAdapterTestCase + tests/Pest.php + tests/Unit/PluginSanityTest.php + .github/workflows/metapixel-qa.yml landed in single atomic commit 64b5762; smoke chain green (pint+phpstan+phpmd+pest), Plugin.php coverage 100%"
+stopped_at: Phase 2 planned (8 slices, PASS-WITH-NOTES verdict)
+last_updated: "2026-05-17T17:50:00.000Z"
+last_activity: "2026-05-17 — Phase 2 plan-phase complete: RESEARCH.md (1378 lines, OQ-1/2/3 resolved) + 8 PLAN slices (02-01..02-07 with 02-03 split into 02-03a+b per plan-checker M-2) + PLAN-CHECK R1 (REVISE, 9 HIGH/8 MEDIUM/8 LOW) + R2 (PASS-WITH-NOTES, 21 closures verified, N-1 frontmatter fixed). Ready for /gsd-execute-phase 02."
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
+  total_plans: 11
   completed_plans: 3
   percent: 20
 ---
@@ -26,12 +26,12 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 1 — Tooling + composer + namespace rename + CI matrix — EXECUTED (3/3 plans shipped)
-Plan: 01-03 SHIPPED — Phase 1 awaiting verification (`/gsd-verify-phase 01`)
-Status: All 3 plans complete; Phase 1 execution closed; TOOL-01..11 (11) requirements satisfied
-Last activity: 2026-05-16 — Plan 01-03 executed: phpunit.xml + tests/MetapixelTestCase + tests/ShopaholicAdapterTestCase + tests/Pest.php + tests/Unit/PluginSanityTest.php + .github/workflows/metapixel-qa.yml landed in single atomic commit 64b5762; smoke chain green (pint+phpstan+phpmd+pest), Plugin.php coverage 100%
+Phase: 2 — Adapter system core — PLANNED (8 slices, PASS-WITH-NOTES)
+Plans: 02-01..02-07 (with 02-03a + 02-03b split) — RESEARCH.md + 8 PLAN files + 2 PLAN-CHECK reports committed
+Status: ADAP-01..11 mapped across plans; pitfalls P-01/P-02/P-05/P-08/P-13 owned; dep graph: Wave 1 (01+02) → Wave 2 (03a+03b) → Wave 3 (04+05) → Wave 4 (06) → Wave 5 (07)
+Last activity: 2026-05-17 — Plan-phase complete. R1 found 9 HIGH/8 MEDIUM/8 LOW; R2 verified 21 closures, end-to-end Purchase trace passes. Two non-blocking notes: N-1 frontmatter fixed; N-2 orchestra/testbench install required at execute-phase time.
 
-**Next action:** `/gsd-verify-phase 01` to run Phase 1 verifier — then `/gsd-execute-phase 02` for Adapter system core.
+**Next action:** `/gsd-execute-phase 02` for Adapter system core. Operator action before execute: `composer require --dev orchestra/testbench:^9.0` + Guzzle (`guzzlehttp/guzzle:^7.0`) from project root.
 
 ## Roadmap Snapshot
 

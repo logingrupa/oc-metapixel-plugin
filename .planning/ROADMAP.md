@@ -268,7 +268,7 @@ class Plugin extends PluginBase {
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
-| 2. Adapter system core | 0/0 | Not started | — |
+| 2. Adapter system core | 0/8 | Planned (PASS-WITH-NOTES) | — |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 0/0 | Not started | — |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 0/0 | Not started | — |
 | 5. Documentation + marketplace launch | 0/0 | Not started | — |
