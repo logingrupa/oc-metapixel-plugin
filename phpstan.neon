@@ -16,6 +16,7 @@ parameters:
         - updates (?)
         - lang (?)
         - .github (?)
+        - classes/testing (?)
 
     tmpDir: .phpstan-cache
 

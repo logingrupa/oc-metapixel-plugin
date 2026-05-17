@@ -28,6 +28,9 @@
             <directory>./classes</directory>
             <directory>./models</directory>
         </include>
+        <exclude>
+            <directory>./classes/testing</directory>
+        </exclude>
     </source>
     <php>
         <env name="APP_ENV" value="testing" force="true"/>
