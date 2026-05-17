@@ -173,7 +173,9 @@ final class SendCapiEvent implements ShouldQueue
                 true,
             );
 
-            if (isset($arMutablePayload['data'][0]) && is_array($arMutablePayload['data'][0])) {
+            if (isset($arMutablePayload['data']) && is_array($arMutablePayload['data'])
+                && isset($arMutablePayload['data'][0]) && is_array($arMutablePayload['data'][0])
+            ) {
                 $arMutablePayload['data'][0]['event_id'] = $sEventId;
                 $arMutablePayload['data'][0]['event_time'] = $iEventTime;
             }
@@ -270,21 +272,36 @@ final class SendCapiEvent implements ShouldQueue
 
     private function readEventId(): string
     {
-        if (! isset($this->arPayload['data'][0]) || ! is_array($this->arPayload['data'][0])) {
-            return '';
-        }
-        $mEventId = $this->arPayload['data'][0]['event_id'] ?? '';
+        $arFirstEvent = $this->firstEventRecord();
+        $mEventId = $arFirstEvent['event_id'] ?? '';
 
         return is_string($mEventId) ? $mEventId : '';
     }
 
     private function readEventTime(): int
     {
-        if (! isset($this->arPayload['data'][0]) || ! is_array($this->arPayload['data'][0])) {
-            return 0;
-        }
-        $mEventTime = $this->arPayload['data'][0]['event_time'] ?? 0;
+        $arFirstEvent = $this->firstEventRecord();
+        $mEventTime = $arFirstEvent['event_time'] ?? 0;
 
         return is_int($mEventTime) ? $mEventTime : 0;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function firstEventRecord(): array
+    {
+        if (! isset($this->arPayload['data']) || ! is_array($this->arPayload['data'])) {
+            return [];
+        }
+        if (! isset($this->arPayload['data'][0]) || ! is_array($this->arPayload['data'][0])) {
+            return [];
+        }
+        $arRecord = [];
+        foreach ($this->arPayload['data'][0] as $mKey => $mValue) {
+            $arRecord[(string) $mKey] = $mValue;
+        }
+
+        return $arRecord;
     }
 }
