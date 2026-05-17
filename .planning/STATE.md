@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
-status: completed
-stopped_at: Phase 2 planned (8 slices, PASS-WITH-NOTES verdict)
-last_updated: "2026-05-17T17:50:00.000Z"
-last_activity: "2026-05-17 — Phase 2 plan-phase complete: RESEARCH.md (1378 lines, OQ-1/2/3 resolved) + 8 PLAN slices (02-01..02-07 with 02-03 split into 02-03a+b per plan-checker M-2) + PLAN-CHECK R1 (REVISE, 9 HIGH/8 MEDIUM/8 LOW) + R2 (PASS-WITH-NOTES, 21 closures verified, N-1 frontmatter fixed). Ready for /gsd-execute-phase 02."
+status: executing
+stopped_at: Plan 02-01 closed (commit c5fda33); 02-02 next sequential
+last_updated: "2026-05-17T21:10:24.252Z"
+last_activity: 2026-05-17 — Plan 02-01 closed (ADAP-01/02/03 + P-02 anchor)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 3
-  percent: 20
+  completed_plans: 4
+  percent: 36
 ---
 
 # Project State
@@ -26,19 +26,20 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 2 — Adapter system core — PLANNED (8 slices, PASS-WITH-NOTES)
+Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — EXECUTING
+Plan: 2 of 8
 Plans: 02-01..02-07 (with 02-03a + 02-03b split) — RESEARCH.md + 8 PLAN files + 2 PLAN-CHECK reports committed
-Status: ADAP-01..11 mapped across plans; pitfalls P-01/P-02/P-05/P-08/P-13 owned; dep graph: Wave 1 (01+02) → Wave 2 (03a+03b) → Wave 3 (04+05) → Wave 4 (06) → Wave 5 (07)
-Last activity: 2026-05-17 — Plan-phase complete. R1 found 9 HIGH/8 MEDIUM/8 LOW; R2 verified 21 closures, end-to-end Purchase trace passes. Two non-blocking notes: N-1 frontmatter fixed; N-2 orchestra/testbench install required at execute-phase time.
+Status: 02-01 CLOSED — ADAP-01/02/03 + P-02 anchor green; composer qa smoke 14/14 tests / 100% coverage. 02-02 next (sequential — shares phpstan.neon edit boundary with 02-01).
+Last activity: 2026-05-17 — Plan 02-01 closed (commits d10234e..c5fda33)
 
-**Next action:** `/gsd-execute-phase 02` for Adapter system core. No operator pre-install needed (R2 dropped orchestra/testbench per YAGNI; guzzlehttp/guzzle already in project vendor — plan 02-05 Task 1 adds it to plugin composer.json `require:` for marketplace contract).
+**Next action:** Plan 02-02 executes sequentially on same branch (Wave 1 sibling). Wave 2 (02-03a → 02-03b) blocks transitively on 02-02 completion.
 
 ## Roadmap Snapshot
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 1 | Tooling + composer + namespace rename + CI matrix | TOOL-01..11 (11) | Executed (3/3 plans) — pending verification |
-| 2 | Adapter system core | ADAP-01..11 (11) | Not started |
+| 2 | Adapter system core | ADAP-01..11 (11) | Executing (1/8 plans — ADAP-01/02/03 closed) |
 | 3 | ShopaholicAdapter + ThemeActionAdapter | SHOP-01..05 + THEM-01..07 (12) | Not started |
 | 4 | Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations | MULT-01..06 + HOST-01..06 + COOK-01..03 + FAIL-01..03 + LANG-01 (19) | Not started |
 | 5 | Documentation + marketplace launch | DOCS-01..03 + MKT-01..05 (8) | Not started |
@@ -88,6 +89,12 @@ Closed 2026-05-15. Partial close — Phase 4 + 5 dropped on architecture pivot. 
 - **Build philosophy (from `feedback-no-overengineering-fresh-simple` memory):** Simple logic, fresh ideas, no over-engineering. No BC shims (operators stay on `legacy/v1.1.1` branch). No dead code, no unused functions, no premature abstractions. Build for current need only.
 - **Code style additions (from `feedback-lovata-extensibility-pattern` memory):** DRY, SRP, self-explanatory variable names (no `$mId`, `$tmp`), Laravel short docblocks (one-line summary + `@param` + `@return`; no multi-paragraph narrative), no phase/CR/incident markers in code.
 
+### v2.0 Phase 2 decisions (added during execution)
+
+- **Lowercase folder convention under `plugins/<vendor>/<plugin>/`** — October Rain `ClassLoader::load` normalises namespaced PSR-style lookups by lowercasing every folder portion before the file basename. PascalCase folders (e.g., `classes/Adapter/`, `tests/Doubles/`) cause autoload misses on Linux because the host bootstrap registers October Rain's ClassLoader (the plugin's own `vendor/autoload.php` is NOT loaded by host bootstrap). All v2.0 plan paths therefore ship lowercase: `classes/adapter/`, `tests/doubles/`, etc. Namespaces stay PascalCase (`Logingrupa\Metapixel\Classes\Adapter\…`) — PHP namespace resolution is case-insensitive. Owned by Phase 2 plan 02-01.
+- **H-8 test setUp pattern locked across Phase 2:** every Phase 2 test that needs `AdapterRegistry` MUST bind it directly via `$this->app->singleton(AdapterRegistry::class)` in setUp(). NEVER `(new \Logingrupa\Metapixel\Plugin)->register()` — `PluginBase::__construct(Application $app)` requires container injection and the bare instantiation TypeErrors. Plan 02-01 anchors; plans 02-02..02-07 enforce in their setUp() pattern.
+- **AdapterRegistry::$arAdapterMap PHPDoc key type is `array<string, …>`, NOT `array<class-string, …>`.** `register()` accepts a plain string subject FQN; PHPStan level 10 cannot narrow `string` to `class-string` without an extra runtime check the registry deliberately does not add (no benefit — `is_subclass_of` on the adapter side already enforces the value-type contract). Owned by Phase 2 plan 02-01.
+
 ### Pitfall ownership (each CRITICAL/HIGH pitfall mapped to a phase)
 
 See ROADMAP.md "Pitfall Coverage Map" section.
@@ -103,10 +110,11 @@ Anchored CRITICALs:
 ### Pending Todos
 
 - `/gsd-verify-phase 01` to verify Phase 1 execution outcomes (3 plans / 11 TOOL-* requirements).
-- Phase 2 PHPStan `paths` reopen: when classes/, models/, components/ land, append each to phpstan.neon paths list.
-- Phase 2+ phpunit.xml `<source><include>` reopen: when classes/, models/, components/, middleware/, controllers/, console/ land, add each as `<directory>` entry alongside existing `Plugin.php`.
+- Phase 2 PHPStan `paths` reopen: when models/, components/ land, append each to phpstan.neon paths list (Plan 02-01 added `classes` already).
+- Phase 2+ phpunit.xml `<source><include>` reopen: when models/, components/, middleware/, controllers/, console/ land, add each as `<directory>` entry alongside existing `Plugin.php` + `./classes` (Plan 02-01 added `./classes` already).
 - Phase 3 SHOP-* adds `<testsuite name="Metapixel Adapter Tests">` block to phpunit.xml when tests/Unit/Adapter/Shopaholic + tests/Feature/Adapter/Shopaholic land (Run B's --exclude-testsuite='Metapixel Adapter Tests' becomes a real exclude then; currently a no-op).
 - Phase 2 ADAP-03 wires AdapterRegistry::flush() call into MetapixelTestCase::flushModelEventListeners() (currently absent — Phase 1 plan 01-03 intentionally did not add a placeholder comment).
+- Phase 2 plans 02-02..02-07 MUST use lowercase folder paths (`classes/{adapter,helper,meta,queue,exception,testing}/`, `tests/{doubles,unit,feature,contract}/…`) for October Rain ClassLoader autoload — locked by 02-01 deviation 1. Namespaces stay PascalCase. Plan markdown files that show `classes/Adapter/`, `tests/Doubles/`, etc., should be treated as folder-name typos and shipped lowercase.
 
 ### Blockers/Concerns
 
@@ -114,11 +122,11 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-05-17T15:33:47.982Z
+Last session: 2026-05-17T21:10:24.226Z
 
-Stopped at: Phase 2 context gathered
+Stopped at: Plan 02-01 closed (commit c5fda33) — 02-02 next sequential
 
-Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-CONTEXT.md
+Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-02-PLAN.md
 
 ## Performance Metrics
 
@@ -127,3 +135,4 @@ Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extensio
 | 1 | 01-01 | ~12 min | 6 (4 active, 2 deferred) | 5 created, 71 deleted | 2026-05-16 |
 | 1 | 01-02 | ~14 min | 9 (7 active, 1 skipped, 1 smoke-only) | 5 created, 2 modified | 2026-05-16 |
 | 1 | 01-03 | ~18 min | 8 (7 active, 1 smoke-only) | 6 created, 0 modified | 2026-05-16 |
+| 2 | 02-01 | ~12 min | 6 tasks (all active) | 14 created, 4 modified | 2026-05-17 |

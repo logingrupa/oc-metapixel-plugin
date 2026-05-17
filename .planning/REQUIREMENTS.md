@@ -26,9 +26,9 @@
 
 ### Adapter system core (Phase 2 — contracts + registry + extension hooks)
 
-- [ ] **ADAP-01**: `Classes\Adapter\EventSubjectAdapter` interface defines: `getSubjectType(object $obSubject): string` (opaque alias, NOT class FQN — e.g. `'shopaholic.order'`), `getSubjectId(object $obSubject): int`, `getSiteId(object $obSubject): ?int` (MUST read from subject, never request context), `getSecretKey(object $obSubject): ?string`, `getValueResolver(object $obSubject): ValueResolver`, `getUserData(object $obSubject): array<string, ?string>`, `getSupportedEvents(): array<string, list<string>>`. Class-level PHPDoc documents the cross-context-determinism contract.
-- [ ] **ADAP-02**: `Classes\Adapter\ValueResolver` interface defines: `resolveContentIds(object $obSubject): list<string>`, `resolveValue(object $obSubject): float`, `resolveCurrency(object $obSubject): string`, `resolveContents(object $obSubject): list<array{id: string, quantity: int, item_price: float}>`, `resolveNumItems(object $obSubject): int`.
-- [ ] **ADAP-03**: `Classes\Adapter\AdapterRegistry` service-container singleton (`App::singleton(AdapterRegistry::class, ...)`). Methods: `register(string $sSubjectClass, string $sAdapterClass): void` (throws `InvalidArgumentException` if adapter class doesn't implement `EventSubjectAdapter`), `resolveFor(object $obSubject): ?EventSubjectAdapter` (lazy `App::make`, walks class hierarchy via `is_a()`, returns null on miss), `resolveByClass(string $sAdapterClass): EventSubjectAdapter` (for queue rehydrate).
+- [x] **ADAP-01**: `Classes\Adapter\EventSubjectAdapter` interface defines: `getSubjectType(object $obSubject): string` (opaque alias, NOT class FQN — e.g. `'shopaholic.order'`), `getSubjectId(object $obSubject): int`, `getSiteId(object $obSubject): ?int` (MUST read from subject, never request context), `getSecretKey(object $obSubject): ?string`, `getValueResolver(object $obSubject): ValueResolver`, `getUserData(object $obSubject): array<string, ?string>`, `getSupportedEvents(): array<string, list<string>>`. Class-level PHPDoc documents the cross-context-determinism contract.
+- [x] **ADAP-02**: `Classes\Adapter\ValueResolver` interface defines: `resolveContentIds(object $obSubject): list<string>`, `resolveValue(object $obSubject): float`, `resolveCurrency(object $obSubject): string`, `resolveContents(object $obSubject): list<array{id: string, quantity: int, item_price: float}>`, `resolveNumItems(object $obSubject): int`.
+- [x] **ADAP-03**: `Classes\Adapter\AdapterRegistry` service-container singleton (`App::singleton(AdapterRegistry::class, ...)`). Methods: `register(string $sSubjectClass, string $sAdapterClass): void` (throws `InvalidArgumentException` if adapter class doesn't implement `EventSubjectAdapter`), `resolveFor(object $obSubject): ?EventSubjectAdapter` (lazy `App::make`, walks class hierarchy via `is_a()`, returns null on miss), `resolveByClass(string $sAdapterClass): EventSubjectAdapter` (for queue rehydrate).
 - [ ] **ADAP-04**: 3 `Event::fire` extension points wired at decision boundaries with documented payload contracts:
   - `metapixel.event.before_dispatch` — `[$sEventName, &$arPayload, $obSubject]` (return false halts dispatch)
   - `metapixel.event.after_dispatch` — `[$sEventName, $arPayload, $obSubject, $arResponse]`
@@ -192,9 +192,9 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | TOOL-09 | Phase 1 | Complete (01-03) |
 | TOOL-10 | Phase 1 | Complete (01-02) |
 | TOOL-11 | Phase 1 | Complete (01-02) |
-| ADAP-01 | Phase 2 | Pending |
-| ADAP-02 | Phase 2 | Pending |
-| ADAP-03 | Phase 2 | Pending |
+| ADAP-01 | Phase 2 | Complete |
+| ADAP-02 | Phase 2 | Complete |
+| ADAP-03 | Phase 2 | Complete |
 | ADAP-04 | Phase 2 | Pending |
 | ADAP-05 | Phase 2 | Pending |
 | ADAP-06 | Phase 2 | Pending |
