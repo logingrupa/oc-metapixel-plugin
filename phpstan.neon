@@ -8,6 +8,7 @@ parameters:
 
     paths:
         - Plugin.php
+        - classes
 
     excludePaths:
         - tests (?)

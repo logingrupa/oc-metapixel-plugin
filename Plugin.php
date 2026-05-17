@@ -2,13 +2,15 @@
 
 namespace Logingrupa\Metapixel;
 
+use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use System\Classes\PluginBase;
 
 /**
- * Meta Pixel + Conversions API tracking plugin — v2.0 scaffold.
+ * Meta Pixel + Conversions API tracking plugin.
  *
- * Phase 1 ships an empty boot/register. Adapter registry, event hooks,
- * and Settings registration land in subsequent phases.
+ * register() binds the AdapterRegistry as a service-container singleton.
+ * Third parties register their own adapters from their plugin's boot() via
+ * AdapterRegistry::register($sSubjectClass, $sAdapterClass).
  */
 class Plugin extends PluginBase
 {
@@ -29,7 +31,10 @@ class Plugin extends PluginBase
         ];
     }
 
-    public function register(): void {}
+    public function register(): void
+    {
+        $this->app->singleton(AdapterRegistry::class);
+    }
 
     public function boot(): void {}
 }
