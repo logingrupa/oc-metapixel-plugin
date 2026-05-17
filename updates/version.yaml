@@ -1,0 +1,4 @@
+1.0.0:
+    - Initial release.
+    - create_metapixel_event_log_table.php
+    - create_metapixel_failed_events_table.php
