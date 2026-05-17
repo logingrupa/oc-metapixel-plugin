@@ -10,9 +10,10 @@
         }
     ],
     "require": {
-        "php": "^8.3 || ^8.4",
+        "guzzlehttp/guzzle": "^7.8",
+        "lovata/toolbox-plugin": "^2.2",
         "october/system": "^4.0",
-        "lovata/toolbox-plugin": "^2.2"
+        "php": "^8.3 || ^8.4"
     },
     "suggest": {
         "lovata/shopaholic-plugin": "Use ShopaholicAdapter to track Lovata Shopaholic Orders",
