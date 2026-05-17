@@ -21,6 +21,7 @@
     <source>
         <include>
             <file>./Plugin.php</file>
+            <directory>./classes</directory>
         </include>
     </source>
     <php>

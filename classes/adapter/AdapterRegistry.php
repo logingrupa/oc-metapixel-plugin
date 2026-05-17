@@ -28,7 +28,7 @@ use InvalidArgumentException;
  */
 final class AdapterRegistry
 {
-    /** @var array<class-string, class-string<EventSubjectAdapter>> */
+    /** @var array<string, class-string<EventSubjectAdapter>> */
     private array $arAdapterMap = [];
 
     /**

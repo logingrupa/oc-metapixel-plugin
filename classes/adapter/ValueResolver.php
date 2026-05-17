@@ -20,15 +20,11 @@ interface ValueResolver
 
     /**
      * Monetary value of the event in the resolver's currency.
-     *
-     * @return float
      */
     public function resolveValue(object $obSubject): float;
 
     /**
      * ISO-4217 currency code (EUR, USD, NOK, …).
-     *
-     * @return string
      */
     public function resolveCurrency(object $obSubject): string;
 
@@ -41,8 +37,6 @@ interface ValueResolver
 
     /**
      * Total number of items in the event.
-     *
-     * @return int
      */
     public function resolveNumItems(object $obSubject): int;
 }

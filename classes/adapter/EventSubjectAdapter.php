@@ -16,16 +16,12 @@ interface EventSubjectAdapter
      * alias such as 'shopaholic.order' — MUST NOT contain backslashes; MUST
      * NOT be a class FQN. Aliases let the EventLog stay stable across class
      * renames + multi-vendor installs.
-     *
-     * @return string
      */
     public function getSubjectType(object $obSubject): string;
 
     /**
      * Numeric subject identifier (e.g. order id, synthetic theme-action id).
      * MUST be a positive int — EventLogWriter rejects values <= 0.
-     *
-     * @return int
      */
     public function getSubjectId(object $obSubject): int;
 
@@ -35,8 +31,6 @@ interface EventSubjectAdapter
      * SiteManager site, or Auth state — cross-context determinism is the
      * invariant. PHPStan disallowed-calls bans SiteManager / Request inside
      * adapter directories to enforce.
-     *
-     * @return int|null
      */
     public function getSiteId(object $obSubject): ?int;
 
@@ -44,16 +38,12 @@ interface EventSubjectAdapter
      * Per-subject secret token (Order.secret_key, session token, etc.) used
      * to derive anonymous external_id when the subject has no logged-in user.
      * Return null when no token is available.
-     *
-     * @return string|null
      */
     public function getSecretKey(object $obSubject): ?string;
 
     /**
      * Per-subject ValueResolver. Each adapter chooses how content_ids / value
      * / currency / contents / num_items are computed for its subject.
-     *
-     * @return ValueResolver
      */
     public function getValueResolver(object $obSubject): ValueResolver;
 
