@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Plan 02-02 closed (commits 791fe7b, b12b2aa, bb9295a) — 02-03a next (Wave 2 sequential predecessor)
-last_updated: "2026-05-17T21:24:00.000Z"
-last_activity: 2026-05-17 — Plan 02-02 closed (P-01 PHPStan enforcement + Contract testsuite + P-13 doc)
+stopped_at: Plan 02-03a closed (commits 77586a8, 22adbfb, 715d354, f7ef32c, bd2c5c2) — 02-03b next (sequential on master)
+last_updated: "2026-05-17T21:35:42.000Z"
+last_activity: 2026-05-17 — Plan 02-03a closed (storage layer — migrations + EventLog/FailedEvent models)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 5
-  percent: 45
+  completed_plans: 6
+  percent: 55
 ---
 
 # Project State
@@ -27,19 +27,19 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Plans: 02-01..02-07 (with 02-03a + 02-03b split) — RESEARCH.md + 8 PLAN files + 2 PLAN-CHECK reports committed
-Status: 02-02 CLOSED — phpstan disallowedMethodCalls bans SiteManager + Site facade + Request in lowercase classes/queue, classes/event, classes/adapter dirs (H-1 disallowIn deny-list); phpunit Contract testsuite + ./models coverage staged; CLAUDE.md ranks hooks 1-6 with Component::extend = LAST RESORT (P-13). composer qa smoke green (host vendor; 14/14 tests / 100% coverage on Plugin + 3 adapter classes). 02-03a next (Wave 2 sequential predecessor).
-Last activity: 2026-05-17 — Plan 02-02 closed (commits 791fe7b, b12b2aa, bb9295a)
+Status: 02-03a CLOSED — storage backbone live. Two migrations (event_log UNIQUE race-fence + failed_events UNIQUE on (event_id, http_status) with H-2 subject_type/subject_id columns); two append-only models (EventLog no-MorphTo per P-05, FailedEvent payload cast to array); phpstan paths extend to ./models; 4 feature tests / 18 cases / 54 assertions. composer qa green (32 tests / 80 assertions / 100% coverage on 6 in-scope files). H-5 spike resolved via PascalCase migration filenames (NOT classmap dump). 02-03b next (sequential on master).
+Last activity: 2026-05-17 — Plan 02-03a closed (commits 77586a8, 22adbfb, 715d354, f7ef32c, bd2c5c2)
 
-**Next action:** Plan 02-03a (storage layer — migrations + EventLog + FailedEvent models + Settings + PluginGuard) executes next. Plans 02-03b, 02-04, 02-05, 02-06, 02-07 still blocked transitively on 02-03a (Wave 2 → Wave 3 chain).
+**Next action:** Plan 02-03b (Settings + PluginGuard + exception hierarchy + lang files + Plugin::registerSettings) executes next on master. Plans 02-04, 02-05, 02-06, 02-07 unblock when both 02-03a and 02-03b commit.
 
 ## Roadmap Snapshot
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 1 | Tooling + composer + namespace rename + CI matrix | TOOL-01..11 (11) | Executed (3/3 plans) — pending verification |
-| 2 | Adapter system core | ADAP-01..11 (11) | Executing (2/8 plans — ADAP-01/02/03 closed; 02-02 P-01 static enforcement live) |
+| 2 | Adapter system core | ADAP-01..11 (11) | Executing (3/8 plans — ADAP-01/02/03 closed; 02-02 P-01 static enforcement live; 02-03a storage backbone live) |
 | 3 | ShopaholicAdapter + ThemeActionAdapter | SHOP-01..05 + THEM-01..07 (12) | Not started |
 | 4 | Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations | MULT-01..06 + HOST-01..06 + COOK-01..03 + FAIL-01..03 + LANG-01 (19) | Not started |
 | 5 | Documentation + marketplace launch | DOCS-01..03 + MKT-01..05 (8) | Not started |
@@ -97,6 +97,8 @@ Closed 2026-05-15. Partial close — Phase 4 + 5 dropped on architecture pivot. 
 - **Site facade FQN verified as `October\Rain\Support\Facades\Site`** (NOT `October\Rain\Cms\Site` as RESEARCH §5.1 assumed — that namespace does not exist in this October build; `vendor/october/rain/src/` contains no `Cms/` subdir). **SiteManager FQN verified as `System\Classes\SiteManager`** (at `modules/system/classes/SiteManager.php` line 18). `phpstan.neon` bans both FQNs (belt-and-suspenders) + `Illuminate\Http\Request::*` + global `request()` helper, all four via H-1 `disallowIn` deny-list scoped to lowercase `classes/queue/*`, `classes/event/*`, `classes/adapter/*`. P-01 cross-context-resolution-drift is now statically enforced. Owned by Phase 2 plan 02-02.
 - **PHPStan disallowed-calls uses H-1 `disallowIn` deny-list (NOT `allowIn` allow-list).** Outside the three adapter/queue/event dirs the banned calls are PERMITTED — middleware/, controllers/, components/ legitimately read Request; `classes/helper/` + `classes/meta/` MAY call SiteManager but `SiteResolver` itself MUST NOT (enforced by Plan 02-04 Task 3's static-source regex grep test on `SiteResolver.php`, not by phpstan rule — defence-in-depth). Owned by Phase 2 plan 02-02.
 - **Plugin `CLAUDE.md` "Extensibility contract" ranks third-party hooks 1–6 in order of preference** (P-13 convention lock). Event::fire hooks rank 2–4; `Component::extend` + `addDynamicMethod` rank 6 as LAST RESORT with mandatory `onMetapixel*` dynamic-method prefix to avoid third-party collisions. `metapixel.event.before_dispatch` listeners MUST NOT mutate `event_id` or `event_time` (dedup contract anchor — Meta dedupes server-pixel on `event_id` match within ±10s of `event_time`). Owned by Phase 2 plan 02-02.
+- **Migration file naming convention: PascalCase basenames matching class FQN** (H-5 spike resolution). Plugin cannot run standalone `composer install` (private October packages not on a public registry) → autoload-dev classmap declared in `composer.json` never registers. October Rain ClassLoader's `loadUpperOrLower` resolves `Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable` via the `upperClass` branch (lowercase folder + PascalCase basename). October's `Updater::resolve` `require`s files by path from `version.yaml` — runtime migration path does not need autoload. Lovata snake_case migration convention is reserved for files that do not need FQN resolution from tests/phpstan. Owned by Phase 2 plan 02-03a. **Going forward, all plugin code that must be FQN-loadable from tests uses PascalCase basenames matching the class name.**
+- **Storage backbone shape locked**: `logingrupa_metapixel_event_log` (UNIQUE on subject_type/subject_id/event_name/channel/site_id — race-fence anchor) + `logingrupa_metapixel_failed_events` (UNIQUE on event_id/http_status; nullable subject_type+subject_id columns enable H-2 admin UI re-resolution). EventLog model has NO `subject()` MorphTo — subject_type is opaque alias (P-05 anchor enforced by `assertFalse(method_exists(EventLog::class, 'subject'))` in T25). FailedEvent.payload cast to array. Owned by Phase 2 plan 02-03a.
 
 ### Pitfall ownership (each CRITICAL/HIGH pitfall mapped to a phase)
 
@@ -113,7 +115,7 @@ Anchored CRITICALs:
 ### Pending Todos
 
 - `/gsd-verify-phase 01` to verify Phase 1 execution outcomes (3 plans / 11 TOOL-* requirements).
-- Phase 2 PHPStan `paths` reopen: when models/, components/ land, append each to phpstan.neon paths list (Plan 02-01 added `classes` already).
+- Phase 2 PHPStan `paths` reopen: when components/ lands, append to phpstan.neon paths list (Plan 02-01 added `classes`, Plan 02-03a added `models`).
 - Phase 2+ phpunit.xml `<source><include>` reopen: when components/, middleware/, controllers/, console/ land, add each as `<directory>` entry alongside existing `Plugin.php` + `./classes` + `./models` (Plan 02-01 added `./classes`; Plan 02-02 added `./models`).
 - Phase 3 SHOP-* adds `<testsuite name="Metapixel Adapter Tests">` block to phpunit.xml when tests/Unit/Adapter/Shopaholic + tests/Feature/Adapter/Shopaholic land (Run B's --exclude-testsuite='Metapixel Adapter Tests' becomes a real exclude then; currently a no-op).
 - Phase 2 ADAP-03 wires AdapterRegistry::flush() call into MetapixelTestCase::flushModelEventListeners() (currently absent — Phase 1 plan 01-03 intentionally did not add a placeholder comment).
@@ -125,11 +127,11 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-05-17T21:24:00.000Z
+Last session: 2026-05-17T21:35:42.000Z
 
-Stopped at: Plan 02-02 closed (commits 791fe7b, b12b2aa, bb9295a); 02-03a next
+Stopped at: Plan 02-03a closed (commits 77586a8, 22adbfb, 715d354, f7ef32c, bd2c5c2); 02-03b next (sequential on master)
 
-Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-03a-PLAN.md
+Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-03b-PLAN.md
 
 ## Performance Metrics
 
@@ -140,3 +142,4 @@ Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extensio
 | 1 | 01-03 | ~18 min | 8 (7 active, 1 smoke-only) | 6 created, 0 modified | 2026-05-16 |
 | 2 | 02-01 | ~12 min | 6 tasks (all active) | 14 created, 4 modified | 2026-05-17 |
 | 2 | 02-02 | ~4 min | 5 tasks (all active; T1 spike + T5 QA-gate non-committing) | 1 created, 3 modified | 2026-05-17 |
+| 2 | 02-03a | ~7 min | 5 tasks (4 active + 1 H-5 rename fix; T5 QA-gate non-committing) | 9 created, 2 modified | 2026-05-17 |
