@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Plan 02-04 closed (commits fdc7270, b7bf06d, 3ec6575, 8098d1f, e7a9eb1) — Wave 3 SiteResolver + EventLogWriter shipped; plan 02-05 next sequentially on master
-last_updated: "2026-05-17T22:05:11.872Z"
-last_activity: 2026-05-17 — Plan 02-04 closed (SiteResolver + EventLogWriter shipped; ADAP-06 closed)
+stopped_at: Plan 02-05 closed (commits e007f65, 3a27670, 6851faa, 4c7be9b, eb7682e, 64bc9fa, 5c4f664, 3b4e886, 7f7185a) — Wave 3 MetaClient + PayloadBuilder + UserDataHasher shipped; ADAP-07/08/09 closed; plan 02-06 next sequentially on master
+last_updated: "2026-05-17T22:23:59.544Z"
+last_activity: 2026-05-17 — Plan 02-05 closed (MetaClient + PayloadBuilder + UserDataHasher shipped; ADAP-07/08/09 closed)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
-  percent: 73
+  completed_plans: 10
+  percent: 82
 ---
 
 # Project State
@@ -27,19 +27,19 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Plans: 02-01..02-07 (with 02-03a + 02-03b split) — RESEARCH.md + 8 PLAN files + 2 PLAN-CHECK reports committed
-Status: 02-04 CLOSED — SiteResolver (sole authoritative site_id source) + EventLogWriter (UNIQUE race-fence writer; AdapterRegistry-resolved opaque subject_type — P-05 anchor at persistence; outer try/catch fail-safe). 10 new tests (3 SiteResolverTest + 7 EventLogWriterRaceFenceTest) cover everything at 100%. composer qa green (host vendor) — 56 tests / 134 assertions / 100.0% coverage on 15 in-scope production files. ADAP-06 closed.
-Last activity: 2026-05-17 — Plan 02-04 closed (commits fdc7270, b7bf06d, 3ec6575, 8098d1f, e7a9eb1)
+Status: 02-05 CLOSED — MetaClient (Graph API v23.0 pinned + per-call credentials + 4 exception classification branches + access_token in body not URL) + PayloadBuilder (subject-agnostic + event-name-agnostic; H-9 grep gate locks zero event-name comparisons) + UserDataHasher (stateless per M-4; 9 hashable + 4 passthrough fields; null/empty → null) + SpyMetaClient test double (deferred from plan 02-01 Task 4). 23 new tests under tests/Unit/Meta/ at 100% coverage. composer qa green — 80 tests / 192 assertions / 100.0% coverage on 18 in-scope production files. ADAP-07 + ADAP-08 + ADAP-09 closed.
+Last activity: 2026-05-17 — Plan 02-05 closed (commits e007f65, 3a27670, 6851faa, 4c7be9b, eb7682e, 64bc9fa, 5c4f664, 3b4e886, 7f7185a)
 
-**Next action:** Plan 02-05 (MetaClient + PayloadBuilder + UserDataHasher) sequential next on master. Plan 02-06 + 02-07 follow.
+**Next action:** Plan 02-06 (SendCapiEvent + ModelHandlers + Event::fire hooks) sequential next on master. Plan 02-07 follows.
 
 ## Roadmap Snapshot
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 1 | Tooling + composer + namespace rename + CI matrix | TOOL-01..11 (11) | Executed (3/3 plans) — pending verification |
-| 2 | Adapter system core | ADAP-01..11 (11) | Executing (5/8 plans — ADAP-01/02/03/06 closed; 02-02 P-01 static enforcement live; 02-03a storage backbone live; 02-03b Settings + PluginGuard + exception hierarchy live; 02-04 SiteResolver + EventLogWriter live) |
+| 2 | Adapter system core | ADAP-01..11 (11) | Executing (6/8 plans — ADAP-01/02/03/06/07/08/09 closed; 02-02 P-01 static enforcement live; 02-03a storage backbone live; 02-03b Settings + PluginGuard + exception hierarchy live; 02-04 SiteResolver + EventLogWriter live; 02-05 MetaClient + PayloadBuilder + UserDataHasher live) |
 | 3 | ShopaholicAdapter + ThemeActionAdapter | SHOP-01..05 + THEM-01..07 (12) | Not started |
 | 4 | Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations | MULT-01..06 + HOST-01..06 + COOK-01..03 + FAIL-01..03 + LANG-01 (19) | Not started |
 | 5 | Documentation + marketplace launch | DOCS-01..03 + MKT-01..05 (8) | Not started |
@@ -109,6 +109,12 @@ Closed 2026-05-15. Partial close — Phase 4 + 5 dropped on architecture pivot. 
 - **SiteResolver shape locked.** `final class SiteResolver` under `classes/helper/` exposes one public static method `forSubject(object $obSubject, EventSubjectAdapter $obAdapter): ?int` with body `return $obAdapter->getSiteId($obSubject);` — one line, no defensive guards beyond type hints. PHPDoc documents cross-context determinism in prose with lowercased "site manager" / "request" wording so the T6 static-source regex defence test (`assertDoesNotMatchRegularExpression('/\bSiteManager\b/', $sSource)`) finds zero matches. Three layers of guard: (1) phpstan disallowed-calls on classes/{queue,event,adapter}/ (plan 02-02); (2) T6 static-source regex on SiteResolver.php source (plan 02-04); (3) the one-line delegating body itself. SiteResolver lives OUTSIDE the phpstan deny-list scope by design — defence-in-depth via the test, not via phpstan. Owned by Phase 2 plan 02-04.
 - **EventLogWriter shape locked.** `final class EventLogWriter` under `classes/helper/` exposes one public static method `record(string $sEventId, string $sEventName, string $sChannel, object $obSubject, ?string $sSecretKey, int $iEventTime, ?int $iSiteId): bool`. Resolves adapter via `App::make(AdapterRegistry::class)->resolveFor($obSubject)` — null adapter → Log::warning + false; reads opaque `subject_type` via `$obAdapter->getSubjectType($obSubject)` (P-05 anchor); rejects `getSubjectId() <= 0` → Log::warning + false; calls `DB::table('logingrupa_metapixel_event_log')->insertOrIgnore([...])` → returns `$iAffected === 1`; outer try/catch swallows any Throwable to Log::critical + false (fail-safe — peer-wins assumption). Two `get_class($obSubject)` calls live in Log diagnostic arrays only (never as subject_type writes). L-4 lock: Log/App/DB imported via `Illuminate\Support\Facades\` FQN. Owned by Phase 2 plan 02-04.
 - **NULL-distinct UNIQUE semantics on race-fence — write-site implication.** SQLite-in-memory + MySQL InnoDB both treat multiple NULL values in a UNIQUE column as DISTINCT. The race-fence anchor test in EventLogWriterRaceFenceTest MUST use non-null site_id to actually exercise the constraint; a dedicated NULL-distinct test (case 3) verifies the null-twin path. Plan 02-06 (SendCapiEvent) MUST resolve site_id via SiteResolver::forSubject BEFORE calling EventLogWriter::record — passing site_id=null when a real site exists silently disables the race-fence for sibling NULL inserts. Owned by Phase 2 plan 02-04; consumed by plan 02-06.
+- **MetaClient shape locked.** `final class MetaClient` under `classes/meta/` exposes one public method `sendForPixel(string $sPixelId, string $sToken, array $arPayload): array`. Public const `META_GRAPH_API_VERSION = 'v23.0'` (D-18 — v20 expires 2026-09-24, no operator override). Private const `TRANSIENT_STATUS_CODES = [408, 429, 500, 502, 503, 504]`. Constructor accepts optional `?ClientInterface` for test injection. Empty pixel_id → `MissingPixelConfigException`; empty token → `MissingCapiTokenException`; ConnectException → `MetaApiTransientException` with original as previous + null http_status; 2xx → decoded body; 408/429/5xx → `MetaApiTransientException` with status; 4xx (other) → `MetaApiPermanentException` with status. URL `{base}/v23.0/{pixel}/events`; `access_token` merged INTO POST body JSON (NEVER URL — T-02-05-04 webserver-log leak mitigation). `http_errors => false` so we classify ourselves. Private `decodeBody(string): array<string, mixed>` helper resolves phpstan level 10 return.type narrowing on json_decode's mixed return without `@phpstan-ignore`. Owned by Phase 2 plan 02-05.
+- **PayloadBuilder shape locked.** `final class PayloadBuilder` under `classes/meta/` exposes one public method `buildEventPayload(string $sEventName, EventSubjectAdapter, object, ValueResolver, string $sEventId, int $iEventTime, array $arEventExtras): array`. Constructor-injects `UserDataHasher` via readonly promoted property. Private const `ACTION_SOURCE = 'website'`. Body has zero event-name comparisons of any form — H-9 grep gate `! grep -E '\$sEventName\s*(===|!==|==)|switch\s*\(\s*\$sEventName|match\s*\(\s*\$sEventName|in_array\s*\(\s*\$sEventName' classes/meta/PayloadBuilder.php` exits 0. Merge order: ValueResolver-derived custom_data first, then `$arEventExtras` overlay via array_merge — adapter can override `content_type` / `currency` for non-ecommerce events (ViewContent on CMS article → `content_type='article'`). Future events (AddToCart, Lead, ViewContent) ship by authoring a new adapter, NEVER by editing the builder. Owned by Phase 2 plan 02-05.
+- **UserDataHasher shape locked (M-4: stateless).** `final class UserDataHasher` under `classes/meta/` exposes one public method `forSubject(EventSubjectAdapter, object): array<string, ?string>`. Private const `HASHABLE_FIELDS = ['em', 'ph', 'fn', 'ln', 'ct', 'st', 'zp', 'country', 'external_id']` (9) + `PASSTHROUGH_FIELDS = ['fbp', 'fbc', 'client_ip_address', 'client_user_agent']` (4) = 13 returned keys. Hashable: `hash('sha256', strtolower(trim($sValue)))`; passthrough: as-is. Null/empty → null (NEVER `hash('sha256', '')` which would collide across unrelated senders). **M-4 lock: stateless — no `$arMemo` property, no `reset()` method, no memo tests.** Phase 3 ThemeEventCollector adds memo when a real cross-event repeat surfaces. ~45 LOC after memo removal. Owned by Phase 2 plan 02-05.
+- **PHPUnit 12 #[DataProvider(...)] attribute replaces @dataProvider annotation.** PHPUnit 12 dropped annotation discovery; legacy `@dataProvider` annotations on test methods now fail with `ArgumentCountError: Too few arguments to function …, 0 passed`. Pattern: declare `public static function provideXxx(): array` + decorate test method with `#[DataProvider('provideXxx')]` attribute + `use PHPUnit\Framework\Attributes\DataProvider;`. Applied in MetaClientTest's 2 dataProvider methods (transient + permanent status codes). Pattern carries forward for any future test file using dataProviders. Owned by Phase 2 plan 02-05.
+- **`@phpstan-ignore` is banned project-wide (CLAUDE.md).** When phpstan level 10 narrowing fails on `json_decode` mixed-return or similar, extract a private helper that walks the decoded shape with explicit type assertions. Example: `MetaClient::decodeBody(string): array<string, mixed>` uses `foreach + (string) $mKey` cast to satisfy the return.type identifier. Same pattern as `Settings::lookupForSite`'s `$mValue = Settings::get(...); is_string($mValue) ? $mValue : ''` runtime guard. Owned by Phase 2 plans 02-03b + 02-05.
+- **guzzlehttp/guzzle in plugin composer require (H-4 marketplace contract).** Plugin `composer.json` `require:` declares `"guzzlehttp/guzzle": "^7.8"`. H-4 lock: do NOT run `composer update` from plugin dir — plugin packages don't carry composer.lock. Operator runs `composer update logingrupa/oc-metapixel-plugin --with-dependencies --no-interaction` from project root to refresh the project lockfile. In this repo Guzzle is already a transitive Laravel/October dep; the explicit require pins it for the marketplace standalone-install case. Owned by Phase 2 plan 02-05.
 
 ### Pitfall ownership (each CRITICAL/HIGH pitfall mapped to a phase)
 
@@ -125,8 +131,8 @@ Anchored CRITICALs:
 ### Pending Todos
 
 - `/gsd-verify-phase 01` to verify Phase 1 execution outcomes (3 plans / 11 TOOL-* requirements).
-- Phase 2 PHPStan `paths` reopen: when components/ lands, append to phpstan.neon paths list (Plan 02-01 added `classes`, Plan 02-03a added `models`).
-- Phase 2+ phpunit.xml `<source><include>` reopen: when components/, middleware/, controllers/, console/ land, add each as `<directory>` entry alongside existing `Plugin.php` + `./classes` + `./models` (Plan 02-01 added `./classes`; Plan 02-02 added `./models`).
+- Phase 2 PHPStan `paths` reopen: when components/ lands, append to phpstan.neon paths list (Plan 02-01 added `classes`, Plan 02-03a added `models`; `classes/meta/` already in scope via the `classes` directory entry).
+- Phase 2+ phpunit.xml `<source><include>` reopen: when components/, middleware/, controllers/, console/ land, add each as `<directory>` entry alongside existing `Plugin.php` + `./classes` + `./models` (Plan 02-01 added `./classes`; Plan 02-02 added `./models`; `./classes/meta` covered by `./classes` recursive scan).
 - Phase 3 SHOP-* adds `<testsuite name="Metapixel Adapter Tests">` block to phpunit.xml when tests/Unit/Adapter/Shopaholic + tests/Feature/Adapter/Shopaholic land (Run B's --exclude-testsuite='Metapixel Adapter Tests' becomes a real exclude then; currently a no-op).
 - Phase 2 ADAP-03 wires AdapterRegistry::flush() call into MetapixelTestCase::flushModelEventListeners() (currently absent — Phase 1 plan 01-03 intentionally did not add a placeholder comment).
 - Phase 2 plans 02-02..02-07 MUST use lowercase folder paths (`classes/{adapter,helper,meta,queue,exception,testing}/`, `tests/{doubles,unit,feature,contract}/…`) for October Rain ClassLoader autoload — locked by 02-01 deviation 1. Namespaces stay PascalCase. Plan markdown files that show `classes/Adapter/`, `tests/Doubles/`, etc., should be treated as folder-name typos and shipped lowercase.
@@ -137,11 +143,11 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-05-17T22:05:11.854Z
+Last session: 2026-05-17T22:23:22.044Z
 
-Stopped at: Plan 02-04 closed (commits fdc7270, b7bf06d, 3ec6575, 8098d1f, e7a9eb1) — Wave 3 SiteResolver + EventLogWriter shipped; plan 02-05 next sequentially on master
+Stopped at: Plan 02-05 closed (commits e007f65, 3a27670, 6851faa, 4c7be9b, eb7682e, 64bc9fa, 5c4f664, 3b4e886, 7f7185a) — Wave 3 MetaClient + PayloadBuilder + UserDataHasher shipped; ADAP-07/08/09 closed; plan 02-06 next sequentially on master
 
-Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-05-PLAN.md
+Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-06-PLAN.md
 
 ## Performance Metrics
 
@@ -155,3 +161,4 @@ Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extensio
 | 2 | 02-03a | ~7 min | 5 tasks (4 active + 1 H-5 rename fix; T5 QA-gate non-committing) | 9 created, 2 modified | 2026-05-17 |
 | 2 | 02-03b | ~9 min | 5 tasks (4 feat/test + 1 QA-gate fix) | 12 created, 4 modified | 2026-05-17 |
 | 2 | 02-04 | ~6 min | 5 tasks (2 feat + 2 test + 1 QA-gate fix) | 4 created, 0 modified | 2026-05-17 |
+| 2 | 02-05 | ~11 min | 7 tasks (1 composer + 3 RED + 3 GREEN + 1 SpyMetaClient + 1 QA-gate fix; 9 commits total) | 7 created, 1 modified | 2026-05-17 |

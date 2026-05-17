@@ -36,9 +36,9 @@
   - (Five additional hooks — adapter.resolve, value.resolve, user_data.resolve, pixel.before_render, settings.lookup — deferred to v2.1 until real third-party use case surfaces.)
 - [ ] **ADAP-05**: Listener exceptions caught + `Log::warning` + continue (never propagate to dispatch).
 - [x] **ADAP-06**: `Classes\Helper\SiteResolver::forSubject(object $obSubject, EventSubjectAdapter $obAdapter): ?int` replaces `forOrder(Order)`. PHPStan disallowed-calls bans `SiteManager::*` / `request()` / `Request::*` inside `Classes\Queue\`, `Classes\Event\`, `Classes\Adapter\` directories — enforces cross-context determinism (P-01 prevention).
-- [ ] **ADAP-07**: `Classes\Meta\PayloadBuilder::buildEventPayload(string $sEventName, EventSubjectAdapter $obAdapter, object $obSubject, ValueResolver $obResolver, string $sEventId, int $iEventTime, array $arEventExtras): array` replaces `buildPurchaseEventPayload(Order, ...)`. All Order-specific logic moves to ShopaholicAdapter.
-- [ ] **ADAP-08**: `Classes\Meta\UserDataHasher::forSubject(EventSubjectAdapter $obAdapter, object $obSubject): array` replaces `forOrder(Order)`. Adapter provides raw fields; Hasher does only sha256 + per-request CCache.
-- [ ] **ADAP-09**: `Classes\Meta\MetaClient::sendForPixel(string $sPixelId, string $sToken, array $arPayload): array` replaces singleton-reading `send(array)`. Graph API version pinned to `v23.0` (constant `META_GRAPH_API_VERSION = 'v23.0'`, no operator override — v20 expires 2026-09-24).
+- [x] **ADAP-07**: `Classes\Meta\PayloadBuilder::buildEventPayload(string $sEventName, EventSubjectAdapter $obAdapter, object $obSubject, ValueResolver $obResolver, string $sEventId, int $iEventTime, array $arEventExtras): array` replaces `buildPurchaseEventPayload(Order, ...)`. All Order-specific logic moves to ShopaholicAdapter.
+- [x] **ADAP-08**: `Classes\Meta\UserDataHasher::forSubject(EventSubjectAdapter $obAdapter, object $obSubject): array` replaces `forOrder(Order)`. Adapter provides raw fields; Hasher does only sha256 + per-request CCache.
+- [x] **ADAP-09**: `Classes\Meta\MetaClient::sendForPixel(string $sPixelId, string $sToken, array $arPayload): array` replaces singleton-reading `send(array)`. Graph API version pinned to `v23.0` (constant `META_GRAPH_API_VERSION = 'v23.0'`, no operator override — v20 expires 2026-09-24).
 - [ ] **ADAP-10**: `Classes\Queue\SendCapiEvent` constructor adds `string $sAdapterClass` 4th arg. `handle()` resolves adapter via `AdapterRegistry::resolveByClass($sAdapterClass)`. `BindingResolutionException` boundary catch writes FailedEvent + log critical.
 - [ ] **ADAP-11**: All 177 v1.x tests adapt via `FakeAdapter` test double. `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest`, `SendCapiEventEventLogTest`, `MultiSiteEventLogTest` regreen.
 
@@ -198,9 +198,9 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | ADAP-04 | Phase 2 | Pending |
 | ADAP-05 | Phase 2 | Pending |
 | ADAP-06 | Phase 2 | Complete |
-| ADAP-07 | Phase 2 | Pending |
-| ADAP-08 | Phase 2 | Pending |
-| ADAP-09 | Phase 2 | Pending |
+| ADAP-07 | Phase 2 | Complete |
+| ADAP-08 | Phase 2 | Complete |
+| ADAP-09 | Phase 2 | Complete |
 | ADAP-10 | Phase 2 | Pending |
 | ADAP-11 | Phase 2 | Pending |
 | SHOP-01 | Phase 3 | Pending |
