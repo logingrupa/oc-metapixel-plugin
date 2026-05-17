@@ -29,17 +29,17 @@
 - [x] **ADAP-01**: `Classes\Adapter\EventSubjectAdapter` interface defines: `getSubjectType(object $obSubject): string` (opaque alias, NOT class FQN — e.g. `'shopaholic.order'`), `getSubjectId(object $obSubject): int`, `getSiteId(object $obSubject): ?int` (MUST read from subject, never request context), `getSecretKey(object $obSubject): ?string`, `getValueResolver(object $obSubject): ValueResolver`, `getUserData(object $obSubject): array<string, ?string>`, `getSupportedEvents(): array<string, list<string>>`. Class-level PHPDoc documents the cross-context-determinism contract.
 - [x] **ADAP-02**: `Classes\Adapter\ValueResolver` interface defines: `resolveContentIds(object $obSubject): list<string>`, `resolveValue(object $obSubject): float`, `resolveCurrency(object $obSubject): string`, `resolveContents(object $obSubject): list<array{id: string, quantity: int, item_price: float}>`, `resolveNumItems(object $obSubject): int`.
 - [x] **ADAP-03**: `Classes\Adapter\AdapterRegistry` service-container singleton (`App::singleton(AdapterRegistry::class, ...)`). Methods: `register(string $sSubjectClass, string $sAdapterClass): void` (throws `InvalidArgumentException` if adapter class doesn't implement `EventSubjectAdapter`), `resolveFor(object $obSubject): ?EventSubjectAdapter` (lazy `App::make`, walks class hierarchy via `is_a()`, returns null on miss), `resolveByClass(string $sAdapterClass): EventSubjectAdapter` (for queue rehydrate).
-- [ ] **ADAP-04**: 3 `Event::fire` extension points wired at decision boundaries with documented payload contracts:
+- [x] **ADAP-04**: 3 `Event::fire` extension points wired at decision boundaries with documented payload contracts:
   - `metapixel.event.before_dispatch` — `[$sEventName, &$arPayload, $obSubject]` (return false halts dispatch)
   - `metapixel.event.after_dispatch` — `[$sEventName, $arPayload, $obSubject, $arResponse]`
   - `metapixel.event.dead_letter` — `[$sEventName, $arPayload, $obSubject, $obException]`
   - (Five additional hooks — adapter.resolve, value.resolve, user_data.resolve, pixel.before_render, settings.lookup — deferred to v2.1 until real third-party use case surfaces.)
-- [ ] **ADAP-05**: Listener exceptions caught + `Log::warning` + continue (never propagate to dispatch).
+- [x] **ADAP-05**: Listener exceptions caught + `Log::warning` + continue (never propagate to dispatch).
 - [x] **ADAP-06**: `Classes\Helper\SiteResolver::forSubject(object $obSubject, EventSubjectAdapter $obAdapter): ?int` replaces `forOrder(Order)`. PHPStan disallowed-calls bans `SiteManager::*` / `request()` / `Request::*` inside `Classes\Queue\`, `Classes\Event\`, `Classes\Adapter\` directories — enforces cross-context determinism (P-01 prevention).
 - [x] **ADAP-07**: `Classes\Meta\PayloadBuilder::buildEventPayload(string $sEventName, EventSubjectAdapter $obAdapter, object $obSubject, ValueResolver $obResolver, string $sEventId, int $iEventTime, array $arEventExtras): array` replaces `buildPurchaseEventPayload(Order, ...)`. All Order-specific logic moves to ShopaholicAdapter.
 - [x] **ADAP-08**: `Classes\Meta\UserDataHasher::forSubject(EventSubjectAdapter $obAdapter, object $obSubject): array` replaces `forOrder(Order)`. Adapter provides raw fields; Hasher does only sha256 + per-request CCache.
 - [x] **ADAP-09**: `Classes\Meta\MetaClient::sendForPixel(string $sPixelId, string $sToken, array $arPayload): array` replaces singleton-reading `send(array)`. Graph API version pinned to `v23.0` (constant `META_GRAPH_API_VERSION = 'v23.0'`, no operator override — v20 expires 2026-09-24).
-- [ ] **ADAP-10**: `Classes\Queue\SendCapiEvent` constructor adds `string $sAdapterClass` 4th arg. `handle()` resolves adapter via `AdapterRegistry::resolveByClass($sAdapterClass)`. `BindingResolutionException` boundary catch writes FailedEvent + log critical.
+- [x] **ADAP-10**: `Classes\Queue\SendCapiEvent` constructor adds `string $sAdapterClass` 4th arg. `handle()` resolves adapter via `AdapterRegistry::resolveByClass($sAdapterClass)`. `BindingResolutionException` boundary catch writes FailedEvent + log critical.
 - [ ] **ADAP-11**: All 177 v1.x tests adapt via `FakeAdapter` test double. `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest`, `SendCapiEventEventLogTest`, `MultiSiteEventLogTest` regreen.
 
 ### ShopaholicAdapter (Phase 3 — fresh implementation, modern OctoberCMS patterns)
@@ -195,13 +195,13 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | ADAP-01 | Phase 2 | Complete |
 | ADAP-02 | Phase 2 | Complete |
 | ADAP-03 | Phase 2 | Complete |
-| ADAP-04 | Phase 2 | Pending |
-| ADAP-05 | Phase 2 | Pending |
+| ADAP-04 | Phase 2 | Complete |
+| ADAP-05 | Phase 2 | Complete |
 | ADAP-06 | Phase 2 | Complete |
 | ADAP-07 | Phase 2 | Complete |
 | ADAP-08 | Phase 2 | Complete |
 | ADAP-09 | Phase 2 | Complete |
-| ADAP-10 | Phase 2 | Pending |
+| ADAP-10 | Phase 2 | Complete |
 | ADAP-11 | Phase 2 | Pending |
 | SHOP-01 | Phase 3 | Pending |
 | SHOP-02 | Phase 3 | Pending |

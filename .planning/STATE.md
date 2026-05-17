@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Plan 02-05 closed (commits e007f65, 3a27670, 6851faa, 4c7be9b, eb7682e, 64bc9fa, 5c4f664, 3b4e886, 7f7185a) — Wave 3 MetaClient + PayloadBuilder + UserDataHasher shipped; ADAP-07/08/09 closed; plan 02-06 next sequentially on master
-last_updated: "2026-05-17T22:23:59.544Z"
-last_activity: 2026-05-17 — Plan 02-05 closed (MetaClient + PayloadBuilder + UserDataHasher shipped; ADAP-07/08/09 closed)
+stopped_at: "Plan 02-06 closed (commits 394f212, 6e6e81f, 956f8ed, e14cf1e, 604fd7e) — Wave 4 SendCapiEvent + 3 Event::fire hooks shipped; ADAP-04/05/10 closed; plan 02-07 next sequentially on master"
+last_updated: "2026-05-17T22:47:55.704Z"
+last_activity: 2026-05-17 — Plan 02-06 closed (SendCapiEvent + 3 Event::fire hooks shipped; ADAP-04/05/10 closed)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 10
-  percent: 82
+  completed_plans: 11
+  percent: 22
 ---
 
 # Project State
@@ -27,19 +27,19 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Plans: 02-01..02-07 (with 02-03a + 02-03b split) — RESEARCH.md + 8 PLAN files + 2 PLAN-CHECK reports committed
-Status: 02-05 CLOSED — MetaClient (Graph API v23.0 pinned + per-call credentials + 4 exception classification branches + access_token in body not URL) + PayloadBuilder (subject-agnostic + event-name-agnostic; H-9 grep gate locks zero event-name comparisons) + UserDataHasher (stateless per M-4; 9 hashable + 4 passthrough fields; null/empty → null) + SpyMetaClient test double (deferred from plan 02-01 Task 4). 23 new tests under tests/Unit/Meta/ at 100% coverage. composer qa green — 80 tests / 192 assertions / 100.0% coverage on 18 in-scope production files. ADAP-07 + ADAP-08 + ADAP-09 closed.
-Last activity: 2026-05-17 — Plan 02-05 closed (commits e007f65, 3a27670, 6851faa, 4c7be9b, eb7682e, 64bc9fa, 5c4f664, 3b4e886, 7f7185a)
+Status: 02-06 CLOSED — SendCapiEvent queue job (308 LOC final ShouldQueue with 4-arg constructor + 3 hook constants + handle/failed/5 private helpers) + 3 Event::fire hooks at decision boundaries (halt-able before_dispatch + observe-only after_dispatch + dead_letter) + listener-isolation try/catch envelopes on every fire site (D-16) + P-08 snapshot+restore on before_dispatch (T12 enforces) + H-2 writeFailedEvent(?EventSubjectAdapter) populates subject_type/id from adapter on every non-rehydrate-failure path + L-5 failed() retry-exhaustion handler resolves adapter via AdapterRegistry::resolveByClass + MetaClient final-drop fix (Rule 1 carry-over from 02-05 SpyMetaClient). 11 new test methods + 50 assertions under tests/Unit/Hook/ (4 files) + tests/Feature/Queue/ (7 files — 5 plan + 2 supplemental for branch coverage). composer qa green — 96 tests / 259 assertions / 99.3% total coverage / 98.3% on SendCapiEvent. ADAP-04 + ADAP-05 + ADAP-10 closed.
+Last activity: 2026-05-17 — Plan 02-06 closed (commits 394f212, 6e6e81f, 956f8ed, e14cf1e, 604fd7e)
 
-**Next action:** Plan 02-06 (SendCapiEvent + ModelHandlers + Event::fire hooks) sequential next on master. Plan 02-07 follows.
+**Next action:** Plan 02-07 (FakeAdapter + ContractTestCase + smoke test) — Wave 5 final plan of Phase 2. Will consume SendCapiEvent::dispatchSync for the contract round-trip + M-5 serialize round-trip smoke.
 
 ## Roadmap Snapshot
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 1 | Tooling + composer + namespace rename + CI matrix | TOOL-01..11 (11) | Executed (3/3 plans) — pending verification |
-| 2 | Adapter system core | ADAP-01..11 (11) | Executing (6/8 plans — ADAP-01/02/03/06/07/08/09 closed; 02-02 P-01 static enforcement live; 02-03a storage backbone live; 02-03b Settings + PluginGuard + exception hierarchy live; 02-04 SiteResolver + EventLogWriter live; 02-05 MetaClient + PayloadBuilder + UserDataHasher live) |
+| 2 | Adapter system core | ADAP-01..11 (11) | Executing (7/8 plans — ADAP-01/02/03/04/05/06/07/08/09/10 closed; 02-02 P-01 static enforcement live; 02-03a storage backbone live; 02-03b Settings + PluginGuard + exception hierarchy live; 02-04 SiteResolver + EventLogWriter live; 02-05 MetaClient + PayloadBuilder + UserDataHasher live; 02-06 SendCapiEvent + 3 Event::fire hooks live) |
 | 3 | ShopaholicAdapter + ThemeActionAdapter | SHOP-01..05 + THEM-01..07 (12) | Not started |
 | 4 | Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations | MULT-01..06 + HOST-01..06 + COOK-01..03 + FAIL-01..03 + LANG-01 (19) | Not started |
 | 5 | Documentation + marketplace launch | DOCS-01..03 + MKT-01..05 (8) | Not started |
@@ -115,6 +115,13 @@ Closed 2026-05-15. Partial close — Phase 4 + 5 dropped on architecture pivot. 
 - **PHPUnit 12 #[DataProvider(...)] attribute replaces @dataProvider annotation.** PHPUnit 12 dropped annotation discovery; legacy `@dataProvider` annotations on test methods now fail with `ArgumentCountError: Too few arguments to function …, 0 passed`. Pattern: declare `public static function provideXxx(): array` + decorate test method with `#[DataProvider('provideXxx')]` attribute + `use PHPUnit\Framework\Attributes\DataProvider;`. Applied in MetaClientTest's 2 dataProvider methods (transient + permanent status codes). Pattern carries forward for any future test file using dataProviders. Owned by Phase 2 plan 02-05.
 - **`@phpstan-ignore` is banned project-wide (CLAUDE.md).** When phpstan level 10 narrowing fails on `json_decode` mixed-return or similar, extract a private helper that walks the decoded shape with explicit type assertions. Example: `MetaClient::decodeBody(string): array<string, mixed>` uses `foreach + (string) $mKey` cast to satisfy the return.type identifier. Same pattern as `Settings::lookupForSite`'s `$mValue = Settings::get(...); is_string($mValue) ? $mValue : ''` runtime guard. Owned by Phase 2 plans 02-03b + 02-05.
 - **guzzlehttp/guzzle in plugin composer require (H-4 marketplace contract).** Plugin `composer.json` `require:` declares `"guzzlehttp/guzzle": "^7.8"`. H-4 lock: do NOT run `composer update` from plugin dir — plugin packages don't carry composer.lock. Operator runs `composer update logingrupa/oc-metapixel-plugin --with-dependencies --no-interaction` from project root to refresh the project lockfile. In this repo Guzzle is already a transitive Laravel/October dep; the explicit require pins it for the marketplace standalone-install case. Owned by Phase 2 plan 02-05.
+- **SendCapiEvent shape locked.** `final class SendCapiEvent implements ShouldQueue` under `classes/queue/` uses Dispatchable + InteractsWithQueue + Queueable + SerializesModels traits. 4-arg constructor `(string $sEventName, array $arPayload, object $obSubject, string $sAdapterClass)` per D-20. 3 hook constants `HOOK_BEFORE_DISPATCH`/`AFTER_DISPATCH`/`DEAD_LETTER`. `$tries=3`, `$backoff=[1,4,16]`. handle() orchestrates: AdapterRegistry::resolveByClass rehydrate (BindingResolutionException → writeFailedEvent(null adapter) + Log::critical + return) → fireBeforeDispatchHalt (halt-able with P-08 snapshot+restore) → SiteResolver::forSubject → EventLogWriter::record race-fence → Settings::lookupForSite → MetaClient::sendForPixel (transient rethrow / permanent dead-letter / happy after_dispatch). failed(Throwable) handler resolves adapter via AdapterRegistry::resolveByClass (L-5) + writes FailedEvent + fires dead_letter. writeFailedEvent accepts `?EventSubjectAdapter $obAdapter` and populates FailedEvent.subject_type + subject_id from it when non-null (H-2 — Phase 4 admin UI re-resolution). All 3 Event::fire fire sites wrapped in try/catch (Throwable → Log::warning + abstain/observed). L-4 FQN imports. PHPStan deny-list bans Site/SiteManager/Request inside classes/queue/* — SendCapiEvent has zero references. Private `firstEventRecord(): array<string, mixed>` narrows mixed[][0] access for level 10 — 3rd repo use of the helper-narrowing idiom (after Settings::lookupForSite runtime guard + MetaClient::decodeBody). Owned by Phase 2 plan 02-06.
+- **MetaClient `final` keyword dropped (Rule 1 carry-over fix from plan 02-05).** SpyMetaClient (shipped in 02-05 as deferred fixture) declared `class SpyMetaClient extends MetaClient` but on-disk MetaClient was `final` → cannot instantiate. The 02-05 tests never instantiated SpyMetaClient; the contradiction surfaced on the first plan 02-06 hook unit test run. Plan 02-06 also requires inline anonymous-class subclass of MetaClient in DeadLetterHookTest for the dead-letter branch. Dropped final. Production behavior unchanged; only extension surface opens. Owned by Phase 2 plan 02-06.
+- **Event::fire halt-only on before_dispatch (OQ-2 resolution).** `Event::fire($name, $payload, $halt=true)` third arg activates Laravel Dispatcher's halt-on-non-null-response semantics. Listener returning literal `false` vetoes; the dispatcher returns `false` (non-null), `=== false` strict-compare halts. Payload is by-reference (`&$arPayload`) ONLY on before_dispatch — the other 2 hooks pass by value. T11 + T19 verify the halt; T13 verifies that throwing listeners do NOT halt (separate code path from the halt-on-false semantics). PHPDoc on the class-level hook contracts block documents the asymmetry. Owned by Phase 2 plan 02-06.
+- **P-08 snapshot+restore for event_id / event_time.** Inside `fireBeforeDispatchHalt`, snapshot `$arPayload['data'][0]['event_id']` + `event_time` into local vars BEFORE firing the hook; restore from the snapshot AFTER the hook returns. A misbehaving listener that mutates either field cannot break the Meta dedup contract (Meta dedupes server-pixel on `event_id` match within ±10s of `event_time`). T12 BeforeDispatchPayloadMutationTest enforces both halves — custom_data mutation propagates AS INTENDED; event_id mutation REVERTS to the snapshot. Owned by Phase 2 plan 02-06.
+- **writeFailedEvent ?EventSubjectAdapter contract (H-2 resolution).** Helper signature `writeFailedEvent(Throwable $obException, ?int $iHttpStatus, ?EventSubjectAdapter $obAdapter): void`. When `$obAdapter` is non-null, populates `subject_type` + `subject_id` from `getSubjectType` + `getSubjectId`. Only the BindingResolutionException early-return path passes null (legitimate — adapter does not exist; re-resolution is impossible). Phase 4 admin UI (FAIL-01..03) re-resolution depends on subject_type + subject_id being populated on every other failure path. T18 verifies the null path (legitimate); T21 + T14 verify the populated path. Owned by Phase 2 plan 02-06.
+- **L-5 failed() retry-exhaustion adapter-resolve.** `failed(Throwable)` resolves adapter via `app(AdapterRegistry::class)->resolveByClass($this->sAdapterClass)` the same way handle() does, then writes FailedEvent + fires dead_letter. Inner try/catch swallows resolution failure (worker reload scenario) so the FailedEvent can still be written with null subject_type/id (same fail-safe as handle()'s BindingResolutionException). Keeps failed_events row state consistent across handle / failed paths. SendCapiEventFailedHandlerTest 2 cases (adapter-resolve + unresolvable-fallback) enforce. Owned by Phase 2 plan 02-06.
+- **Listener-isolation try/catch envelope around every Event::fire (D-16 + ADAP-05).** Every Event::fire site is wrapped in try/catch — Throwable → Log::warning + continue (treat as abstain on before_dispatch; observed on after_dispatch + dead_letter). Listener exceptions never propagate to dispatch. T13 + SendCapiEventBranchCoverageTest::test_after_dispatch_listener_exception_is_swallowed + test_dead_letter_listener_exception_is_swallowed enforce on each of the 3 hooks. Owned by Phase 2 plan 02-06.
 
 ### Pitfall ownership (each CRITICAL/HIGH pitfall mapped to a phase)
 
@@ -143,11 +150,11 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-05-17T22:23:22.044Z
+Last session: 2026-05-17T22:47:42.721Z
 
-Stopped at: Plan 02-05 closed (commits e007f65, 3a27670, 6851faa, 4c7be9b, eb7682e, 64bc9fa, 5c4f664, 3b4e886, 7f7185a) — Wave 3 MetaClient + PayloadBuilder + UserDataHasher shipped; ADAP-07/08/09 closed; plan 02-06 next sequentially on master
+Stopped at: Plan 02-06 closed (commits 394f212, 6e6e81f, 956f8ed, e14cf1e, 604fd7e) — Wave 4 SendCapiEvent + 3 Event::fire hooks shipped; ADAP-04/05/10 closed; plan 02-07 next sequentially on master
 
-Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-06-PLAN.md
+Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-07-PLAN.md
 
 ## Performance Metrics
 
@@ -162,3 +169,4 @@ Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extensio
 | 2 | 02-03b | ~9 min | 5 tasks (4 feat/test + 1 QA-gate fix) | 12 created, 4 modified | 2026-05-17 |
 | 2 | 02-04 | ~6 min | 5 tasks (2 feat + 2 test + 1 QA-gate fix) | 4 created, 0 modified | 2026-05-17 |
 | 2 | 02-05 | ~11 min | 7 tasks (1 composer + 3 RED + 3 GREEN + 1 SpyMetaClient + 1 QA-gate fix; 9 commits total) | 7 created, 1 modified | 2026-05-17 |
+| 2 | 02-06 | ~11 min | 4 tasks (1 feat + 1 Rule-1 MetaClient final-drop fix + 2 test + 1 QA-gate fix; 5 commits total) | 12 created, 1 modified | 2026-05-17 |
