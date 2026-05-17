@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Helper\EventLogWriter;
 use Logingrupa\Metapixel\Tests\Doubles\TestSubject;
@@ -70,7 +71,7 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
     {
         Log::shouldReceive('warning')->atLeast()->once();
 
-        $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new \stdClass, null, 1700000000, null);
+        $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new stdClass, null, 1700000000, null);
         $this->assertFalse($bResult);
         $this->assertSame(0, DB::table('logingrupa_metapixel_event_log')->count());
     }
@@ -94,5 +95,18 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
         $obRow = DB::table('logingrupa_metapixel_event_log')->first();
         $this->assertSame('fake.subject', $obRow->subject_type, 'opaque alias written, not class FQN');
         $this->assertStringNotContainsString('\\', $obRow->subject_type, 'no backslashes — alias not FQN');
+    }
+
+    public function test_record_returns_false_on_db_write_failure(): void
+    {
+        // Drop the table after setUp's up() — the insertOrIgnore call inside
+        // record() will throw a QueryException, the outer try/catch fail-safe
+        // catches it, logs critical, and returns false (peer-wins assumption).
+        Schema::dropIfExists('logingrupa_metapixel_event_log');
+
+        Log::shouldReceive('critical')->atLeast()->once();
+
+        $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new TestSubject, null, 1700000000, 1);
+        $this->assertFalse($bResult, 'DB write failure returns false — fail-safe peer-wins');
     }
 }

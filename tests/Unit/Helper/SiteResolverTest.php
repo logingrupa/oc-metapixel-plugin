@@ -16,14 +16,14 @@ final class SiteResolverTest extends MetapixelTestCase
     public function test_for_subject_delegates_to_adapter_get_site_id(): void
     {
         $obAdapter = (new FakeAdapter)->withSiteId(7);
-        $iResult = SiteResolver::forSubject(new \stdClass, $obAdapter);
+        $iResult = SiteResolver::forSubject(new stdClass, $obAdapter);
         $this->assertSame(7, $iResult);
     }
 
     public function test_for_subject_propagates_null_from_adapter(): void
     {
         $obAdapter = new FakeAdapter; // default site_id is null
-        $iResult = SiteResolver::forSubject(new \stdClass, $obAdapter);
+        $iResult = SiteResolver::forSubject(new stdClass, $obAdapter);
         $this->assertNull($iResult);
     }
 
