@@ -45,6 +45,36 @@ parameters:
         -
             function: 'array_all()'
             message: 'PHP 8.4-only — use array_filter or foreach'
+        -
+            function: 'request()'
+            message: 'metapixel: per-event attributes MUST come from the subject via adapter — request() banned in adapter/queue/event dirs'
+            disallowIn:
+                - 'classes/queue/*'
+                - 'classes/event/*'
+                - 'classes/adapter/*'
+
+    disallowedMethodCalls:
+        -
+            method: 'System\Classes\SiteManager::*'
+            message: 'metapixel: site_id MUST come from subject via SiteResolver::forSubject — cross-context determinism'
+            disallowIn:
+                - 'classes/queue/*'
+                - 'classes/event/*'
+                - 'classes/adapter/*'
+        -
+            method: 'October\Rain\Support\Facades\Site::*'
+            message: 'metapixel: site_id MUST come from subject via SiteResolver::forSubject — cross-context determinism'
+            disallowIn:
+                - 'classes/queue/*'
+                - 'classes/event/*'
+                - 'classes/adapter/*'
+        -
+            method: 'Illuminate\Http\Request::*'
+            message: 'metapixel: per-event attributes MUST come from the subject via adapter'
+            disallowIn:
+                - 'classes/queue/*'
+                - 'classes/event/*'
+                - 'classes/adapter/*'
 
     disallowedAttributes:
         -
