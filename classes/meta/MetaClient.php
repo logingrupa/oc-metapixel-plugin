@@ -22,7 +22,7 @@ use Logingrupa\Metapixel\Classes\Exception\MissingPixelConfigException;
  * dead-letter. Token is sent in the POST body, never the URL query string —
  * Meta accepts both but webserver access logs leak the URL.
  */
-final class MetaClient
+class MetaClient
 {
     public const META_GRAPH_API_VERSION = 'v23.0';
 
