@@ -16,12 +16,17 @@
         <testsuite name="Metapixel Adapter Tests">
             <directory>./tests/Unit/Adapter</directory>
             <directory>./tests/Feature/Adapter</directory>
+            <directory>./tests/Contract/Adapter</directory>
+        </testsuite>
+        <testsuite name="Metapixel Contract Tests">
+            <directory>./tests/Contract</directory>
         </testsuite>
     </testsuites>
     <source>
         <include>
             <file>./Plugin.php</file>
             <directory>./classes</directory>
+            <directory>./models</directory>
         </include>
     </source>
     <php>
