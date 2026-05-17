@@ -69,8 +69,20 @@ must_haves:
       pattern: "SendCapiEvent"
 ---
 
+<r2_override>
+**R2 OVERRIDE (2026-05-17, post plan-check):** `orchestra/testbench` dependency DROPPED. Reason: Phase 2 has exactly ONE consumer of the contract base (first-party `FakeAdapterContractTest`). Phase 3 first-party adapters use plain `MetapixelTestCase`. Third-party adapters land v2.1 earliest. Per CLAUDE.md "Build only for current need" — Testbench is over-engineering for Phase 2.
+
+**Effective shape:**
+- `EventSubjectAdapterContractTestCase` extends `Logingrupa\Metapixel\Tests\MetapixelTestCase` (Phase 1 base, no Lovata).
+- Lives in `classes/Testing/` production namespace per D-11 BUT acceptable cross-namespace import for Phase 2 — first-party only.
+- Task 1 (composer require orchestra/testbench) REMOVED entirely.
+- At v2.1 when first real third-party adapter appears: swap base to `Orchestra\Testbench\TestCase` THEN — or instruct third parties to copy contract base file into their own tests/ via `docs/CUSTOM-ADAPTERS.md`.
+- `composer-dependency-analyser` may flag the `Tests\MetapixelTestCase` import from `classes/Testing/`. Acceptable: this IS first-party. Either tolerate the flag (low signal) or add `Logingrupa\Metapixel\Tests\MetapixelTestCase` to the analyser's ignoreOnlyInPath list scoped to `classes/Testing/EventSubjectAdapterContractTestCase.php`. Decide at execute time.
+- All other text below describing Testbench is HISTORICAL — supersede with the above.
+</r2_override>
+
 <objective>
-Close Phase 2 by shipping the public contract test base (`EventSubjectAdapterContractTestCase` extending `Orchestra\Testbench\TestCase` per H-3 — Lovata-marketplace-idiomatic Laravel test harness), the contract smoke test (`FakeAdapterContractTest` proves the base passes against FakeAdapter), the SC1 round-trip smoke (`ContractTestCaseSmokeTest`), and the SC1 + SC5 end-to-end integration test (`BackboneIntegrationTest` exercises SendCapiEvent → race-fence → MetaClient mock → after_dispatch — full Phase 2 pipeline; includes M-5 serialize round-trip smoke). Also scaffold `02-VERIFICATION-INPUTS.md` for the next-step gsd-verifier handoff.
+Close Phase 2 by shipping the public contract test base (`EventSubjectAdapterContractTestCase` extending `Logingrupa\Metapixel\Tests\MetapixelTestCase` per R2 override above; original plan said Orchestra\Testbench\TestCase — DROPPED), the contract smoke test (`FakeAdapterContractTest` proves the base passes against FakeAdapter), the SC1 round-trip smoke (`ContractTestCaseSmokeTest`), and the SC1 + SC5 end-to-end integration test (`BackboneIntegrationTest` exercises SendCapiEvent → race-fence → MetaClient mock → after_dispatch — full Phase 2 pipeline; includes M-5 serialize round-trip smoke). Also scaffold `02-VERIFICATION-INPUTS.md` for the next-step gsd-verifier handoff.
 
 H-3 RESOLUTION: The original plan oscillated between extending MetapixelTestCase (which lives in autoload-dev `Logingrupa\Metapixel\Tests\` namespace — third parties cannot inherit because their `composer require` of the plugin does NOT pull the plugin's own dev tree into their autoload) and suppressing the cross-namespace violation via composer-dependency-analyser's `addPathToExclude`. The plan-checker's R1 verdict: pick option (a) — extend `Orchestra\Testbench\TestCase`. Orchestra Testbench is the Lovata-marketplace-standard for OctoberCMS plugins that need to ship test scaffolds for third-party extension authors. Add `orchestra/testbench` to plugin require-dev. Third parties `composer require --dev orchestra/testbench` in their own setup. The contract base no longer depends on MetapixelTestCase or any other autoload-dev path.
 
@@ -286,52 +298,21 @@ M-7 flag (ROADMAP.md SC5 mismatch): ROADMAP.md SC5 names 4 v1.x test files (`Ord
 <tasks>
 
 <task type="auto">
-  <name>Task 1: Add orchestra/testbench to composer.json require-dev (H-3)</name>
-  <files>
-    plugins/logingrupa/metapixel/composer.json
-  </files>
+  <name>Task 1: REMOVED — orchestra/testbench dependency dropped per R2 override</name>
+  <files></files>
   <action>
-Edit `plugins/logingrupa/metapixel/composer.json`. Find the `require-dev:` block. Add `orchestra/testbench`:
+Per R2 override block at top of this plan: `orchestra/testbench` is NOT added. Phase 2 contract base extends `Logingrupa\Metapixel\Tests\MetapixelTestCase` (Phase 1, no Lovata). YAGNI: zero v2.0 third-party adapter consumers. Revisit at v2.1 when first real third party authors an adapter — either swap to Testbench then OR ship contract base as a copy-this-file pattern via `docs/CUSTOM-ADAPTERS.md`.
 
-```
-"require-dev": {
-    ...existing entries...
-    "orchestra/testbench": "^9.0"
-},
-```
-
-Version `^9.0` matches Laravel 12 compatibility (Orchestra Testbench v9 supports Laravel 12; v8 supports Laravel 11; older Testbench versions track older Laravels). Verify against `vendor/orchestra/testbench/composer.json` if needed to confirm the constraint.
-
-Run from project root (NOT plugin dir per H-4 lock):
-
-```
-composer update logingrupa/oc-metapixel-plugin --with-dependencies --no-interaction
-```
-
-Or, if the plugin is being developed in-place (not a published Composer dependency yet), run:
-
-```
-composer update orchestra/testbench --no-interaction
-```
-
-Verify Orchestra Testbench autoloads:
-
-```
-php -r 'require_once "../../../vendor/autoload.php"; class_exists("Orchestra\\Testbench\\TestCase") || exit(1); echo "ok\n";'
-```
-
-If `composer-dependency-analyser` flags orchestra/testbench as unused at this point (no class imports it yet — Task 2 adds the contract base), that's expected and resolves itself after Task 2.
-
-Add a note in the commit message: "orchestra/testbench ^9.0 added to require-dev — the EventSubjectAdapterContractTestCase extends Orchestra\Testbench\TestCase so third parties extend without depending on the plugin's autoload-dev MetapixelTestCase (H-3 marketplace-contract resolution)."
+Skip this task. Renumber subsequent tasks mentally (Task 2 → Task 1 effective, etc.) — executor MAY keep the labels for traceability with R1 plan-check report.
   </action>
   <verify>
-    <automated>grep -q '"orchestra/testbench"' plugins/logingrupa/metapixel/composer.json &amp;&amp; cd plugins/logingrupa/metapixel &amp;&amp; composer validate --no-check-publish 2&gt;&amp;1 | tail -3 | grep -qE '(valid|Composer schema)' &amp;&amp; php -r 'require_once "../../../vendor/autoload.php"; class_exists("Orchestra\\Testbench\\TestCase") || exit(1); echo "ok\n";'</automated>
+    <automated>! grep -q 'orchestra/testbench' plugins/logingrupa/metapixel/composer.json</automated>
   </verify>
-  <done>composer.json adds orchestra/testbench ^9.0 to require-dev; composer validate passes; Orchestra\Testbench\TestCase autoloads from project root vendor.</done>
+  <done>plugin composer.json contains NO orchestra/testbench entry; contract base in Task 2 extends MetapixelTestCase per R2 override.</done>
 </task>
 
 <task type="auto" tdd="true">
-  <name>Task 2: Write EventSubjectAdapterContractTestCase abstract base (H-3 Orchestra Testbench + M-6 tearDown)</name>
+  <name>Task 2: Write EventSubjectAdapterContractTestCase abstract base (R2 — extends MetapixelTestCase, NOT Testbench + M-6 tearDown)</name>
   <files>
     plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php
   </files>
@@ -376,9 +357,9 @@ Invariant test bodies — keep verbatim from RESEARCH §6:
 NO comment markers (`// H-3`, `// M-6`, `// CR-XX`, `// P-XX`). The class PHPDoc explains the Orchestra Testbench choice in prose.
   </action>
   <verify>
-    <automated>test -f plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; php -l plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php | grep -q 'No syntax errors' &amp;&amp; grep -q 'abstract class EventSubjectAdapterContractTestCase' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -q 'extends TestCase' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -q 'use Orchestra\\\\Testbench\\\\TestCase;' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -q 'abstract protected function makeAdapter' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -q 'abstract protected function makeSubject' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -q 'forgetInstance(AdapterRegistry::class)' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -c 'public function test_invariant_' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php | grep -Eq '^10$' &amp;&amp; ! grep -q 'MetapixelTestCase' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php</automated>
+    <automated>test -f plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; php -l plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php | grep -q 'No syntax errors' &amp;&amp; grep -q 'abstract class EventSubjectAdapterContractTestCase' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -q 'extends MetapixelTestCase' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; ! grep -q 'Orchestra' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -q 'abstract protected function makeAdapter' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -q 'abstract protected function makeSubject' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -q 'forgetInstance(AdapterRegistry::class)' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php &amp;&amp; grep -c 'public function test_invariant_' plugins/logingrupa/metapixel/classes/Testing/EventSubjectAdapterContractTestCase.php | grep -Eq '^10$'</automated>
   </verify>
-  <done>EventSubjectAdapterContractTestCase abstract class with 10 invariants + 2 abstract methods + M-6 tearDown + H-3 extends Orchestra\Testbench\TestCase + zero MetapixelTestCase imports.</done>
+  <done>EventSubjectAdapterContractTestCase abstract class with 10 invariants + 2 abstract methods + M-6 tearDown + extends Logingrupa\Metapixel\Tests\MetapixelTestCase (R2 override — Testbench DROPPED).</done>
 </task>
 
 <task type="auto" tdd="true">
@@ -888,4 +869,5 @@ After completion, create `plugins/logingrupa/metapixel/.planning/phases/02-adapt
 </output>
 
 ## Revision History
+- 2026-05-17 R2: H-3 RESOLUTION FLIPPED. orchestra/testbench dropped per user YAGNI challenge (CLAUDE.md "Build only for current need"). Phase 2 has ONE consumer of the contract base (first-party FakeAdapterContractTest); Phase 3 first-party adapters use plain MetapixelTestCase; third-party adapters land v2.1 earliest. R2 override: contract base extends `Logingrupa\Metapixel\Tests\MetapixelTestCase`. Task 1 (composer require) REMOVED. Plugin composer.json edited to remove orchestra/testbench require-dev entry in same commit. At v2.1 when first real third party authors an adapter — either swap base to Testbench then OR ship contract base as copy-this-file pattern via docs/CUSTOM-ADAPTERS.md.
 - 2026-05-17 R1: Address plan-checker findings H-3 (Task 1 adds orchestra/testbench ^9.0 to require-dev; Task 2 EventSubjectAdapterContractTestCase extends `Orchestra\Testbench\TestCase` NOT MetapixelTestCase — Lovata-marketplace-idiomatic harness; eliminates the cross-namespace import + addPathToExclude suppression that defeated TOOL-11's purpose), M-5 (Task 4 BackboneIntegrationTest adds `test_serialize_round_trip_job_unserializes_and_runs_handle` — `serialize($obJob); unserialize($sBlob)->handle()` smoke catches SerializesModels-for-stdClass failure mode synchronous tests miss), M-6 (Task 2 EventSubjectAdapterContractTestCase adds tearDown override that calls `app()->forgetInstance(AdapterRegistry::class); parent::tearDown();` — prevents invariant 09's registry registration from polluting subsequent tests), M-7 (Task 5 02-VERIFICATION-INPUTS.md scaffolds with explicit M-7 flag section calling for orchestrator action to update ROADMAP.md SC5 wording per OQ-1; this plan does NOT modify ROADMAP.md), H-7 downgrade (Task 4 dedup test uses Middleware::history($arHistory) for accurate call-count; NOT MockHandler internal queue count), H-6 (Tasks 3 + 4 import FakeAdapter + FakeValueResolver from plan 02-01's tests/Doubles/), H-8 (Tasks 3 + 4 setUp use `$this->app->singleton(AdapterRegistry::class)`), L-6 (Pest.php NOT modified — CLAUDE.md "no comment pollution"), L-8 (Tasks 3 + 4 confirm classic Pest style).

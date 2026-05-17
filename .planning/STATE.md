@@ -31,7 +31,7 @@ Plans: 02-01..02-07 (with 02-03a + 02-03b split) — RESEARCH.md + 8 PLAN files 
 Status: ADAP-01..11 mapped across plans; pitfalls P-01/P-02/P-05/P-08/P-13 owned; dep graph: Wave 1 (01+02) → Wave 2 (03a+03b) → Wave 3 (04+05) → Wave 4 (06) → Wave 5 (07)
 Last activity: 2026-05-17 — Plan-phase complete. R1 found 9 HIGH/8 MEDIUM/8 LOW; R2 verified 21 closures, end-to-end Purchase trace passes. Two non-blocking notes: N-1 frontmatter fixed; N-2 orchestra/testbench install required at execute-phase time.
 
-**Next action:** `/gsd-execute-phase 02` for Adapter system core. Operator action before execute: `composer require --dev orchestra/testbench:^9.0` + Guzzle (`guzzlehttp/guzzle:^7.0`) from project root.
+**Next action:** `/gsd-execute-phase 02` for Adapter system core. No operator pre-install needed (R2 dropped orchestra/testbench per YAGNI; guzzlehttp/guzzle already in project vendor — plan 02-05 Task 1 adds it to plugin composer.json `require:` for marketplace contract).
 
 ## Roadmap Snapshot
 
