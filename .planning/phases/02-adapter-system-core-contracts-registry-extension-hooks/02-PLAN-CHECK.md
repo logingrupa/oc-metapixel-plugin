@@ -13,7 +13,7 @@ But three categories of blocker remain that will either (a) cause execution to f
 ### H-1 (BLOCKER) — Plan 02-02 disallowedMethodCalls `allowIn` includes `classes/Helper/*` AND `classes/Meta/*`, weakening P-01 enforcement to a no-op for those dirs
 
 **Plan:** 02-02, Task 2
-**Source:** `02-PLAN-2-tooling-deltas-phpstan-phpunit.md:256-277`
+**Source:** `02-02-INDEX.md:256-277`
 
 The plan writes:
 
@@ -51,7 +51,7 @@ If the planner wants the fail-closed `allowIn` semantics (which is genuinely saf
 ### H-2 (BLOCKER) — Plan 02-03 stamps `subject_type = null, subject_id = null` into FailedEvent rows, defeating Phase 4 admin UI re-resolution path
 
 **Plan:** 02-06, Task 1 + carried via 02-03 schema
-**Source:** `02-PLAN-6-sendcapievent-queue-job-hooks.md:283-305` (`writeFailedEvent`)
+**Source:** `02-06-PLAN.md:283-305` (`writeFailedEvent`)
 
 ```php
 private function writeFailedEvent(Throwable $obException, ?int $iHttpStatus): void
@@ -82,7 +82,7 @@ When BindingResolutionException fires, the adapter doesn't exist — `subject_ty
 ### H-3 (BLOCKER) — Plan 02-07 Task 2 reverses Task 2's own claim about classes/Testing extending MetapixelTestCase, then says "stick with MetapixelTestCase + exclude in dependency-analyser" — final state is ambiguous + violates the locked Lovata-import-boundary intent of TOOL-11
 
 **Plan:** 02-07, Task 2
-**Source:** `02-PLAN-7-fake-adapter-contract-test-base-smoke.md:441-503`
+**Source:** `02-07-PLAN.md:441-503`
 
 The plan oscillates: first proposes extending Illuminate TestCase (option A), then says "actually, simpler still: keep extends MetapixelTestCase for FIRST-PARTY tests AND ship a parallel base for third parties", then settles on "For Phase 2 simplicity: keep extends MetapixelTestCase. Composer-dependency-analyser CAN exempt this specific cross-namespace import via addPathToExclude".
 
@@ -99,7 +99,7 @@ If that's too much for Phase 2, the next-best fix is a SMALLER concession: don't
 ### H-4 (BLOCKER) — Plan 02-05 declares Guzzle dep is "production runtime" but `composer.json` autoload section needs no edit. The plan's verify step then asserts `ls vendor/guzzlehttp/guzzle/src/Client.php` from PLUGIN dir using `2>/dev/null || ls ../../../vendor/...` — broken shell logic
 
 **Plan:** 02-05, Task 1
-**Source:** `02-PLAN-5-metaclient-payloadbuilder-userdatahasher.md:366-368`
+**Source:** `02-05-PLAN.md:366-368`
 
 ```bash
 ls vendor/guzzlehttp/guzzle/src/Client.php 2>/dev/null || ls ../../../vendor/guzzlehttp/guzzle/src/Client.php 2>/dev/null
@@ -114,7 +114,7 @@ Worse: running `composer update` inside the plugin dir against the plugin's loca
 ### H-5 (BLOCKER) — Plan 02-03 Task 5 renames migration filenames to PSR-4 PascalCase "AlternatIvely (preferred)" via composer.json classmap, but composer.json autoload section is `"Logingrupa\\Metapixel\\": ""` which already PSR-4-maps `updates/` as `Logingrupa\Metapixel\Updates\*` — adding a classmap is double-loading + the snake_case filename pattern WILL break PSR-4
 
 **Plan:** 02-03, Task 5
-**Source:** `02-PLAN-3-storage-models-migrations-settings-pluginguard-exceptions.md:1219-1252`
+**Source:** `pre-split 02-PLAN-3 (R1) — addressed in R2 by splitting into 02-03a-PLAN.md (storage) + 02-03b-PLAN.md (settings/guard/exceptions)`
 
 Composer's PSR-4 spec is strict: class `Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable` MUST live at `updates/CreateMetapixelEventLogTable.php` (PascalCase, matching class name). The plan keeps the file at `updates/create_metapixel_event_log_table.php` (snake_case) and tries to fix this by adding `"classmap": ["updates/"]` to autoload-dev.
 
@@ -135,7 +135,7 @@ Lower blocker: keep, but add a Task 5.5 spike "verify `composer dump-autoload --
 ### H-6 (BLOCKER) — Plan 02-06 Task 2/3 inline-declares class-fixtures (TestSubject, TestSubjectAdapter, FakeStubAdapter, SpyMetaClient) at file global scope ACROSS MULTIPLE TEST FILES — composer-dependency-analyser + PHP autoload will collide on cross-file class names
 
 **Plan:** 02-06, Tasks 2 + 3
-**Source:** `02-PLAN-6-sendcapievent-queue-job-hooks.md:552-583` (T11 declares `FakeStubAdapter`, `SpyMetaClient`); `02-PLAN-6:586-665` (T12 reuses); plan 02-04 Task 4 ALSO declares `TestSubject`, `TestSubjectAdapter`, `ZeroIdSubjectAdapter` (lines 423-451); plan 02-06 Task 3 then reuses those same `TestSubject` / `TestSubjectAdapter` names in `tests/Feature/Queue/*` test files.
+**Source:** `02-06-PLAN.md:552-583` (T11 declares `FakeStubAdapter`, `SpyMetaClient`); `02-PLAN-6:586-665` (T12 reuses); plan 02-04 Task 4 ALSO declares `TestSubject`, `TestSubjectAdapter`, `ZeroIdSubjectAdapter` (lines 423-451); plan 02-06 Task 3 then reuses those same `TestSubject` / `TestSubjectAdapter` names in `tests/Feature/Queue/*` test files.
 
 The plan acknowledges this risk inline ("If autoload starts complaining..." in 02-04 Task 4 lines 537-555) and suggests namespacing them. But then 02-06 Task 2's T11 example code shows `final class FakeStubAdapter implements EventSubjectAdapter` at GLOBAL scope (no namespace shown above the class declaration). The plan IS ambiguous about whether the test files are namespaced or not.
 
@@ -148,7 +148,7 @@ The fix the plan suggests ("namespace each test file") works for collision, but 
 ### H-7 (BLOCKER) — Plan 02-07's BackboneIntegrationTest calls `MetaClient::sendForPixel('PIXEL-1', 'TOKEN-1', $arPayload)` but Plan 02-06's `SendCapiEvent::handle` already wraps this. The integration test bypasses SendCapiEvent's race-fence AND its event_id snapshot — proves a different code path than Phase 2 ships
 
 **Plan:** 02-07, Task 4
-**Source:** `02-PLAN-7-fake-adapter-contract-test-base-smoke.md:706-734` (BackboneIntegrationTest)
+**Source:** `02-07-PLAN.md:706-734` (BackboneIntegrationTest)
 
 Reading carefully: the test DOES call `$obJob->handle(...)`. False alarm on the bypass concern — handle() does invoke EventLogWriter then sendForPixel. The end-to-end IS exercised.
 
@@ -191,7 +191,7 @@ Either fixes the latent TypeError. Plan 02-01's tests T1-T5 use the same pattern
 ### H-9 (BLOCKER) — Plan 02-05 PayloadBuilder OQ-3 enforcement uses `! grep -E 'if\s*\(\s*\$sEventName\s*===` to prevent event-name switch — but RESEARCH says no `switch($sEventName)` AT ALL. The grep guards against `===` but NOT against `!==`, `in_array($sEventName, [...])`, `match ($sEventName) { ... }`, or `match(true)` patterns
 
 **Plan:** 02-05, Task 3 verify
-**Source:** `02-PLAN-5-metaclient-payloadbuilder-userdatahasher.md:427`
+**Source:** `02-05-PLAN.md:427`
 
 ```bash
 ! grep -E 'switch\s*\(\s*\$sEventName\s*\)' plugins/.../PayloadBuilder.php

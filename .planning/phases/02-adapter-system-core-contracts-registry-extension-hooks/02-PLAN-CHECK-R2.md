@@ -25,7 +25,7 @@ Neither blocks Phase 2 goal achievement. Orchestrator may proceed; flag both not
 | H-6 | **VERIFIED** | `02-PLAN-1` Task 4 ships 6 shared doubles in `tests/Doubles/` (FakeAdapter, FakeValueResolver, TestSubject, TestSubjectAdapter, ZeroIdSubjectAdapter, FakeStubAdapter) — SpyMetaClient correctly deferred to plan 02-05 Task 6 because it extends MetaClient which lands in Wave 3 (dependency is sound). Plans 02-04 (lines 410-412), 02-06 (lines 369-373), 02-07 (lines 405, 535) all import by FQN. Verify steps grep `! ^class (TestSubject\|FakeStubAdapter\|SpyMetaClient)` to prove no inline declarations. |
 | H-8 | **VERIFIED** | Plans 02-01 (line 175-181), 02-03b (line 412), 02-04 (lines 336-338, 419), 02-05 (line 540), 02-06 (lines 514-516, 598-600), 02-07 (lines 226-227, 543-545) all use `$this->app->singleton(AdapterRegistry::class)` direct bind. Every plan's verify step includes `! grep -E '\(new\s+\\?Logingrupa\\\\Metapixel\\\\Plugin\)'` to prove no PluginBase instantiation. |
 | H-9 | **VERIFIED** | `02-PLAN-5` Task 3 verify (line 482) combined regex: `! grep -E '\$sEventName\s*(===\|!==\|==)\|switch\s*\(\s*\$sEventName\|match\s*\(\s*\$sEventName\|in_array\s*\(\s*\$sEventName'`. Catches all 4 anti-patterns the original gate missed. |
-| M-2 | **VERIFIED** | Plan 02-03 split into 02-03a (5 tasks / 12 files: migrations + EventLog/FailedEvent models + classmap) and 02-03b (5 tasks / 14 files: Settings + PluginGuard + 5 exceptions + lang). Both ≤ scope budget. `02-PLAN.md` index (line 36-37) lists both. Dependency graph (line 50-55) shows both Wave 2 parallel, both unblocking Wave 3 plans 02-04 + 02-05. |
+| M-2 | **VERIFIED** | Plan 02-03 split into 02-03a (5 tasks / 12 files: migrations + EventLog/FailedEvent models + classmap) and 02-03b (5 tasks / 14 files: Settings + PluginGuard + 5 exceptions + lang). Both ≤ scope budget. `02-INDEX.md` index (line 36-37) lists both. Dependency graph (line 50-55) shows both Wave 2 parallel, both unblocking Wave 3 plans 02-04 + 02-05. |
 | H-7 | **VERIFIED** (downgraded to warning in R1) | `02-PLAN-7` Task 4 line 596-599 uses `Middleware::history($arHistory)` and asserts `count($arHistory) === 1` instead of MockHandler internal queue count. |
 
 ### MEDIUM
@@ -55,7 +55,7 @@ Neither blocks Phase 2 goal achievement. Orchestrator may proceed; flag both not
 
 ### N-1 (WARNING, cosmetic) — Plan 02-01 frontmatter-vs-prose contradiction on SpyMetaClient
 
-**File:** `02-PLAN-1-interfaces-registry-singleton-binding.md`
+**File:** `02-01-PLAN.md`
 
 Frontmatter declares SpyMetaClient.php as a deliverable in 3 places:
 - Line 20: `files_modified` list includes `plugins/logingrupa/metapixel/tests/Doubles/SpyMetaClient.php`
@@ -102,7 +102,7 @@ Plan 02-07 Task 1 prose (line 305-313) names this operator step. Verify gate (li
 
 ### N-3 (INFO, non-blocking) — Plan 02-01 frontmatter says "plan_count: 8" but 8 plans = 02-01..02-07 with 03 split into a/b. Index correctly says 8.
 
-`02-PLAN.md` line 3 `plan_count: 8`; index table (lines 33-41) lists exactly 8: 01, 02, 03a, 03b, 04, 05, 06, 07. Wave assignments correct: Wave 1 (01, 02), Wave 2 (03a, 03b), Wave 3 (04, 05), Wave 4 (06), Wave 5 (07).
+`02-INDEX.md` line 3 `plan_count: 8`; index table (lines 33-41) lists exactly 8: 01, 02, 03a, 03b, 04, 05, 06, 07. Wave assignments correct: Wave 1 (01, 02), Wave 2 (03a, 03b), Wave 3 (04, 05), Wave 4 (06), Wave 5 (07).
 
 ### Dependency graph re-trace
 
@@ -118,9 +118,9 @@ All `depends_on` frontmatter values verified against the 8 plan files. No cycles
 
 ### Cross-plan refs
 
-REQ-ID coverage matrix (02-PLAN.md lines 67-79) lists 11/11 ADAP-* with proper plan ownership including the 02-03 split → 02-03a (storage) supports ADAP-08/09/10 indirectly, 02-03b (config) supports ADAP-09/10 indirectly. Primary ownership matrix matches: ADAP-04/05/10 → 02-06, ADAP-07/08/09 → 02-05, ADAP-06 → 02-04 (primary) + 02-02 (PHPStan), ADAP-11 → 02-07.
+REQ-ID coverage matrix (02-INDEX.md lines 67-79) lists 11/11 ADAP-* with proper plan ownership including the 02-03 split → 02-03a (storage) supports ADAP-08/09/10 indirectly, 02-03b (config) supports ADAP-09/10 indirectly. Primary ownership matrix matches: ADAP-04/05/10 → 02-06, ADAP-07/08/09 → 02-05, ADAP-06 → 02-04 (primary) + 02-02 (PHPStan), ADAP-11 → 02-07.
 
-Pitfall ownership matrix (02-PLAN.md lines 83-90) reflects the split (P-05 owned by 02-01 interface + 02-03a storage + 02-04 write site + 02-07 contract test).
+Pitfall ownership matrix (02-INDEX.md lines 83-90) reflects the split (P-05 owned by 02-01 interface + 02-03a storage + 02-04 write site + 02-07 contract test).
 
 ---
 
