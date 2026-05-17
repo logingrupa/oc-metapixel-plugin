@@ -37,4 +37,21 @@ class Plugin extends PluginBase
     }
 
     public function boot(): void {}
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    public function registerSettings(): array
+    {
+        return [
+            'settings' => [
+                'label' => 'logingrupa.metapixel::lang.settings.label',
+                'description' => 'logingrupa.metapixel::lang.settings.description',
+                'category' => 'logingrupa.metapixel::lang.settings.category',
+                'icon' => 'icon-bullseye',
+                'class' => \Logingrupa\Metapixel\Models\Settings::class,
+                'order' => 500,
+            ],
+        ];
+    }
 }
