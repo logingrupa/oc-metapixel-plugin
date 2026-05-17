@@ -8,6 +8,4 @@ namespace Logingrupa\Metapixel\Classes\Exception;
  * + no throw) — this exception only fires when an event has slipped past the
  * guard for the current site row.
  */
-final class MissingPixelConfigException extends MetaPixelException
-{
-}
+final class MissingPixelConfigException extends MetaPixelException {}

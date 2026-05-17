@@ -14,7 +14,6 @@ use Logingrupa\Metapixel\Models\Settings;
  */
 final class PluginGuard
 {
-    /** @var bool|null */
     private static ?bool $bIsDisabled = null;
 
     /**
@@ -27,7 +26,8 @@ final class PluginGuard
             return self::$bIsDisabled;
         }
 
-        $sPixelId = (string) Settings::get('pixel_id', '');
+        $mPixelId = Settings::get('pixel_id', '');
+        $sPixelId = is_string($mPixelId) ? $mPixelId : '';
         if ($sPixelId === '') {
             Log::warning('metapixel: pixel_id is empty — plugin running in disabled mode (events suppressed)');
 

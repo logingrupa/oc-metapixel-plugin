@@ -1,5 +1,6 @@
 <?php
 
+use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Plugin;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 
@@ -35,5 +36,18 @@ final class PluginSanityTest extends MetapixelTestCase
         $obPlugin->boot();
 
         $this->assertTrue(true);
+    }
+
+    public function test_register_settings_returns_descriptor_for_settings_model(): void
+    {
+        $obPlugin = new Plugin($this->app);
+        $arDescriptor = $obPlugin->registerSettings();
+
+        $this->assertArrayHasKey('settings', $arDescriptor);
+        $this->assertSame(Settings::class, $arDescriptor['settings']['class']);
+        $this->assertSame('logingrupa.metapixel::lang.settings.label', $arDescriptor['settings']['label']);
+        $this->assertSame('logingrupa.metapixel::lang.settings.category', $arDescriptor['settings']['category']);
+        $this->assertSame('icon-bullseye', $arDescriptor['settings']['icon']);
+        $this->assertSame(500, $arDescriptor['settings']['order']);
     }
 }

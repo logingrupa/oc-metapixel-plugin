@@ -10,7 +10,6 @@ use Throwable;
  */
 final class MetaApiTransientException extends MetaPixelException
 {
-    /** @var int|null */
     private ?int $iHttpStatus;
 
     /**

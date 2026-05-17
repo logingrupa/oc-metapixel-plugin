@@ -7,6 +7,4 @@ namespace Logingrupa\Metapixel\Classes\Exception;
  * capi_access_token. The CAPI dispatch step cannot proceed without it; pixel
  * dispatch (browser channel) is unaffected.
  */
-final class MissingCapiTokenException extends MetaPixelException
-{
-}
+final class MissingCapiTokenException extends MetaPixelException {}

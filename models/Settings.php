@@ -13,7 +13,7 @@ use Lovata\Toolbox\Models\CommonSettings;
  * MULT-03 re-implements to honor the Multisite per-site row routing.
  *
  * @method static mixed get(string $sCode, mixed $mDefault = null)
- * @method static void set(array $arValues)
+ * @method static void set(array<string, mixed> $arValues)
  */
 class Settings extends CommonSettings
 {
@@ -33,9 +33,12 @@ class Settings extends CommonSettings
      */
     public static function lookupForSite(?int $iSiteId): array
     {
+        $mPixelId = self::get('pixel_id', '');
+        $mCapiToken = self::get('capi_access_token', '');
+
         return [
-            'pixel_id' => (string) self::get('pixel_id', ''),
-            'capi_access_token' => (string) self::get('capi_access_token', ''),
+            'pixel_id' => is_string($mPixelId) ? $mPixelId : '',
+            'capi_access_token' => is_string($mCapiToken) ? $mCapiToken : '',
         ];
     }
 }

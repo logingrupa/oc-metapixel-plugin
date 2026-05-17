@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixel;
 
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
+use Logingrupa\Metapixel\Models\Settings;
 use System\Classes\PluginBase;
 
 /**
@@ -49,7 +50,7 @@ class Plugin extends PluginBase
                 'description' => 'logingrupa.metapixel::lang.settings.description',
                 'category' => 'logingrupa.metapixel::lang.settings.category',
                 'icon' => 'icon-bullseye',
-                'class' => \Logingrupa\Metapixel\Models\Settings::class,
+                'class' => Settings::class,
                 'order' => 500,
             ],
         ];
