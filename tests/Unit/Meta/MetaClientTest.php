@@ -15,6 +15,7 @@ use Logingrupa\Metapixel\Classes\Exception\MissingPixelConfigException;
 use Logingrupa\Metapixel\Classes\Meta\MetaClient;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
+use Psr\Http\Message\RequestInterface;
 
 final class MetaClientTest extends MetapixelTestCase
 {
@@ -129,7 +130,7 @@ final class MetaClientTest extends MetapixelTestCase
         (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN-XYZ', ['data' => [['event_name' => 'Purchase']]]);
 
         $this->assertCount(1, $arHistory);
-        /** @var \Psr\Http\Message\RequestInterface $obRequest */
+        /** @var RequestInterface $obRequest */
         $obRequest = $arHistory[0]['request'];
         $sUrl = (string) $obRequest->getUri();
 
@@ -149,5 +150,18 @@ final class MetaClientTest extends MetapixelTestCase
     public function test_meta_graph_api_version_constant_pinned_to_v23(): void
     {
         $this->assertSame('v23.0', MetaClient::META_GRAPH_API_VERSION);
+    }
+
+    public function test_non_json_body_decodes_to_empty_array_on_2xx(): void
+    {
+        // Defensive: Meta upstream should always return JSON, but if it ever
+        // returns a non-JSON body on a 2xx (proxy / edge cache mishap), we
+        // must not crash the caller.
+        $obMock = new MockHandler([new Response(200, [], 'not-json-at-all')]);
+        $obClient = new Client(['handler' => HandlerStack::create($obMock)]);
+
+        $arResult = (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN', ['data' => []]);
+
+        $this->assertSame([], $arResult);
     }
 }

@@ -78,8 +78,7 @@ final class MetaClient
 
         $iStatus = $obResponse->getStatusCode();
         $sBody = (string) $obResponse->getBody();
-        $mDecoded = json_decode($sBody, associative: true);
-        $arDecoded = is_array($mDecoded) ? $mDecoded : [];
+        $arDecoded = $this->decodeBody($sBody);
 
         if ($iStatus >= 200 && $iStatus < 300) {
             return $arDecoded;
@@ -100,5 +99,23 @@ final class MetaClient
             null,
             ['response' => $arDecoded],
         );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeBody(string $sBody): array
+    {
+        $mDecoded = json_decode($sBody, associative: true);
+        if (! is_array($mDecoded)) {
+            return [];
+        }
+
+        $arResult = [];
+        foreach ($mDecoded as $mKey => $mValue) {
+            $arResult[(string) $mKey] = $mValue;
+        }
+
+        return $arResult;
     }
 }
