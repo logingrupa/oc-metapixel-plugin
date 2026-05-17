@@ -9,6 +9,7 @@ parameters:
     paths:
         - Plugin.php
         - classes
+        - models
 
     excludePaths:
         - tests (?)
