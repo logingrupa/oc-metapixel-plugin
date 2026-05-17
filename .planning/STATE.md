@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Plan 02-03a closed (commits 77586a8, 22adbfb, 715d354, f7ef32c, bd2c5c2) — 02-03b next (sequential on master)
-last_updated: "2026-05-17T21:35:42.000Z"
-last_activity: 2026-05-17 — Plan 02-03a closed (storage layer — migrations + EventLog/FailedEvent models)
+stopped_at: Plan 02-03b closed (commits 2b21b7e, 2bc77d4, ca3752f, 7665737, e5f471a) — Wave 2 complete; Wave 3 (02-04 + 02-05 parallel) next
+last_updated: "2026-05-17T21:51:57.439Z"
+last_activity: 2026-05-17 — Plan 02-03b closed (Settings + PluginGuard + exception hierarchy)
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 6
-  percent: 55
+  completed_plans: 7
+  percent: 64
 ---
 
 # Project State
@@ -27,19 +27,19 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Plans: 02-01..02-07 (with 02-03a + 02-03b split) — RESEARCH.md + 8 PLAN files + 2 PLAN-CHECK reports committed
-Status: 02-03a CLOSED — storage backbone live. Two migrations (event_log UNIQUE race-fence + failed_events UNIQUE on (event_id, http_status) with H-2 subject_type/subject_id columns); two append-only models (EventLog no-MorphTo per P-05, FailedEvent payload cast to array); phpstan paths extend to ./models; 4 feature tests / 18 cases / 54 assertions. composer qa green (32 tests / 80 assertions / 100% coverage on 6 in-scope files). H-5 spike resolved via PascalCase migration filenames (NOT classmap dump). 02-03b next (sequential on master).
-Last activity: 2026-05-17 — Plan 02-03a closed (commits 77586a8, 22adbfb, 715d354, f7ef32c, bd2c5c2)
+Status: 02-03b CLOSED — Settings + PluginGuard + 5-class exception hierarchy + Plugin::registerSettings + lang/en + lang/lv shipped. 4 new tests + 1 PluginSanityTest extension cover everything at 100%. composer qa green (host vendor) — 46 tests / 109 assertions / 100.0% coverage on 13 in-scope production files. Wave 2 complete (02-03a + 02-03b sequential on master).
+Last activity: 2026-05-17 — Plan 02-03b closed (commits 2b21b7e, 2bc77d4, ca3752f, 7665737, e5f471a)
 
-**Next action:** Plan 02-03b (Settings + PluginGuard + exception hierarchy + lang files + Plugin::registerSettings) executes next on master. Plans 02-04, 02-05, 02-06, 02-07 unblock when both 02-03a and 02-03b commit.
+**Next action:** Wave 3 — plans 02-04 (SiteResolver + EventLogWriter) and 02-05 (MetaClient + PayloadBuilder + UserDataHasher) unblock. Orchestrator may spawn them in parallel worktrees; plans 02-06 + 02-07 follow.
 
 ## Roadmap Snapshot
 
 | Phase | Name | Requirements | Status |
 |-------|------|--------------|--------|
 | 1 | Tooling + composer + namespace rename + CI matrix | TOOL-01..11 (11) | Executed (3/3 plans) — pending verification |
-| 2 | Adapter system core | ADAP-01..11 (11) | Executing (3/8 plans — ADAP-01/02/03 closed; 02-02 P-01 static enforcement live; 02-03a storage backbone live) |
+| 2 | Adapter system core | ADAP-01..11 (11) | Executing (4/8 plans — ADAP-01/02/03 closed; 02-02 P-01 static enforcement live; 02-03a storage backbone live; 02-03b Settings + PluginGuard + exception hierarchy live) |
 | 3 | ShopaholicAdapter + ThemeActionAdapter | SHOP-01..05 + THEM-01..07 (12) | Not started |
 | 4 | Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations | MULT-01..06 + HOST-01..06 + COOK-01..03 + FAIL-01..03 + LANG-01 (19) | Not started |
 | 5 | Documentation + marketplace launch | DOCS-01..03 + MKT-01..05 (8) | Not started |
@@ -99,6 +99,13 @@ Closed 2026-05-15. Partial close — Phase 4 + 5 dropped on architecture pivot. 
 - **Plugin `CLAUDE.md` "Extensibility contract" ranks third-party hooks 1–6 in order of preference** (P-13 convention lock). Event::fire hooks rank 2–4; `Component::extend` + `addDynamicMethod` rank 6 as LAST RESORT with mandatory `onMetapixel*` dynamic-method prefix to avoid third-party collisions. `metapixel.event.before_dispatch` listeners MUST NOT mutate `event_id` or `event_time` (dedup contract anchor — Meta dedupes server-pixel on `event_id` match within ±10s of `event_time`). Owned by Phase 2 plan 02-02.
 - **Migration file naming convention: PascalCase basenames matching class FQN** (H-5 spike resolution). Plugin cannot run standalone `composer install` (private October packages not on a public registry) → autoload-dev classmap declared in `composer.json` never registers. October Rain ClassLoader's `loadUpperOrLower` resolves `Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable` via the `upperClass` branch (lowercase folder + PascalCase basename). October's `Updater::resolve` `require`s files by path from `version.yaml` — runtime migration path does not need autoload. Lovata snake_case migration convention is reserved for files that do not need FQN resolution from tests/phpstan. Owned by Phase 2 plan 02-03a. **Going forward, all plugin code that must be FQN-loadable from tests uses PascalCase basenames matching the class name.**
 - **Storage backbone shape locked**: `logingrupa_metapixel_event_log` (UNIQUE on subject_type/subject_id/event_name/channel/site_id — race-fence anchor) + `logingrupa_metapixel_failed_events` (UNIQUE on event_id/http_status; nullable subject_type+subject_id columns enable H-2 admin UI re-resolution). EventLog model has NO `subject()` MorphTo — subject_type is opaque alias (P-05 anchor enforced by `assertFalse(method_exists(EventLog::class, 'subject'))` in T25). FailedEvent.payload cast to array. Owned by Phase 2 plan 02-03a.
+- **Settings model extends Lovata.Toolbox CommonSettings** (NOT October's `SettingModel` directly) — inherits Multisite trait + RainLab.Translate behavior + `$settingsFields` convention. Phase 2 stub: `$propagatable = []` lock + static `lookupForSite(?int $iSiteId): array{pixel_id, capi_access_token}` that ignores $iSiteId. Phase 4 MULT-01..02 introduces the per-field whitelist (pixel_id + capi_access_token enter $propagatable); MULT-03 re-implements lookupForSite to honor per-site rows without changing the public signature. Owned by Phase 2 plan 02-03b.
+- **PluginGuard cascade-safety pattern locked.** `final class PluginGuard` exposes `isDisabled(): bool` (memoised via static `?bool $bIsDisabled`) + `reset(): void`. Empty `Settings::get('pixel_id', '')` → `Log::warning` + cached true; non-empty → false. NEVER throws at boot — throwing would cascade through October's plugin chain and break unrelated plugins (Campaigns, PromoMechanism). Production memo lifecycle: one Log::warning per request. Test isolation: explicit reset() in setUp + tearDown. Owned by Phase 2 plan 02-03b.
+- **Exception hierarchy locked.** `MetaPixelException` (abstract base extends `\RuntimeException`; constructor `(string, int, ?Throwable, array $arContext)` + `getContext(): array`) → 4 finals: `MissingPixelConfigException` + `MissingCapiTokenException` (event-fire-time empty credentials) + `MetaApiTransientException` (HTTP 408/429/5xx + ConnectException → caller retries) + `MetaApiPermanentException` (HTTP 4xx non-408/429 → caller persists FailedEvent + fires dead_letter). The 2 HTTP exceptions carry `?int $iHttpStatus` + `getHttpStatus(): ?int`; iHttpStatus also surfaces via RuntimeException's int $code (via `?? 0`). Constructor shape `(string, ?int, ?Throwable, array)` consistent across both HTTP exceptions so SendCapiEvent::failed can stamp http_status the same way writeFailedEvent does (plan 02-06 L-5 cross-check). Owned by Phase 2 plan 02-03b.
+- **PHPStan level 10 mixed-cast pattern locked.** `Settings::get` returns `mixed` (inherited from October's `SettingModel`); naive `(string) Settings::get(...)` fires `cast.string` identifier. CLAUDE.md project lock forbids `@phpstan-ignore` comments. Replaced with `$mValue = Settings::get(...); is_string($mValue) ? $mValue : ''` runtime guard. Applied in PluginGuard::isDisabled + Settings::lookupForSite. Apply same pattern to any future Settings::get callsite at phpstan level 10. Owned by Phase 2 plan 02-03b.
+- **`@method` docblock pattern for Lovata.Toolbox CommonSettings descendants.** Declare `@method static mixed get(string $sCode, mixed $mDefault = null)` + `@method static void set(array<string, mixed> $arValues)` on the subclass to satisfy larastan inheritance resolution at phpstan level 10. Lovata's own CommonSettings does not declare them; descendants need it because larastan does not walk through October's SettingModel→Model dynamic-method chain at full strictness. Owned by Phase 2 plan 02-03b.
+- **`Settings::clearInternalCache()` test-isolation pattern.** SettingModel keeps a static `$instances` cache that survives across tests (DB resets per test via in-memory SQLite, instance cache does not). Tests asserting fresh Setting state MUST call `Settings::clearInternalCache()` in setUp(). If plan 02-04+ tests need it broadly, consider moving to MetapixelTestCase::setUp() — deferred until a second consumer surfaces. Owned by Phase 2 plan 02-03b.
+- **Coverage gate carrier pattern: any plan that adds methods to Plugin.php MUST also extend PluginSanityTest** to cover them — otherwise the Plugin.php denominator grows + coverage % drops below the 90% gate even when the new files themselves are at 100%. Plan 02-03b extended PluginSanityTest with `test_register_settings_returns_descriptor_for_settings_model` to close the gate on `registerSettings()`. Owned by Phase 2 plan 02-03b.
 
 ### Pitfall ownership (each CRITICAL/HIGH pitfall mapped to a phase)
 
@@ -127,11 +134,11 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-05-17T21:35:42.000Z
+Last session: 2026-05-17T21:51:57.418Z
 
-Stopped at: Plan 02-03a closed (commits 77586a8, 22adbfb, 715d354, f7ef32c, bd2c5c2); 02-03b next (sequential on master)
+Stopped at: Plan 02-03b closed (commits 2b21b7e, 2bc77d4, ca3752f, 7665737, e5f471a) — Wave 2 complete; Wave 3 (02-04 + 02-05 parallel) next
 
-Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-03b-PLAN.md
+Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extension-hooks/02-04-PLAN.md
 
 ## Performance Metrics
 
@@ -143,3 +150,4 @@ Resume file: .planning/phases/02-adapter-system-core-contracts-registry-extensio
 | 2 | 02-01 | ~12 min | 6 tasks (all active) | 14 created, 4 modified | 2026-05-17 |
 | 2 | 02-02 | ~4 min | 5 tasks (all active; T1 spike + T5 QA-gate non-committing) | 1 created, 3 modified | 2026-05-17 |
 | 2 | 02-03a | ~7 min | 5 tasks (4 active + 1 H-5 rename fix; T5 QA-gate non-committing) | 9 created, 2 modified | 2026-05-17 |
+| 2 | 02-03b | ~9 min | 5 tasks (4 feat/test + 1 QA-gate fix) | 12 created, 4 modified | 2026-05-17 |
