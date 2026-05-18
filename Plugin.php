@@ -2,12 +2,15 @@
 
 namespace Logingrupa\Metapixel;
 
+use Cms\Classes\Controller as CmsController;
+use Cms\Classes\ThisVariable;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
 use Logingrupa\Metapixel\Console\PurgeEventLog;
@@ -46,6 +49,7 @@ class Plugin extends PluginBase
     public function register(): void
     {
         $this->app->singleton(AdapterRegistry::class);
+        $this->app->singleton(ThemeEventCollector::class);
         $this->registerConsoleCommand('metapixel:purge-event-log', PurgeEventLog::class);
     }
 
@@ -58,6 +62,31 @@ class Plugin extends PluginBase
             Event::subscribe(OrderStatusWatcher::class);
             Event::subscribe(CartPositionWatcher::class);
         }
+
+        Event::listen('cms.page.beforeRenderPage', function (CmsController $obController): void {
+            $mThis = $obController->vars['this'] ?? null;
+            if (! $mThis instanceof ThisVariable) {
+                return;
+            }
+            $mThis->config['metapixel'] = App::make(ThemeEventCollector::class);
+        });
+    }
+
+    /**
+     * Twig markup-tag surface. THEM-04 ships as a dot-notation hard contract
+     * via the Controller::extend mount in boot(); the bare-function fallback
+     * was dropped in revision iteration 1. Empty arrays preserve the method
+     * shell so future revisions can layer additional Twig filters or
+     * functions without re-introducing the dropped fallback.
+     *
+     * @return array{functions: array<string, callable>, filters: array<string, callable>}
+     */
+    public function registerMarkupTags(): array
+    {
+        return [
+            'functions' => [],
+            'filters' => [],
+        ];
     }
 
     /**
