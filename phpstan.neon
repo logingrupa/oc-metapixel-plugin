@@ -11,6 +11,7 @@ parameters:
         - classes
         - models
         - console
+        - components
 
     excludePaths:
         - tests (?)
