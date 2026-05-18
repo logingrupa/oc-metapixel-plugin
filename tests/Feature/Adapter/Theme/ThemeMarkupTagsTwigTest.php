@@ -45,8 +45,7 @@ final class ThemeMarkupTagsTwigTest extends MetapixelTestCase
     public function test_this_metapixel_pushevent_resolves_via_controller_extend_mount(): void
     {
         $obCollector = App::make(ThemeEventCollector::class);
-        $obThis = new ThisVariable(['controller' => null]);
-        $obThis->config['metapixel'] = $obCollector;
+        $obThis = $this->makeThisVariableWithCollector($obCollector);
 
         $sRendered = $this->renderTwigString(
             "{% do this.metapixel.pushEvent({'name': 'ViewContent', 'action_key': 'pdp:42', 'content_ids': ['SKU-42'], 'value': 1.0, 'currency': 'EUR'}) %}OK",
@@ -59,6 +58,71 @@ final class ThemeMarkupTagsTwigTest extends MetapixelTestCase
         $arFlushed = $obCollector->flush();
         $this->assertSame('ViewContent', $arFlushed[0]['name']);
         $this->assertSame(['SKU-42'], $arFlushed[0]['content_ids']);
+    }
+
+    public function test_dot_notation_drops_malformed_event_silently(): void
+    {
+        $obCollector = App::make(ThemeEventCollector::class);
+        $obThis = $this->makeThisVariableWithCollector($obCollector);
+
+        $sRendered = $this->renderTwigString(
+            "{% do this.metapixel.pushEvent({'value': 12.5}) %}OK",
+            ['this' => $obThis],
+        );
+
+        $this->assertSame('OK', $sRendered);
+        $this->assertSame(0, $obCollector->count());
+    }
+
+    public function test_dot_notation_supports_multiple_pushes_in_same_template(): void
+    {
+        $obCollector = App::make(ThemeEventCollector::class);
+        $obThis = $this->makeThisVariableWithCollector($obCollector);
+
+        $sTemplate = "{% do this.metapixel.pushEvent({'name': 'PageView'}) %}".
+            "{% do this.metapixel.pushEvent({'name': 'ViewContent'}) %}".
+            "{% do this.metapixel.pushEvent({'name': 'AddToCart'}) %}OK";
+
+        $sRendered = $this->renderTwigString($sTemplate, ['this' => $obThis]);
+
+        $this->assertSame('OK', $sRendered);
+        $this->assertSame(3, $obCollector->count());
+
+        $arFlushed = $obCollector->flush();
+        $this->assertSame('PageView', $arFlushed[0]['name']);
+        $this->assertSame('ViewContent', $arFlushed[1]['name']);
+        $this->assertSame('AddToCart', $arFlushed[2]['name']);
+    }
+
+    public function test_collector_is_per_request_singleton_across_two_renders(): void
+    {
+        $obCollector = App::make(ThemeEventCollector::class);
+        $obThis = $this->makeThisVariableWithCollector($obCollector);
+
+        $this->renderTwigString(
+            "{% do this.metapixel.pushEvent({'name': 'PageView'}) %}OK",
+            ['this' => $obThis],
+        );
+        $this->renderTwigString(
+            "{% do this.metapixel.pushEvent({'name': 'ViewContent'}) %}OK",
+            ['this' => $obThis],
+        );
+
+        $this->assertSame(2, $obCollector->count());
+    }
+
+    /**
+     * Build a ThisVariable seeded with the collector under the `metapixel` key.
+     * This is the exact post-construction mutation Plugin::boot performs inside
+     * the `cms.page.beforeRenderPage` listener — `$controller->vars['this']` is
+     * the ThisVariable; the listener writes `$controller->vars['this']->config['metapixel']`.
+     */
+    private function makeThisVariableWithCollector(ThemeEventCollector $obCollector): ThisVariable
+    {
+        $obThis = new ThisVariable(['controller' => null]);
+        $obThis->config['metapixel'] = $obCollector;
+
+        return $obThis;
     }
 
     /**
