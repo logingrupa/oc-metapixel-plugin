@@ -56,39 +56,60 @@ class Settings extends CommonSettings
         // before expandoBeforeSaveDone (priority -1) packs attributes into the
         // `value` JSON column; reads/writes go through standard Eloquent
         // attribute access here.
-        $mValue = $this->getAttribute('theme_custom_event_names');
-        if (! is_string($mValue) && ! is_array($mValue)) {
+        $arLines = $this->splitEventNameInput($this->getAttribute('theme_custom_event_names'));
+        if ($arLines === null) {
             return;
         }
-        if (is_string($mValue)) {
-            $mLines = preg_split('/\R/', $mValue);
-            $arLines = $mLines === false ? [] : $mLines;
-        } else {
-            $arLines = $mValue;
-        }
 
-        $arClean = [];
-        $arDropped = [];
-        foreach ($arLines as $mLine) {
-            if (! is_string($mLine)) {
-                continue;
-            }
-            $sTrimmed = trim($mLine);
-            if ($sTrimmed === '') {
-                continue;
-            }
-            if (preg_match('/^[A-Za-z0-9_]{1,50}$/', $sTrimmed) === 1) {
-                $arClean[] = $sTrimmed;
-            } else {
-                $arDropped[] = $sTrimmed;
-            }
-        }
-
+        [$arClean, $arDropped] = $this->partitionEventNames($arLines);
         $this->setAttribute('theme_custom_event_names', $arClean);
 
         if ($arDropped !== []) {
             Flash::warning('metapixel: dropped invalid event names: '.implode(', ', $arDropped));
         }
+    }
+
+    /**
+     * Normalize the raw stored value (string textarea OR array passthrough) to
+     * a list of candidate lines. Returns null when the value is neither shape
+     * (signals beforeSave to no-op early).
+     *
+     * @return list<mixed>|null
+     */
+    private function splitEventNameInput(mixed $mValue): ?array
+    {
+        if (is_array($mValue)) {
+            return array_values($mValue);
+        }
+        if (! is_string($mValue)) {
+            return null;
+        }
+        $mLines = preg_split('/\R/', $mValue);
+
+        return $mLines === false ? [] : $mLines;
+    }
+
+    /**
+     * Split candidates into (kept, dropped) lists by the alpha-num+underscore
+     * 1..50-char regex. Skips empty/non-string entries silently.
+     *
+     * @param  list<mixed>  $arLines
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function partitionEventNames(array $arLines): array
+    {
+        $arClean = [];
+        $arDropped = [];
+        foreach ($arLines as $mLine) {
+            $sTrimmed = is_string($mLine) ? trim($mLine) : '';
+            if ($sTrimmed === '') {
+                continue;
+            }
+            $bMatches = preg_match('/^[A-Za-z0-9_]{1,50}$/', $sTrimmed) === 1;
+            $bMatches ? $arClean[] = $sTrimmed : $arDropped[] = $sTrimmed;
+        }
+
+        return [$arClean, $arDropped];
     }
 
     /**
