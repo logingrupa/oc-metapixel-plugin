@@ -110,6 +110,7 @@ final class SendCapiEvent implements ShouldQueue
             $obAdapter->getSecretKey($this->obSubject),
             $this->readEventTime(),
             $iSiteId,
+            $this->arPayload,
         );
         if (! $bWonRaceFence) {
             return;

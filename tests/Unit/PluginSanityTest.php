@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Console\Scheduling\Schedule;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Plugin;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
@@ -49,5 +50,32 @@ final class PluginSanityTest extends MetapixelTestCase
         $this->assertSame('logingrupa.metapixel::lang.settings.category', $arDescriptor['settings']['category']);
         $this->assertSame('icon-bullseye', $arDescriptor['settings']['icon']);
         $this->assertSame(500, $arDescriptor['settings']['order']);
+    }
+
+    public function test_register_schedule_wires_purge_command_daily(): void
+    {
+        $obPlugin = new Plugin($this->app);
+        $obSchedule = $this->app->make(Schedule::class);
+
+        $obPlugin->registerSchedule($obSchedule);
+
+        $arEvents = $obSchedule->events();
+        $arCommands = array_map(fn ($obEvent) => $obEvent->command ?? '', $arEvents);
+        $arMatching = array_filter(
+            $arCommands,
+            fn (string $sCommand): bool => str_contains($sCommand, 'metapixel:purge-event-log'),
+        );
+
+        $this->assertNotEmpty($arMatching, 'registerSchedule must wire metapixel:purge-event-log');
+
+        $obMatchingEvent = null;
+        foreach ($arEvents as $obEvent) {
+            if (str_contains((string) ($obEvent->command ?? ''), 'metapixel:purge-event-log')) {
+                $obMatchingEvent = $obEvent;
+                break;
+            }
+        }
+        $this->assertNotNull($obMatchingEvent);
+        $this->assertSame('0 0 * * *', $obMatchingEvent->expression, 'daily() cron expression must be 0 0 * * *');
     }
 }

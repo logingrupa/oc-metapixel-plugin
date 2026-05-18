@@ -18,6 +18,7 @@ use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\Doubles\TestSubject;
 use Logingrupa\Metapixel\Tests\Doubles\TestSubjectAdapter;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use Logingrupa\Metapixel\Updates\AddPayloadToMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
 use PHPUnit\Framework\Attributes\Group;
@@ -42,6 +43,7 @@ final class BackboneIntegrationTest extends MetapixelTestCase
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
         (new CreateMetapixelEventLogTable)->up();
+        (new AddPayloadToMetapixelEventLogTable)->up();
         (new CreateMetapixelFailedEventsTable)->up();
         Settings::clearInternalCache();
         Settings::set(['pixel_id' => 'PIXEL-1', 'capi_access_token' => 'TOKEN-1']);
@@ -50,6 +52,7 @@ final class BackboneIntegrationTest extends MetapixelTestCase
 
     protected function tearDown(): void
     {
+        (new AddPayloadToMetapixelEventLogTable)->down();
         (new CreateMetapixelEventLogTable)->down();
         (new CreateMetapixelFailedEventsTable)->down();
         Event::forget(SendCapiEvent::HOOK_BEFORE_DISPATCH);

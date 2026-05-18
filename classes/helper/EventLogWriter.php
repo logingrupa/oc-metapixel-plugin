@@ -20,6 +20,9 @@ use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
  */
 final class EventLogWriter
 {
+    /**
+     * @param  array<string, mixed>  $arPayload
+     */
     public static function record(
         string $sEventId,
         string $sEventName,
@@ -28,6 +31,7 @@ final class EventLogWriter
         ?string $sSecretKey,
         int $iEventTime,
         ?int $iSiteId,
+        array $arPayload,
     ): bool {
         try {
             /** @var AdapterRegistry $obRegistry */
@@ -54,6 +58,12 @@ final class EventLogWriter
                 return false;
             }
 
+            $sPayloadColumn = null;
+            if ($arPayload !== []) {
+                $mEncoded = json_encode($arPayload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+                $sPayloadColumn = is_string($mEncoded) ? $mEncoded : null;
+            }
+
             $sNow = (string) Carbon::now();
             $iAffected = DB::table('logingrupa_metapixel_event_log')->insertOrIgnore([
                 'event_id' => $sEventId,
@@ -64,6 +74,7 @@ final class EventLogWriter
                 'secret_key' => $sSecretKey,
                 'site_id' => $iSiteId,
                 'event_time' => $iEventTime,
+                'payload' => $arPayload !== [] ? $sPayloadColumn : null,
                 'fired_at' => $sNow,
                 'created_at' => $sNow,
                 'updated_at' => $sNow,

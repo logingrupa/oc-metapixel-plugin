@@ -21,6 +21,7 @@ final class EventLogModelTest extends MetapixelTestCase
             'event_name',
             'event_time',
             'fired_at',
+            'payload',
             'secret_key',
             'site_id',
             'subject_id',

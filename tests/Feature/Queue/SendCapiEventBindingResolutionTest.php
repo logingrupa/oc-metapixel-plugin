@@ -7,6 +7,7 @@ use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Meta\MetaClient;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use Logingrupa\Metapixel\Updates\AddPayloadToMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
 
@@ -17,11 +18,13 @@ final class SendCapiEventBindingResolutionTest extends MetapixelTestCase
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
         (new CreateMetapixelEventLogTable)->up();
+        (new AddPayloadToMetapixelEventLogTable)->up();
         (new CreateMetapixelFailedEventsTable)->up();
     }
 
     protected function tearDown(): void
     {
+        (new AddPayloadToMetapixelEventLogTable)->down();
         (new CreateMetapixelEventLogTable)->down();
         (new CreateMetapixelFailedEventsTable)->down();
         Event::forget(SendCapiEvent::HOOK_BEFORE_DISPATCH);

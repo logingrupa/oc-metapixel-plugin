@@ -31,7 +31,11 @@ class EventLog extends Model
         'site_id',
         'event_time',
         'fired_at',
+        'payload',
     ];
+
+    /** @var list<string> */
+    protected $jsonable = ['payload'];
 
     /** @var array<string, string> */
     protected $casts = [

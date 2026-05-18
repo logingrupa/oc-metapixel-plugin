@@ -8,6 +8,7 @@ use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Tests\Doubles\FakeStubAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\SpyMetaClient;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use Logingrupa\Metapixel\Updates\AddPayloadToMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 
 final class ListenerExceptionIsolationTest extends MetapixelTestCase
@@ -17,12 +18,14 @@ final class ListenerExceptionIsolationTest extends MetapixelTestCase
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
         (new CreateMetapixelEventLogTable)->up();
+        (new AddPayloadToMetapixelEventLogTable)->up();
         app(AdapterRegistry::class)->register(stdClass::class, FakeStubAdapter::class);
         $this->app->instance(MetaClient::class, new SpyMetaClient);
     }
 
     protected function tearDown(): void
     {
+        (new AddPayloadToMetapixelEventLogTable)->down();
         (new CreateMetapixelEventLogTable)->down();
         Event::forget(SendCapiEvent::HOOK_BEFORE_DISPATCH);
         Event::forget(SendCapiEvent::HOOK_AFTER_DISPATCH);

@@ -2,3 +2,6 @@
     - Initial release.
     - CreateMetapixelEventLogTable.php
     - CreateMetapixelFailedEventsTable.php
+1.0.1:
+    - Add payload longText NULL column to EventLog for frozen Meta payload audit.
+    - AddPayloadToMetapixelEventLogTable.php

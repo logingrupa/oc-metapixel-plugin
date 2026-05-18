@@ -10,6 +10,7 @@ parameters:
         - Plugin.php
         - classes
         - models
+        - console
 
     excludePaths:
         - tests (?)

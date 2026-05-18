@@ -22,6 +22,7 @@
             <file>./Plugin.php</file>
             <directory>./classes</directory>
             <directory>./models</directory>
+            <directory>./console</directory>
         </include>
         <exclude>
             <directory>./classes/testing</directory>
