@@ -10,6 +10,9 @@ use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
@@ -70,6 +73,14 @@ class Plugin extends PluginBase
             }
             $mThis->config['metapixel'] = App::make(ThemeEventCollector::class);
         });
+
+        // ThemeActionAdapter registers unconditionally — Theme path works on any
+        // OctoberCMS install regardless of cart-plugin presence (D-13).
+        App::make(AdapterRegistry::class)->register(
+            ThemeActionEvent::class,
+            ThemeActionAdapter::class,
+        );
+        Event::subscribe(ThemeAjaxHandler::class);
     }
 
     /**
