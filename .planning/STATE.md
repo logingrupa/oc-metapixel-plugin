@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
-status: verifying
+status: executing
 stopped_at: Phase 03 context gathered (4 areas, 29 decisions)
-last_updated: "2026-05-18T08:51:20.026Z"
-last_activity: 2026-05-17 — Plan 02-07 closed (commit 3edf0d6) — Phase 2 closed.
+last_updated: "2026-05-18T11:31:27.397Z"
+last_activity: 2026-05-18 -- Phase 03 execution started
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 11
+  total_plans: 19
   completed_plans: 11
   percent: 40
 ---
@@ -26,14 +26,14 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — READY FOR VERIFICATION
-Plan: 8 of 8 (CLOSED)
+Phase: 03 (shopaholicadapter-themeactionadapter-parallel-wave) — EXECUTING
+Plan: 1 of 8
 Plans: 02-01..02-07 (with 02-03a + 02-03b split) — all 8 PLAN files + 8 SUMMARY files committed + 02-VERIFICATION-INPUTS.md scaffolded
-Status: 02-07 CLOSED — EventSubjectAdapterContractTestCase abstract base under classes/testing/ (production namespace `Logingrupa\Metapixel\Classes\Testing`; extends `Logingrupa\Metapixel\Tests\MetapixelTestCase` per R2 YAGNI override; orchestra/testbench DROPPED) + 10 invariants + M-6 tearDown forgets AdapterRegistry singleton + FakeAdapterContractTest (10 invariants pass against FakeAdapter — ADAP-11 smoke) + ContractTestCaseSmokeTest (SC1 PayloadBuilder envelope + registry round-trip) + BackboneIntegrationTest (SC1 + SC5 end-to-end — happy-path + dedup with Middleware::history per H-7 + M-5 serialize round-trip) + phpunit.xml + phpstan.neon symmetric-exclude classes/testing/ + 02-VERIFICATION-INPUTS.md scaffolded with M-7 ROADMAP.md SC5 mismatch flagged for orchestrator. composer qa green — 111 tests / 332 assertions / 99.3% total / 98.3% SendCapiEvent. ADAP-11 closed.
+Status: Executing Phase 03
 
 **Phase 2 closure:** 8 plans shipped (02-01 + 02-02 + 02-03a + 02-03b + 02-04 + 02-05 + 02-06 + 02-07). 11/11 ADAP-* requirements + 5/5 in-Phase-2 pitfalls (P-01 cross-context resolution drift + P-02 boot-order race + P-05 EventLog subject_type alias ambiguity + P-08 Event::fire mutable payload + P-13 Plugin CLAUDE.md preference ranking) closed. 111 tests / 332 assertions / 99.3% coverage.
 
-Last activity: 2026-05-17 — Plan 02-07 closed (commit 3edf0d6) — Phase 2 closed.
+Last activity: 2026-05-18 -- Phase 03 execution started
 
 **Next action:** `/gsd:verify-phase 02-adapter-system-core-contracts-registry-extension-hooks` — gsd-verifier consumes 02-VERIFICATION-INPUTS.md + produces 02-VERIFICATION.md keyed against SC1..SC5 evidence checklist. Post-verification: apply M-7 ROADMAP.md SC5 wording fix + flip REQUIREMENTS.md ADAP-01..11 to `[x]` + update ROADMAP.md Phase 2 status to "Complete" + advance STATE.md current position to Phase 3.
 
