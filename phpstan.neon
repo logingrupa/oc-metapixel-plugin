@@ -55,6 +55,7 @@ parameters:
                 - 'classes/queue/*'
                 - 'classes/event/*'
                 - 'classes/adapter/*'
+                - 'classes/event/adapter/shopaholic/*'
 
     disallowedMethodCalls:
         -
@@ -64,6 +65,7 @@ parameters:
                 - 'classes/queue/*'
                 - 'classes/event/*'
                 - 'classes/adapter/*'
+                - 'classes/event/adapter/shopaholic/*'
         -
             method: 'October\Rain\Support\Facades\Site::*'
             message: 'metapixel: site_id MUST come from subject via SiteResolver::forSubject — cross-context determinism'
@@ -71,6 +73,7 @@ parameters:
                 - 'classes/queue/*'
                 - 'classes/event/*'
                 - 'classes/adapter/*'
+                - 'classes/event/adapter/shopaholic/*'
         -
             method: 'Illuminate\Http\Request::*'
             message: 'metapixel: per-event attributes MUST come from the subject via adapter'
@@ -78,6 +81,7 @@ parameters:
                 - 'classes/queue/*'
                 - 'classes/event/*'
                 - 'classes/adapter/*'
+                - 'classes/event/adapter/shopaholic/*'
 
     disallowedAttributes:
         -

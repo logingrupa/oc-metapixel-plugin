@@ -3,10 +3,16 @@
 namespace Logingrupa\Metapixel;
 
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
+use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
+use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
 use Logingrupa\Metapixel\Console\PurgeEventLog;
 use Logingrupa\Metapixel\Models\Settings;
+use Lovata\OrdersShopaholic\Models\Order;
 use System\Classes\PluginBase;
+use System\Classes\PluginManager;
 
 /**
  * Meta Pixel + Conversions API tracking plugin.
@@ -40,7 +46,30 @@ class Plugin extends PluginBase
         $this->registerConsoleCommand('metapixel:purge-event-log', PurgeEventLog::class);
     }
 
-    public function boot(): void {}
+    public function boot(): void
+    {
+        if ($this->isShopaholicEnabled()) {
+            App::make(AdapterRegistry::class)->register(
+                Order::class,
+                ShopaholicOrderAdapter::class,
+            );
+            Event::subscribe(OrderStatusWatcher::class);
+        }
+    }
+
+    /**
+     * Whether Lovata.OrdersShopaholic is installed + enabled. Resolves via the
+     * container-bound PluginManager so tests can swap a fake via
+     * $this->app->instance(PluginManager::class, $obFakePM) instead of relying
+     * on the Mockery overload pattern (which requires runInSeparateProcess).
+     */
+    protected function isShopaholicEnabled(): bool
+    {
+        /** @var PluginManager $obPluginManager */
+        $obPluginManager = App::make(PluginManager::class);
+
+        return $obPluginManager->exists('Lovata.OrdersShopaholic');
+    }
 
     /**
      * Wire the daily TTL purge of EventLog rows older than 7 days (Phase 3 D-08).
