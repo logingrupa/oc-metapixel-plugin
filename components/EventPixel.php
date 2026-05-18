@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixel\Components;
 
 use Cms\Classes\ComponentBase;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -49,30 +50,25 @@ final class EventPixel extends ComponentBase
         if ($sSubjectClass === '' || $sSubjectType === '' || $sSlug === '') {
             return;
         }
-        try {
-            $iSubjectId = (int) $sSubjectClass::query()->where($sSlugField, $sSlug)->value('id');
-        } catch (Throwable $obException) {
-            Log::warning('metapixel: EventPixel subject id lookup failed', ['meta_pixel.subject_class' => $sSubjectClass, 'meta_pixel.exception' => get_class($obException)]);
-
-            return;
-        }
+        $iSubjectId = $this->lookupSubjectId($sSubjectClass, $sSlugField, $sSlug);
         if ($iSubjectId <= 0) {
             return;
         }
-        $obCapiRow = $this->findCapiRow($sSubjectType, $iSubjectId, $sEventName, ['event_id', 'event_time', 'payload']);
-        if ($obCapiRow === null) {
+        $arCapiRow = $this->findCapiRow($sSubjectType, $iSubjectId, $sEventName);
+        if ($arCapiRow === null) {
             return;
         }
         if ($this->pixelRowExists($sSubjectType, $iSubjectId, $sEventName)) {
             return;
         }
-        $sPayloadRaw = is_string($obCapiRow->payload) ? $obCapiRow->payload : '';
-        $arPayload = $sPayloadRaw !== '' ? (array) json_decode($sPayloadRaw, true) : [];
-        $arCustomData = is_array($arPayload['data'][0]['custom_data'] ?? null) ? (array) $arPayload['data'][0]['custom_data'] : [];
-        $sEventId = is_string($obCapiRow->event_id) ? $obCapiRow->event_id : '';
+        $arCustomData = $this->extractCustomData($arCapiRow);
+        $mEventId = $arCapiRow['event_id'] ?? null;
+        $sEventId = is_string($mEventId) ? $mEventId : '';
         $this->page['eventPixelData'] = [
-            'event_id' => $sEventId, 'event_name' => $sEventName,
-            'subject_type' => $sSubjectType, 'subject_id' => $iSubjectId,
+            'event_id' => $sEventId,
+            'event_name' => $sEventName,
+            'subject_type' => $sSubjectType,
+            'subject_id' => $iSubjectId,
             'event_name_json' => (string) json_encode($sEventName, self::JS),
             'event_id_json' => (string) json_encode($sEventId, self::JS),
             'subject_type_json' => (string) json_encode($sSubjectType, self::JS),
@@ -83,49 +79,70 @@ final class EventPixel extends ComponentBase
     /** @return array{ok: bool, error?: string} */
     public function onMarkFired(): array
     {
-        $sSubjectType = (string) Input::get('subject_type', '');
-        $iSubjectId = (int) Input::get('subject_id', 0);
-        $sEventName = (string) Input::get('event_name', '');
-        $sServerEventId = (string) Input::get('event_id', '');
+        $sSubjectType = $this->inputString('subject_type');
+        $iSubjectId = $this->inputInt('subject_id');
+        $sEventName = $this->inputString('event_name');
+        $sServerEventId = $this->inputString('event_id');
         if ($sSubjectType === '' || $iSubjectId <= 0 || $sEventName === '' || $sServerEventId === '') {
             return ['ok' => false, 'error' => 'invalid params'];
         }
-        $obCapiRow = $this->findCapiRow($sSubjectType, $iSubjectId, $sEventName, ['event_id', 'event_time', 'secret_key', 'site_id', 'payload']);
-        if ($obCapiRow === null) {
+        $arCapiRow = $this->findCapiRow($sSubjectType, $iSubjectId, $sEventName);
+        if ($arCapiRow === null) {
             return ['ok' => false, 'error' => 'no capi row'];
         }
-        if ($obCapiRow->event_id !== $sServerEventId) {
+        if (($arCapiRow['event_id'] ?? null) !== $sServerEventId) {
             return ['ok' => false, 'error' => 'event_id mismatch'];
         }
-        try {
-            $sNow = (string) Carbon::now();
-            DB::table(self::TABLE)->insertOrIgnore([
-                'event_id' => $sServerEventId, 'event_name' => $sEventName, 'channel' => 'pixel',
-                'subject_type' => $sSubjectType, 'subject_id' => $iSubjectId,
-                'secret_key' => $obCapiRow->secret_key, 'site_id' => $obCapiRow->site_id,
-                'event_time' => (int) $obCapiRow->event_time,
-                'fired_at' => $sNow, 'created_at' => $sNow, 'updated_at' => $sNow,
-                'payload' => $obCapiRow->payload,
-            ]);
-        } catch (Throwable $obException) {
-            Log::warning('metapixel: EventPixel onMarkFired insert failed', ['meta_pixel.event_id' => $sServerEventId, 'meta_pixel.exception' => get_class($obException)]);
 
-            return ['ok' => false, 'error' => 'db error'];
-        }
-
-        return ['ok' => true];
+        return $this->insertPixelRow($sServerEventId, $sEventName, $sSubjectType, $iSubjectId, $arCapiRow);
     }
 
-    /**
-     * @param  list<string>  $arColumns
-     * @return object|null
-     */
-    private function findCapiRow(string $sSubjectType, int $iSubjectId, string $sEventName, array $arColumns)
+    private function inputString(string $sKey): string
     {
-        return DB::table(self::TABLE)
+        $mValue = Input::get($sKey, '');
+
+        return is_string($mValue) ? $mValue : '';
+    }
+
+    private function inputInt(string $sKey): int
+    {
+        $mValue = Input::get($sKey, 0);
+
+        return is_numeric($mValue) ? (int) $mValue : 0;
+    }
+
+    private function lookupSubjectId(string $sSubjectClass, string $sSlugField, string $sSlug): int
+    {
+        try {
+            if (! is_subclass_of($sSubjectClass, Model::class)) {
+                return 0;
+            }
+            $mValue = $sSubjectClass::query()->where($sSlugField, $sSlug)->value('id');
+
+            return is_numeric($mValue) ? (int) $mValue : 0;
+        } catch (Throwable $obException) {
+            Log::warning('metapixel: EventPixel subject id lookup failed', ['meta_pixel.subject_class' => $sSubjectClass, 'meta_pixel.exception' => get_class($obException)]);
+
+            return 0;
+        }
+    }
+
+    /** @return array<string, mixed>|null */
+    private function findCapiRow(string $sSubjectType, int $iSubjectId, string $sEventName): ?array
+    {
+        $obRow = DB::table(self::TABLE)
             ->where('subject_type', $sSubjectType)->where('subject_id', $iSubjectId)
             ->where('event_name', $sEventName)->where('channel', 'capi')
-            ->first($arColumns);
+            ->first(['event_id', 'event_time', 'secret_key', 'site_id', 'payload']);
+        if ($obRow === null) {
+            return null;
+        }
+        $arResult = [];
+        foreach ((array) $obRow as $mKey => $mValue) {
+            $arResult[(string) $mKey] = $mValue;
+        }
+
+        return $arResult;
     }
 
     private function pixelRowExists(string $sSubjectType, int $iSubjectId, string $sEventName): bool
@@ -133,5 +150,71 @@ final class EventPixel extends ComponentBase
         return DB::table(self::TABLE)
             ->where('subject_type', $sSubjectType)->where('subject_id', $iSubjectId)
             ->where('event_name', $sEventName)->where('channel', 'pixel')->exists();
+    }
+
+    /**
+     * @param  array<string, mixed>  $arCapiRow
+     * @return array<string, mixed>
+     */
+    private function extractCustomData(array $arCapiRow): array
+    {
+        $mPayloadRaw = $arCapiRow['payload'] ?? null;
+        if (! is_string($mPayloadRaw) || $mPayloadRaw === '') {
+            return [];
+        }
+        $mDecoded = json_decode($mPayloadRaw, true);
+        if (! is_array($mDecoded)) {
+            return [];
+        }
+        $mData = $mDecoded['data'] ?? null;
+        if (! is_array($mData)) {
+            return [];
+        }
+        $mFirst = $mData[0] ?? null;
+        if (! is_array($mFirst)) {
+            return [];
+        }
+        $mCustomData = $mFirst['custom_data'] ?? null;
+        if (! is_array($mCustomData)) {
+            return [];
+        }
+        $arResult = [];
+        foreach ($mCustomData as $mKey => $mValue) {
+            $arResult[(string) $mKey] = $mValue;
+        }
+
+        return $arResult;
+    }
+
+    /**
+     * @param  array<string, mixed>  $arCapiRow
+     * @return array{ok: bool, error?: string}
+     */
+    private function insertPixelRow(string $sEventId, string $sEventName, string $sSubjectType, int $iSubjectId, array $arCapiRow): array
+    {
+        try {
+            $sNow = (string) Carbon::now();
+            $mEventTime = $arCapiRow['event_time'] ?? 0;
+            DB::table(self::TABLE)->insertOrIgnore([
+                'event_id' => $sEventId,
+                'event_name' => $sEventName,
+                'channel' => 'pixel',
+                'subject_type' => $sSubjectType,
+                'subject_id' => $iSubjectId,
+                'secret_key' => $arCapiRow['secret_key'] ?? null,
+                'site_id' => $arCapiRow['site_id'] ?? null,
+                'event_time' => is_numeric($mEventTime) ? (int) $mEventTime : 0,
+                'fired_at' => $sNow,
+                'created_at' => $sNow,
+                'updated_at' => $sNow,
+                'payload' => $arCapiRow['payload'] ?? null,
+            ]);
+        } catch (Throwable $obException) {
+            Log::warning('metapixel: EventPixel onMarkFired insert failed', ['meta_pixel.event_id' => $sEventId, 'meta_pixel.exception' => get_class($obException)]);
+
+            return ['ok' => false, 'error' => 'db error'];
+        }
+
+        return ['ok' => true];
     }
 }
