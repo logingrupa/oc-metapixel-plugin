@@ -104,7 +104,7 @@ The research surface for Phase 3 is narrow because the heavy decisions are locke
 | **THEM-01** | `ThemeActionEvent` value object: `sActionKey`, `iSyntheticId` (hash of action_key), `sEventName`, `arPayload`. | New class — `classes/adapter/theme/ThemeActionEvent.php`. iSyntheticId via `crc32($sActionKey)` mapped into positive int range. Plan 03-05. |
 | **THEM-02** | `ThemeActionAdapter implements EventSubjectAdapter`. `getSiteId()` reads `arPayload['site_id']` first; falls back to `Site::getCurrent()?->getId()`. Documented PHPDoc exception. | `Site::getCurrent()` lives at `October\Rain\Support\Facades\Site` (Phase 2 verified). PHPStan `disallowIn` for `classes/adapter/theme/` is excluded — see D-16. Plan 03-05. |
 | **THEM-03** | `ThemeEventCollector` request-scoped singleton. `Plugin::register()` binds via `$this->app->singleton(ThemeEventCollector::class)`. Accumulates events pushed via Twig API. `flush()` explicitly called by PixelHead component + test teardown. | Plan 03-06. |
-| **THEM-04** | `Plugin::registerMarkupTags()` returns `['functions' => ['this.metapixel.pushEvent' => function (...) {...}]]`. (Actual shape: registers function `metapixel_push_event` that wraps the call; the Twig path `this.metapixel.pushEvent` requires a stub Twig extension OR a `this.metapixel` global resolved via the component PageController — see Code Examples §Pattern 2.) | `registerMarkupTags()` shape verified at `plugins/lovata/toolbox/Plugin.php:66` (Lovata.Toolbox reference). Plan 03-06. |
+| **THEM-04** | registers `this.metapixel.pushEvent(arEvent)` via `Cms\Classes\Controller::extend(...)` + `page.beforeRenderPage` event listener that injects a `Metapixel\Classes\Adapter\Theme\TwigMetapixelObject` instance onto the active CMS controller's twig globals under the `metapixel` key — concrete pattern locked in plan 03-06. | `Cms\Classes\Controller::extend(...)` + `bindEvent('page.beforeRenderPage', ...)` surface verified at `modules/cms/classes/Controller.php` (October framework). Plan 03-06. |
 | **THEM-05** | `ThemeAjaxHandler` listens `cms.ajax.beforeRunHandler` for `Metapixel::onFireEvent`. Validates against META_STANDARD const + Settings list, enforces CSRF token, rate-limits, JS-escapes returned payload. Dispatches `SendCapiEvent` + emits `<script>fbq(...)</script>` fragment. | `cms.ajax.beforeRunHandler` event verified at `modules/cms/classes/controller/HasAjaxRequests.php:297` — listener signature `(Cms\Classes\Controller $obController, string $sHandler)`; returning a non-null value short-circuits the handler. October's built-in CSRF runs in `\Cms\Classes\AjaxFramework` middleware BEFORE the event fires — handler can read `Request::header('X-CSRF-TOKEN')` for redundant check. Plan 03-07. |
 | **THEM-06** | `Components\EventPixel` properties `subject_class` + `subject_slug_field`. `onRun()` queries EventLog for matching CAPI row; if present + Pixel row absent, emits inline `fbq('track', name, data, {eventID})` with server event_id. `onMarkFired` AJAX writes `channel='pixel'` row. | D-09 locks DB::table read path. EventLog `forSubject` scope exists (`models/EventLog.php:50`). Plan 03-08. |
 | **THEM-07** | `Components\PixelHead` reads `ThemeEventCollector` accumulator, emits `fbq('track', ...)` script blocks per pushed event. Optional `also_dispatch_capi: true` triggers CAPI mirror. | Plan 03-08. |
@@ -397,42 +397,43 @@ final class OrderStatusWatcher
 
 **When to use:** THEM-04 needs `{% do this.metapixel.pushEvent({...}) %}` shape — operator-facing syntax.
 
-**Example (locked path — use a bridge function + a global object):**
+**Example (locked path — `Cms\Classes\Controller::extend` + `page.beforeRenderPage` mount; revision iteration 2 — no bare-function fallback ships):**
 
 ```php
 <?php
-// Plugin.php — Phase 3 addition to registerMarkupTags
+// Plugin.php — Phase 3 boot() mount, locked in plan 03-06
+//
+// Mounts the ThemeEventCollector singleton as `this.metapixel` on every CMS
+// page render. Twig template body then resolves `this.metapixel.pushEvent(arEvent)`
+// against the controller's `vars['metapixel']` key via standard Twig attribute access.
 
+use Cms\Classes\Controller as CmsController;
+use Illuminate\Support\Facades\App;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
+
+public function boot(): void
+{
+    // ... earlier conditional Shopaholic registration block ...
+
+    CmsController::extend(function (CmsController $obController): void {
+        $obController->bindEvent('page.beforeRenderPage', function () use ($obController): void {
+            $obController->vars['metapixel'] = App::make(ThemeEventCollector::class);
+        });
+    });
+}
 
 public function registerMarkupTags(): array
 {
+    // Empty 'functions' array — bare-function fallback DROPPED per user lock
+    // (revision iteration 1). Dot-notation `{% do this.metapixel.pushEvent(...) %}`
+    // is the SOLE Twig surface; no bare `metapixel_push_event(...)` is shipped.
     return [
-        'functions' => [
-            // Twig function: {% do metapixel_push_event({name:'ViewContent', ...}) %}
-            // OR via global: {% do this.metapixel.pushEvent({...}) %}
-            'metapixel_push_event' => function (array $arEvent): void {
-                /** @var ThemeEventCollector $obCollector */
-                $obCollector = app(ThemeEventCollector::class);
-                $obCollector->push($arEvent);
-            },
-        ],
+        'functions' => [],
     ];
 }
 ```
 
-For the `this.metapixel.pushEvent(...)` syntax (operator-preferred per ROADMAP example):
-
-```php
-// Plugin::boot() — register a Twig global that wraps the collector
-\Cms\Classes\Controller::extend(function ($obController) {
-    $obController->bindEvent('page.beforeRenderPage', function () use ($obController) {
-        $obController->vars['this']->metapixel = app(ThemeEventCollector::class);
-    });
-});
-```
-
-The Twig path `this.metapixel.pushEvent($arEvent)` then resolves to `ThemeEventCollector::pushEvent($arEvent)` via standard Twig attribute access. ThemeEventCollector implements `__get('metapixel')` is NOT needed — `this` is the controller, `this.metapixel` reads the public dynamic property. Confidence: MEDIUM — verify the `this.*` resolution shape at plan time; if it doesn't resolve cleanly, fall back to a bare Twig function `{% do metapixel_push_event({...}) %}`. Both shapes work; the bare-function shape is simpler and still satisfies THEM-04.
+The Twig path `this.metapixel.pushEvent($arEvent)` resolves to `ThemeEventCollector::pushEvent($arEvent)` via Twig attribute access — `this` is the controller, `this.metapixel` reads the controller's dynamic `vars['metapixel']` slot set inside the `page.beforeRenderPage` listener, and `.pushEvent(...)` resolves to the collector's `pushEvent(array $arEvent): void` method via Twig's property → method resolution chain. Confidence: HIGH — pattern locked in plan 03-06; the Task 1 spike there exercises the resolution end-to-end against a real `Cms\Classes\Controller` instance. If the spike fails, the executor escalates via `/gsd:debug` — **NO bare-function fallback ships under any circumstance**.
 
 ### Pattern 3: `registerSchedule(Schedule)` daily wire-up (D-08)
 
@@ -1187,7 +1188,7 @@ None — all sources are in-tree or vendored framework code; nothing relies on t
 - Standard stack: HIGH — Phase 3 ships zero new packages; every consumed lib is verified in-tree.
 - Architecture: HIGH — 29 locked decisions (D-01..D-29) constrain the architecture; CONTEXT.md drives the planning.
 - Pitfalls: HIGH — every Phase 3 pitfall is verified by direct source inspection of OctoberCMS framework, Lovata models, or Phase 2 code.
-- Twig dot-notation mount (Pattern 2 A1): MEDIUM — bare-function fallback provides safety net.
+- Twig dot-notation mount (Pattern 2 A1): HIGH — Controller::extend mount pattern locked iteration-1 revision; failure escalates via /gsd:debug, NOT plan-level fallback.
 
 **Research date:** 2026-05-18
 **Valid until:** 2026-06-17 (30 days — stable framework + locked decisions)
@@ -1207,7 +1208,7 @@ None — all sources are in-tree or vendored framework code; nothing relies on t
 - CartPosition is MorphTo (`item_id` + `item_type`), NOT direct `offer_id` — the CONTEXT.md outline column shape was inaccurate. ValueResolver accesses Offer via `$obCartPosition->item`; null-guard required for non-Offer items.
 - Status model lacks its own `lists()` — dropdown sourced via `Status::orderBy('sort_order')->pluck('name', 'code')` exposed through `Settings::getPaidStatusCodeOptions`.
 - v1.x 367-LOC OrderStatusWatcher anti-pattern reference — Phase 3 ≤70 LOC plain `Event::subscribe` class beats Lovata.Toolbox ModelHandler inheritance (which forces unneeded `getModelClass()` + `getItemClass()` abstracts).
-- Twig `this.metapixel.pushEvent($arEvent)` dot-notation mount is the ONLY residual uncertainty (A1 spike in Plan 03-06 Task 1) — bare function fallback `{% do metapixel_push_event({...}) %}` satisfies THEM-04 regardless.
+- Twig `this.metapixel.pushEvent($arEvent)` dot-notation mount is the hard contract per REQUIREMENTS.md THEM-04 + CONTEXT.md D-18 + revision iteration 1 user lock. No fallback path ships. Spike risk handled by plan 03-06 Task 1 (executor escalates via `/gsd:debug` if the mount is technically infeasible).
 
 ### File Created
 
@@ -1220,7 +1221,7 @@ None — all sources are in-tree or vendored framework code; nothing relies on t
 | Standard Stack | HIGH | Zero new packages; in-tree verification of every lib. |
 | Architecture | HIGH | 29 locked decisions from CONTEXT.md drive structure. |
 | Pitfalls | HIGH | All 9 documented pitfalls verified by direct source inspection. |
-| Twig mount (A1) | MEDIUM | Bare-function fallback provides safety net. |
+| Twig mount (A1) | HIGH | Controller::extend + page.beforeRenderPage mount pattern locked in plan 03-06; failure escalates via /gsd:debug, no plan-level fallback. |
 
 ### Open Questions
 

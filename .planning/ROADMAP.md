@@ -204,7 +204,16 @@ class Plugin extends PluginBase {
   4. The Larajax handler `Metapixel::onFireEvent` validates incoming events against an `EVENT_NAME_ALLOWLIST` of Meta-standard event names, enforces OctoberCMS CSRF token, rate-limits per IP+session, and JS-escapes returned payload fragments. Pest fuzzing tests with XSS / SQLi-shaped / oversize / mixed-encoding inputs all return 422 with no row written to EventLog. (Prevents **P-09**.)
   5. `Components\EventPixel` accepts `subject_class` + `subject_slug_field` properties and resolves the adapter via `AdapterRegistry::resolveByClass()`. `onMarkFired` AJAX writes `channel='pixel'` row to EventLog with server-supplied `event_id` validation; `ThemeEventCollector` accumulator is request-scoped and flushed between requests.
 
-**Plans:** TBD
+**Plans:** 8 plans
+
+- [ ] `03-01-PLAN.md` — EventLog payload column migration + EventLogWriter::record `array $arPayload` trailing arg + `PurgeEventLog` console command + `Plugin::registerSchedule` daily wire-up (foundation; D-06..D-08)
+- [ ] `03-02-PLAN.md` — `ShopaholicOrderAdapter` + `ShopaholicOrderValueResolver` + `OrderStatusWatcher` + Plugin::boot conditional registration via `PluginManager::exists` gate (SHOP-01, SHOP-02, SHOP-03, SHOP-04)
+- [ ] `03-03-PLAN.md` — `ShopaholicCartPositionAdapter` + `ShopaholicCartPositionValueResolver` + `CartPositionWatcher` (MorphTo-aware Offer access + dedup on update) — carries SHOP-01..04 to CartPosition
+- [ ] `03-04-PLAN.md` — SHOP-05 end-to-end Pest integration test: status flip → dispatch → race-fence → Guzzle MockHandler payload assertion + second-flip dedup proof (SHOP-05)
+- [ ] `03-05-PLAN.md` — `ThemeActionEvent` value object + `ThemeActionAdapter` with D-15 site_id fallback + phpstan.neon D-16 deny-list narrowing (THEM-01, THEM-02)
+- [ ] `03-06-PLAN.md` — `ThemeEventCollector` request-scoped singleton + `Plugin::registerMarkupTags` Twig `metapixel_push_event` bare function + `this.metapixel.pushEvent` dot-notation mount (THEM-03, THEM-04)
+- [ ] `03-07-PLAN.md` — `ThemeAjaxHandler` P-09 defence (META_STANDARD allowlist + Settings textarea + RateLimiter + JS-escape + 14-input fuzzing matrix) (THEM-05)
+- [ ] `03-08-PLAN.md` — `Components\EventPixel` (D-09 direct-DB read + un-injectable event_id onMarkFired) + `Components\PixelHead` (ThemeEventCollector consumer + optional CAPI mirror) (THEM-06, THEM-07)
 
 ### Phase 4: Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations
 
@@ -269,7 +278,7 @@ class Plugin extends PluginBase {
 |-------|----------------|--------|-----------|
 | 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
 | 2. Adapter system core | 8/8 | Complete   | 2026-05-17 |
-| 3. ShopaholicAdapter + ThemeActionAdapter | 0/0 | Not started | — |
+| 3. ShopaholicAdapter + ThemeActionAdapter | 0/8 | Planned — pending execution | — |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 0/0 | Not started | — |
 | 5. Documentation + marketplace launch | 0/0 | Not started | — |
 
