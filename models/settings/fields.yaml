@@ -28,3 +28,9 @@ fields:
         span: auto
         default: EUR
         options: \Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicSettingsOptions::getDefaultCurrencyCodeOptions
+    theme_custom_event_names:
+        label: logingrupa.metapixel::lang.settings.fields.theme_custom_event_names_label
+        commentAbove: logingrupa.metapixel::lang.settings.fields.theme_custom_event_names_comment
+        type: textarea
+        size: small
+        span: full
