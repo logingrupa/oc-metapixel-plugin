@@ -13,8 +13,11 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
 use Logingrupa\Metapixel\Classes\Meta\MetaClient;
+use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
+use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\ShopaholicAdapterTestCase;
@@ -23,6 +26,7 @@ use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
 use Lovata\OrdersShopaholic\Models\Order;
 use PHPUnit\Framework\Attributes\Group;
+use Ramsey\Uuid\Uuid;
 
 /**
  * SHOP-05 end-to-end integration — Order.status_id flip through
@@ -181,6 +185,65 @@ final class PurchaseFlowIntegrationTest extends ShopaholicAdapterTestCase
 
         $this->assertCount(1, $arAfterDispatch, 'after_dispatch listener fired once');
         $this->assertSame('Purchase', $arAfterDispatch[0]['name']);
+    }
+
+    public function test_second_admin_flip_on_same_order_does_not_re_fire_eventlog_race_fence_blocks(): void
+    {
+        // First flip — drive the full end-to-end pipeline so the EventLog row
+        // is written by the race-fence helper.
+        $obOrder = Order::find(1);
+        $this->assertNotNull($obOrder);
+        $obOrder->setAttribute('status_id', 5);
+        $obOrder->save();
+        (new OrderStatusWatcher)->handle($obOrder);
+
+        $this->assertCount(1, $this->arHistory, 'first flip — Guzzle saw 1 POST');
+        $this->assertSame(1, DB::table('logingrupa_metapixel_event_log')->count(), 'first flip — EventLog has 1 row');
+
+        $obRowFirst = DB::table('logingrupa_metapixel_event_log')->first();
+        $this->assertNotNull($obRowFirst);
+        $sFirstEventId = (string) $obRowFirst->event_id;
+
+        // Second flip simulation — same status_id (no transition). The
+        // Watcher's wasChanged('status_id') guard returns false on a no-op
+        // save, so no SendCapiEvent::dispatch happens.
+        $obOrder->save();
+        (new OrderStatusWatcher)->handle($obOrder);
+
+        $this->assertCount(1, $this->arHistory, 'second flip — no new POST (Watcher wasChanged guard)');
+        $this->assertSame(1, DB::table('logingrupa_metapixel_event_log')->count(), 'second flip — still 1 EventLog row');
+
+        // Now FORCE the dispatch path to prove the EventLog UNIQUE race-fence
+        // is the canonical dedup anchor — build a fresh payload with a NEW
+        // event_id and shove it through SendCapiEvent::handle directly.
+        // EventLogWriter::record must return false on the UNIQUE collision,
+        // SendCapiEvent::handle must short-circuit, no second HTTP POST.
+        $obAdapter = new ShopaholicOrderAdapter;
+        $obResolver = new ShopaholicOrderValueResolver;
+        $obBuilder = new PayloadBuilder(new UserDataHasher);
+        $arPayload = $obBuilder->buildEventPayload(
+            'Purchase',
+            $obAdapter,
+            $obOrder,
+            $obResolver,
+            Uuid::uuid4()->toString(),
+            time(),
+            [],
+        );
+
+        $obJob = new SendCapiEvent('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class);
+        $obJob->handle(app(AdapterRegistry::class), app(MetaClient::class));
+
+        $this->assertCount(1, $this->arHistory, 'race-fence — still 1 POST (second dispatch short-circuited)');
+        $this->assertSame(1, DB::table('logingrupa_metapixel_event_log')->count(), 'race-fence — still 1 EventLog row');
+
+        $obRowSurvivor = DB::table('logingrupa_metapixel_event_log')->first();
+        $this->assertNotNull($obRowSurvivor);
+        $this->assertSame(
+            $sFirstEventId,
+            (string) $obRowSurvivor->event_id,
+            'surviving row carries the FIRST dispatch event_id (race-fence first-wins)',
+        );
     }
 
     private function seedOrderFixture(): void
