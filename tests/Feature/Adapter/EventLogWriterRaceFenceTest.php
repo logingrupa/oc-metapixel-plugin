@@ -39,8 +39,8 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
         // in a UNIQUE column as DISTINCT — see the dedicated NULL-distinct test
         // below). The race-fence INVARIANT (only-one-winner-per-key) is what
         // this test asserts; concurrency itself is not exercised here.
-        $bWonFirst = EventLogWriter::record('uuid-1', 'Purchase', 'capi', $obSubject, null, 1700000000, 1);
-        $bWonSecond = EventLogWriter::record('uuid-2', 'Purchase', 'capi', $obSubject, null, 1700000001, 1);
+        $bWonFirst = EventLogWriter::record('uuid-1', 'Purchase', 'capi', $obSubject, null, 1700000000, 1, []);
+        $bWonSecond = EventLogWriter::record('uuid-2', 'Purchase', 'capi', $obSubject, null, 1700000001, 1, []);
 
         $this->assertTrue($bWonFirst);
         $this->assertFalse($bWonSecond);
@@ -50,8 +50,8 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
     public function test_record_returns_true_for_distinct_channel_same_subject(): void
     {
         $obSubject = new TestSubject;
-        $bCapi = EventLogWriter::record('uuid-1', 'Purchase', 'capi', $obSubject, null, 1700000000, null);
-        $bPixel = EventLogWriter::record('uuid-1', 'Purchase', 'pixel', $obSubject, null, 1700000000, null);
+        $bCapi = EventLogWriter::record('uuid-1', 'Purchase', 'capi', $obSubject, null, 1700000000, null, []);
+        $bPixel = EventLogWriter::record('uuid-1', 'Purchase', 'pixel', $obSubject, null, 1700000000, null, []);
 
         $this->assertTrue($bCapi);
         $this->assertTrue($bPixel);
@@ -61,8 +61,8 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
     public function test_record_returns_true_for_distinct_site_id_same_subject(): void
     {
         $obSubject = new TestSubject;
-        $bNullSite = EventLogWriter::record('uuid-1', 'Purchase', 'capi', $obSubject, null, 1700000000, null);
-        $bSite7 = EventLogWriter::record('uuid-2', 'Purchase', 'capi', $obSubject, null, 1700000000, 7);
+        $bNullSite = EventLogWriter::record('uuid-1', 'Purchase', 'capi', $obSubject, null, 1700000000, null, []);
+        $bSite7 = EventLogWriter::record('uuid-2', 'Purchase', 'capi', $obSubject, null, 1700000000, 7, []);
 
         $this->assertTrue($bNullSite, 'null site_id insert wins');
         $this->assertTrue($bSite7, 'site_id=7 insert wins — UNIQUE NULL-distinct semantics');
@@ -73,7 +73,7 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
     {
         Log::shouldReceive('warning')->atLeast()->once();
 
-        $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new stdClass, null, 1700000000, null);
+        $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new stdClass, null, 1700000000, null, []);
         $this->assertFalse($bResult);
         $this->assertSame(0, DB::table('logingrupa_metapixel_event_log')->count());
     }
@@ -85,14 +85,14 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
         app(AdapterRegistry::class)->register(TestSubject::class, ZeroIdSubjectAdapter::class);
 
         Log::shouldReceive('warning')->atLeast()->once();
-        $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new TestSubject, null, 1700000000, null);
+        $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new TestSubject, null, 1700000000, null, []);
         $this->assertFalse($bResult);
     }
 
     public function test_record_stores_subject_type_alias_not_class_fqn(): void
     {
         $obSubject = new TestSubject;
-        EventLogWriter::record('uuid-1', 'Purchase', 'capi', $obSubject, null, 1700000000, null);
+        EventLogWriter::record('uuid-1', 'Purchase', 'capi', $obSubject, null, 1700000000, null, []);
 
         $obRow = DB::table('logingrupa_metapixel_event_log')->first();
         $this->assertSame('fake.subject', $obRow->subject_type, 'opaque alias written, not class FQN');
@@ -108,7 +108,7 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
 
         Log::shouldReceive('critical')->atLeast()->once();
 
-        $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new TestSubject, null, 1700000000, 1);
+        $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new TestSubject, null, 1700000000, 1, []);
         $this->assertFalse($bResult, 'DB write failure returns false — fail-safe peer-wins');
     }
 }
