@@ -6,10 +6,13 @@ use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
+use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
+use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
 use Logingrupa\Metapixel\Console\PurgeEventLog;
 use Logingrupa\Metapixel\Models\Settings;
+use Lovata\OrdersShopaholic\Models\CartPosition;
 use Lovata\OrdersShopaholic\Models\Order;
 use System\Classes\PluginBase;
 use System\Classes\PluginManager;
@@ -49,11 +52,11 @@ class Plugin extends PluginBase
     public function boot(): void
     {
         if ($this->isShopaholicEnabled()) {
-            App::make(AdapterRegistry::class)->register(
-                Order::class,
-                ShopaholicOrderAdapter::class,
-            );
+            $obRegistry = App::make(AdapterRegistry::class);
+            $obRegistry->register(Order::class, ShopaholicOrderAdapter::class);
+            $obRegistry->register(CartPosition::class, ShopaholicCartPositionAdapter::class);
             Event::subscribe(OrderStatusWatcher::class);
+            Event::subscribe(CartPositionWatcher::class);
         }
     }
 
