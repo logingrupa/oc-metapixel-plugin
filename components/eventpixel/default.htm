@@ -1,0 +1,13 @@
+{% if eventPixelData %}
+<script>
+fbq('track', {{ eventPixelData.event_name_json|raw }}, {{ eventPixelData.custom_data_json|raw }}, {eventID: {{ eventPixelData.event_id_json|raw }}});
+document.addEventListener('DOMContentLoaded', function() {
+    jax.ajax('eventPixel::onMarkFired', { data: {
+        subject_type: {{ eventPixelData.subject_type_json|raw }},
+        subject_id: {{ eventPixelData.subject_id }},
+        event_name: {{ eventPixelData.event_name_json|raw }},
+        event_id: {{ eventPixelData.event_id_json|raw }}
+    }});
+});
+</script>
+{% endif %}
