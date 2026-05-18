@@ -23,23 +23,28 @@ foreach (['/lang', '/updates', '/.planning', '/.github'] as $sPath) {
     }
 }
 
-// Lovata cart imports allowed ONLY inside the adapter directory. Any import
-// outside it raises DEV_DEPENDENCY_IN_PROD (Lovata cart is require-dev only).
-$obConfig->ignoreErrorsOnPackageAndPath(
+// Lovata cart imports allowed ONLY inside the Shopaholic adapter + matching
+// event-watcher directories. Any import outside them raises DEV_DEPENDENCY_IN_PROD
+// (Lovata cart packages are require-dev only). Phase 3 plan 03-02 widens the
+// previous adapter-only whitelist to also cover classes/event/adapter/shopaholic
+// where the OrderStatusWatcher (and future CartPositionWatcher) live.
+$arLovataPaths = [
+    __DIR__.'/classes/adapter/shopaholic',
+    __DIR__.'/classes/event/adapter/shopaholic',
+];
+foreach ([
     'lovata/shopaholic-plugin',
-    __DIR__.'/classes/adapter/shopaholic',
-    [ErrorType::DEV_DEPENDENCY_IN_PROD],
-);
-$obConfig->ignoreErrorsOnPackageAndPath(
     'lovata/ordersshopaholic-plugin',
-    __DIR__.'/classes/adapter/shopaholic',
-    [ErrorType::DEV_DEPENDENCY_IN_PROD],
-);
-$obConfig->ignoreErrorsOnPackageAndPath(
     'lovata/buddies-plugin',
-    __DIR__.'/classes/adapter/shopaholic',
-    [ErrorType::DEV_DEPENDENCY_IN_PROD],
-);
+] as $sLovataPackage) {
+    foreach ($arLovataPaths as $sLovataPath) {
+        $obConfig->ignoreErrorsOnPackageAndPath(
+            $sLovataPackage,
+            $sLovataPath,
+            [ErrorType::DEV_DEPENDENCY_IN_PROD],
+        );
+    }
+}
 
 // Dev tooling — referenced via composer scripts, not imported.
 foreach ([
