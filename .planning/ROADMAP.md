@@ -204,7 +204,7 @@ class Plugin extends PluginBase {
   4. The Larajax handler `Metapixel::onFireEvent` validates incoming events against an `EVENT_NAME_ALLOWLIST` of Meta-standard event names, enforces OctoberCMS CSRF token, rate-limits per IP+session, and JS-escapes returned payload fragments. Pest fuzzing tests with XSS / SQLi-shaped / oversize / mixed-encoding inputs all return 422 with no row written to EventLog. (Prevents **P-09**.)
   5. `Components\EventPixel` accepts `subject_class` + `subject_slug_field` properties and resolves the adapter via `AdapterRegistry::resolveByClass()`. `onMarkFired` AJAX writes `channel='pixel'` row to EventLog with server-supplied `event_id` validation; `ThemeEventCollector` accumulator is request-scoped and flushed between requests.
 
-**Plans:** 8/8 plans complete
+**Plans:** 10 plans (8/8 base + 2 gap-closure plans)
 
 - [ ] `03-01-PLAN.md` — EventLog payload column migration + EventLogWriter::record `array $arPayload` trailing arg + `PurgeEventLog` console command + `Plugin::registerSchedule` daily wire-up (foundation; D-06..D-08)
 - [ ] `03-02-PLAN.md` — `ShopaholicOrderAdapter` + `ShopaholicOrderValueResolver` + `OrderStatusWatcher` + Plugin::boot conditional registration via `PluginManager::exists` gate (SHOP-01, SHOP-02, SHOP-03, SHOP-04)
@@ -214,6 +214,8 @@ class Plugin extends PluginBase {
 - [ ] `03-06-PLAN.md` — `ThemeEventCollector` request-scoped singleton + `Plugin::registerMarkupTags` Twig `metapixel_push_event` bare function + `this.metapixel.pushEvent` dot-notation mount (THEM-03, THEM-04)
 - [ ] `03-07-PLAN.md` — `ThemeAjaxHandler` P-09 defence (META_STANDARD allowlist + Settings textarea + RateLimiter + JS-escape + 14-input fuzzing matrix) (THEM-05)
 - [ ] `03-08-PLAN.md` — `Components\EventPixel` (D-09 direct-DB read + un-injectable event_id onMarkFired) + `Components\PixelHead` (ThemeEventCollector consumer + optional CAPI mirror) (THEM-06, THEM-07)
+- [ ] `03-09-PLAN.md` — Gap closure: null-guard `ShopaholicOrderValueResolver::buildContentId` orphan TypeError + `ShopaholicCartPositionAdapter::getSiteId` Site::getCurrent fallback (VERIFICATION Gap 1 + Gap 2; SHOP-02, SHOP-03)
+- [ ] `03-10-PLAN.md` — Gap closure: persist `theme_custom_event_names` as newline-string for textarea round-trip + six missing `settings.fields` lang keys (VERIFICATION Gap 3 + Gap 4; THEM-05, THEM-07)
 
 ### Phase 4: Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations
 
