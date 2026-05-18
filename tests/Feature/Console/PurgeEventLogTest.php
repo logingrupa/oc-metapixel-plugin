@@ -4,6 +4,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
+use Logingrupa\Metapixel\Console\PurgeEventLog;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Logingrupa\Metapixel\Updates\AddPayloadToMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
@@ -22,6 +23,12 @@ final class PurgeEventLogTest extends MetapixelTestCase
         $this->app->singleton(AdapterRegistry::class);
         (new CreateMetapixelEventLogTable)->up();
         (new AddPayloadToMetapixelEventLogTable)->up();
+        // Register the console command directly into Laravel's Artisan kernel for the
+        // test container — MetapixelTestCase keeps autoRegister=false to stay light, so
+        // we cannot rely on Plugin::register() wiring the command via October's
+        // registerConsoleCommand path.
+        $obKernel = $this->app->make(\Illuminate\Contracts\Console\Kernel::class);
+        $obKernel->registerCommand($this->app->make(PurgeEventLog::class));
     }
 
     protected function tearDown(): void

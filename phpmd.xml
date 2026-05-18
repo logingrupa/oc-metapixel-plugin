@@ -31,7 +31,7 @@
     </rule>
     <rule ref="rulesets/codesize.xml/ExcessiveParameterList">
         <properties>
-            <property name="minimum" value="8" />
+            <property name="minimum" value="9" />
         </properties>
     </rule>
     <rule ref="rulesets/codesize.xml/ExcessivePublicCount">

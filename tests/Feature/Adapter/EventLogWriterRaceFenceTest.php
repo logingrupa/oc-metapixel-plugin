@@ -9,6 +9,7 @@ use Logingrupa\Metapixel\Tests\Doubles\TestSubject;
 use Logingrupa\Metapixel\Tests\Doubles\TestSubjectAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\ZeroIdSubjectAdapter;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use Logingrupa\Metapixel\Updates\AddPayloadToMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -20,11 +21,13 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
         (new CreateMetapixelEventLogTable)->up();
+        (new AddPayloadToMetapixelEventLogTable)->up();
         app(AdapterRegistry::class)->register(TestSubject::class, TestSubjectAdapter::class);
     }
 
     protected function tearDown(): void
     {
+        (new AddPayloadToMetapixelEventLogTable)->down();
         (new CreateMetapixelEventLogTable)->down();
         app()->forgetInstance(AdapterRegistry::class);
         parent::tearDown();
