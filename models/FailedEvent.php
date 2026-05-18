@@ -29,9 +29,11 @@ class FailedEvent extends Model
         'attempts',
     ];
 
+    /** @var list<string> */
+    protected $jsonable = ['payload'];
+
     /** @var array<string, string> */
     protected $casts = [
-        'payload' => 'array',
         'attempts' => 'int',
         'http_status' => 'int',
     ];

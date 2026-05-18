@@ -32,11 +32,12 @@ final class FailedEventModelTest extends MetapixelTestCase
         $this->assertSame($arExpected, $arActual);
     }
 
-    public function test_payload_is_cast_to_array(): void
+    public function test_payload_round_trips_as_array(): void
     {
         $obFailed = new FailedEvent;
         $obFailed->payload = ['data' => [['event_name' => 'Purchase']]];
 
+        $this->assertContains('payload', $obFailed->getJsonable());
         $this->assertIsArray($obFailed->payload);
         $this->assertSame(['data' => [['event_name' => 'Purchase']]], $obFailed->payload);
     }

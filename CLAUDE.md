@@ -45,6 +45,14 @@ classes/adapter/theme/                     # ThemeActionAdapter (Twig + Larajax 
 - **Tiger-Style fail-fast:** throw at boundaries. `catch` only to log-and-rethrow OR dead-letter-persist. Every `catch` documents reason.
 - **DRY + SRP:** adapters do NOT mix value-resolution + event-dispatch + payload-build.
 
+### Model property convention
+
+October model property names follow Laravel-standard names that October itself ships and overrides the parent Hungarian rule for these specific properties: `$table`, `$fillable`, `$jsonable`, `$casts`, `$rules`, `$customMessages`, `$attributeNames`, plus October relationship arrays (`$hasOne`, `$hasMany`, `$belongsTo`, `$belongsToMany`, `$morphTo`, `$morphOne`, `$morphMany`, `$morphToMany`, `$morphedByMany`, `$attachOne`, `$attachMany`). Rationale: october/boost rules supersede Hungarian for October-defined property names — October's docblock examples, scaffolding (`create:model`), and YAML config generators all assume Laravel-standard names; renaming them to `$arFillable` breaks IDE autocompletion, breaks PHPStan larastan inheritance resolution at level 10 for the Validation trait, and silently breaks any third-party plugin reading the model via reflection. Local variables and methods (`$obSubject`, `$arPayload`, `getEventName()`) stay Hungarian per the parent rule.
+
+JSON columns use `$jsonable`, not the `'array'` cast. October's idiomatic JSON-in-text pattern is `protected $jsonable = ['column']` whenever the migration column is `text` or `longText`. The Eloquent `'array'` cast is functionally equivalent for round-trip but bypasses October's HasJsonable trait and reads as a Laravel-Eloquent idiom rather than an October idiom. Reference: `models/FailedEvent.php` declares `$jsonable = ['payload']` mirroring `updates/CreateMetapixelFailedEventsTable.php` `$obTable->longText('payload')`. Scalar casts (`int`, `bool`, `datetime`) continue to use `$casts`.
+
+Internal append-only log / dead-letter models (`EventLog`, `FailedEvent`) intentionally skip `October\Rain\Database\Traits\Validation` and define no `$rules` array. Rationale: both tables are written exclusively by server-side helpers (`EventLogWriter::record`, `SendCapiEvent::writeFailedEvent`) that validate inputs at the helper boundary (Tiger-Style fail-fast — see EventLogWriter's `subject_id > 0` guard plus MetaClient's `MissingPixelConfigException` / `MissingCapiTokenException`). There is no user-input boundary that could deliver a malformed row. The one user-input model in this plugin (`Settings`) extends Lovata.Toolbox CommonSettings, which carries its own RainLab.Translate-aware validation pipeline. Any future model with a user-input boundary (e.g. an admin-facing operator-supplied row) MUST add the Validation trait + `$rules`.
+
 ## Build philosophy (locked)
 
 - **No over-engineering.** Build only for current need. No defensive abstractions for hypothetical future cases.
