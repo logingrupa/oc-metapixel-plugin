@@ -16,6 +16,8 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
+use Logingrupa\Metapixel\Components\EventPixel;
+use Logingrupa\Metapixel\Components\PixelHead;
 use Logingrupa\Metapixel\Console\PurgeEventLog;
 use Logingrupa\Metapixel\Models\Settings;
 use Lovata\OrdersShopaholic\Models\CartPosition;
@@ -81,6 +83,20 @@ class Plugin extends PluginBase
             ThemeActionAdapter::class,
         );
         Event::subscribe(ThemeAjaxHandler::class);
+    }
+
+    /**
+     * Theme components. EventPixel for server-confirmed adapter subjects;
+     * PixelHead for accumulator-based theme events.
+     *
+     * @return array<class-string, string>
+     */
+    public function registerComponents(): array
+    {
+        return [
+            EventPixel::class => 'eventPixel',
+            PixelHead::class => 'pixelHead',
+        ];
     }
 
     /**
