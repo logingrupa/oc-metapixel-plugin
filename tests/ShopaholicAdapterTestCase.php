@@ -96,6 +96,7 @@ abstract class ShopaholicAdapterTestCase extends MetapixelTestCase
                 $obTable->string('name')->nullable();
                 $obTable->decimal('price_value', 15, 2)->nullable();
                 $obTable->boolean('active')->default(true);
+                $obTable->integer('sort_order')->default(0);
                 $obTable->softDeletes();
                 $obTable->timestamps();
             });
