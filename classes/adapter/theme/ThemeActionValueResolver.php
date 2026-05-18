@@ -65,14 +65,14 @@ final class ThemeActionValueResolver implements ValueResolver
             if (! is_array($mItem)) {
                 continue;
             }
-            $mId = $mItem['id'] ?? null;
+            $mContentId = $mItem['id'] ?? null;
             $mQuantity = $mItem['quantity'] ?? null;
             $mItemPrice = $mItem['item_price'] ?? null;
-            if (! is_scalar($mId) || ! is_numeric($mQuantity) || ! is_numeric($mItemPrice)) {
+            if (! is_scalar($mContentId) || ! is_numeric($mQuantity) || ! is_numeric($mItemPrice)) {
                 continue;
             }
             $arResult[] = [
-                'id' => (string) $mId,
+                'id' => (string) $mContentId,
                 'quantity' => (int) $mQuantity,
                 'item_price' => (float) $mItemPrice,
             ];
