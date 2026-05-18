@@ -4,8 +4,8 @@ milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: verifying
 stopped_at: Plan 02-07 closed (commit 3edf0d6) — EventSubjectAdapterContractTestCase + FakeAdapter smoke + BackboneIntegration (M-5 serialize round-trip); 02-VERIFICATION-INPUTS.md scaffolded with M-7 flag; composer qa green; Phase 2 closed (8/8 plans, 11/11 ADAP-*, P-01/P-02/P-05/P-08/P-13)
-last_updated: "2026-05-17T23:06:03.441Z"
-last_activity: 2026-05-17
+last_updated: "2026-05-18T06:45:39Z"
+last_activity: 2026-05-18
 progress:
   total_phases: 5
   completed_phases: 2
@@ -163,6 +163,12 @@ Last session: 2026-05-17T23:05:41.795Z
 Stopped at: Plan 02-07 closed (commit 3edf0d6) — EventSubjectAdapterContractTestCase + FakeAdapter smoke + BackboneIntegration (M-5 serialize round-trip); 02-VERIFICATION-INPUTS.md scaffolded with M-7 flag; composer qa green; Phase 2 closed (8/8 plans, 11/11 ADAP-*, P-01/P-02/P-05/P-08/P-13)
 
 Resume file: /gsd:verify-phase 02-adapter-system-core-contracts-registry-extension-hooks
+
+## Quick Tasks Completed
+
+| Quick Task ID | Date | Title | Commit | Files | Notes |
+|---------------|------|-------|--------|-------|-------|
+| 260518-999 | 2026-05-18 | Fix $jsonable on FailedEvent.payload + document model property convention | `93dd90b` | 3 modified (models/FailedEvent.php, tests/Feature/Models/FailedEventModelTest.php, CLAUDE.md) | october/boost compliance — swap Eloquent 'array' cast for October $jsonable on longText column; CLAUDE.md "Code style" gains "### Model property convention" subsection documenting Laravel-standard October property names override of Hungarian, $jsonable vs 'array' cast preference, and Validation-trait omission rationale for internal log models. composer qa green (host-vendor smoke chain — 111 tests / 333 assertions / 99.3% coverage). One atomic commit on master per plan Task 3. |
 
 ## Performance Metrics
 
