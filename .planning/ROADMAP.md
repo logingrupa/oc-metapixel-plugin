@@ -204,7 +204,7 @@ class Plugin extends PluginBase {
   4. The Larajax handler `Metapixel::onFireEvent` validates incoming events against an `EVENT_NAME_ALLOWLIST` of Meta-standard event names, enforces OctoberCMS CSRF token, rate-limits per IP+session, and JS-escapes returned payload fragments. Pest fuzzing tests with XSS / SQLi-shaped / oversize / mixed-encoding inputs all return 422 with no row written to EventLog. (Prevents **P-09**.)
   5. `Components\EventPixel` accepts `subject_class` + `subject_slug_field` properties and resolves the adapter via `AdapterRegistry::resolveByClass()`. `onMarkFired` AJAX writes `channel='pixel'` row to EventLog with server-supplied `event_id` validation; `ThemeEventCollector` accumulator is request-scoped and flushed between requests.
 
-**Plans:** 6/8 plans executed
+**Plans:** 7/8 plans executed
 
 - [ ] `03-01-PLAN.md` — EventLog payload column migration + EventLogWriter::record `array $arPayload` trailing arg + `PurgeEventLog` console command + `Plugin::registerSchedule` daily wire-up (foundation; D-06..D-08)
 - [ ] `03-02-PLAN.md` — `ShopaholicOrderAdapter` + `ShopaholicOrderValueResolver` + `OrderStatusWatcher` + Plugin::boot conditional registration via `PluginManager::exists` gate (SHOP-01, SHOP-02, SHOP-03, SHOP-04)
@@ -278,7 +278,7 @@ class Plugin extends PluginBase {
 |-------|----------------|--------|-----------|
 | 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
 | 2. Adapter system core | 8/8 | Complete   | 2026-05-17 |
-| 3. ShopaholicAdapter + ThemeActionAdapter | 6/8 | In Progress|  |
+| 3. ShopaholicAdapter + ThemeActionAdapter | 7/8 | In Progress|  |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 0/0 | Not started | — |
 | 5. Documentation + marketplace launch | 0/0 | Not started | — |
 
