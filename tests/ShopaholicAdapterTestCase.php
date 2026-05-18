@@ -5,30 +5,17 @@ namespace Logingrupa\Metapixel\Tests;
 use Illuminate\Support\Facades\Schema;
 
 /**
- * Test case for Logingrupa.Metapixel ShopaholicAdapter integration.
- *
- * Provisions a minimal hermetic Lovata Orders schema in SQLite-in-memory so
- * adapter tests do not need the real Lovata.OrdersShopaholic migration chain
- * (slow + SQLite-unfriendly for some indexed column drops).
- *
- * Tests under tests/Unit/Adapter/Shopaholic and tests/Feature/Adapter/Shopaholic
- * extend this class via the Pest.php uses() binding. Run B (minimal install)
- * does NOT execute the Adapter subdirectory testsuite.
+ * Hermetic Lovata Orders / Cart / Catalog schema for adapter tests. Loads
+ * minimal columns only — avoids the real plugin migration chain. Run B
+ * (minimal install) excludes adapter tests via #[Group('adapter')].
  */
 abstract class ShopaholicAdapterTestCase extends MetapixelTestCase
 {
-    /**
-     * Provision the minimal lovata_orders_shopaholic_orders table — only the
-     * columns ShopaholicAdapter touches. Mirrors the Lovata v1.33 schema for
-     * status_id, secret_key, total_price_value, currency_id, customer fields,
-     * site_id.
-     */
     protected function bootOrdersTable(): void
     {
         if (Schema::hasTable('lovata_orders_shopaholic_orders')) {
             return;
         }
-
         Schema::create('lovata_orders_shopaholic_orders', function ($obTable): void {
             $obTable->increments('id');
             $obTable->integer('status_id')->nullable();
@@ -45,11 +32,6 @@ abstract class ShopaholicAdapterTestCase extends MetapixelTestCase
         });
     }
 
-    /**
-     * Provision lovata_orders_shopaholic_statuses with the canonical Lovata
-     * statuses plus the custom new-payment-received code (status_id=5) that
-     * Settings.paid_status_code defaults to.
-     */
     protected function bootOrdersStatuses(): void
     {
         if (! Schema::hasTable('lovata_orders_shopaholic_statuses')) {
@@ -75,10 +57,69 @@ abstract class ShopaholicAdapterTestCase extends MetapixelTestCase
         ]);
     }
 
+    protected function bootCartTable(): void
+    {
+        if (Schema::hasTable('lovata_orders_shopaholic_carts')) {
+            return;
+        }
+        Schema::create('lovata_orders_shopaholic_carts', function ($obTable): void {
+            $obTable->increments('id');
+            $obTable->integer('user_id')->nullable();
+            $obTable->integer('site_id')->nullable();
+            $obTable->timestamps();
+        });
+    }
+
+    protected function bootCartPositionTable(): void
+    {
+        if (Schema::hasTable('lovata_orders_shopaholic_cart_positions')) {
+            return;
+        }
+        Schema::create('lovata_orders_shopaholic_cart_positions', function ($obTable): void {
+            $obTable->increments('id');
+            $obTable->integer('cart_id')->nullable();
+            $obTable->integer('item_id')->nullable();
+            $obTable->string('item_type')->nullable();
+            $obTable->text('property')->nullable();
+            $obTable->integer('quantity')->nullable();
+            $obTable->timestamps();
+            $obTable->softDeletes();
+        });
+    }
+
+    protected function bootOffersAndProductsTables(): void
+    {
+        if (! Schema::hasTable('lovata_shopaholic_offers')) {
+            Schema::create('lovata_shopaholic_offers', function ($obTable): void {
+                $obTable->increments('id');
+                $obTable->integer('product_id')->nullable();
+                $obTable->string('name')->nullable();
+                $obTable->decimal('price_value', 15, 2)->nullable();
+                $obTable->boolean('active')->default(true);
+                $obTable->softDeletes();
+                $obTable->timestamps();
+            });
+        }
+        if (! Schema::hasTable('lovata_shopaholic_products')) {
+            Schema::create('lovata_shopaholic_products', function ($obTable): void {
+                $obTable->increments('id');
+                $obTable->string('name')->nullable();
+                $obTable->string('slug')->nullable()->unique();
+                $obTable->boolean('active')->default(true);
+                $obTable->softDeletes();
+                $obTable->timestamps();
+            });
+        }
+    }
+
     protected function dropHermeticSchemas(): void
     {
         Schema::dropIfExists('lovata_orders_shopaholic_orders');
         Schema::dropIfExists('lovata_orders_shopaholic_statuses');
+        Schema::dropIfExists('lovata_orders_shopaholic_cart_positions');
+        Schema::dropIfExists('lovata_orders_shopaholic_carts');
+        Schema::dropIfExists('lovata_shopaholic_offers');
+        Schema::dropIfExists('lovata_shopaholic_products');
 
         parent::dropHermeticSchemas();
     }
