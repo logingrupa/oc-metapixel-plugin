@@ -81,7 +81,7 @@ composer qa  →  pint-test → phpstan analyse (level 10, phpVersion 80300) →
 composer deps → composer-dependency-analyser  (enforces Lovata import boundary)
 ```
 
-Coverage gate ≥ 90 % on full-Lovata CI matrix cell. Minimal-install cell excludes `Metapixel Adapter Tests` testsuite.
+Coverage gate ≥ 90 % on full-Lovata CI matrix cell. Minimal-install cell excludes adapter tests via `pest --exclude-group=adapter`. Adapter tests are tagged with `#[PHPUnit\Framework\Attributes\Group('adapter')]` at the class level. Rationale: overlapping `<testsuite>` directories in `phpunit.xml` triggered "Cannot add file ... already added to test suite" warnings under PHPUnit 12 + Pest 4, flipping the qa exit code to 1 despite all tests passing. Group attributes are framework-native (PHPUnit + Pest) and orthogonal to directory layout; `pest()->group()->in()` in `tests/Pest.php` only tags Pest-style closures (`test()` / `it()`), not class-based tests that extend `MetapixelTestCase`.
 
 ## Reference
 

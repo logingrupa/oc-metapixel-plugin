@@ -4,6 +4,7 @@ use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Tests\Doubles\FakeAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\FakeStubAdapter;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * P-02 boot-order race prevention — two unrelated subject classes resolve
@@ -12,6 +13,7 @@ use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 class BootOrderFixtureSubjectA {}
 class BootOrderFixtureSubjectB {}
 
+#[Group('adapter')]
 final class AdapterRegistryBootOrderTest extends MetapixelTestCase
 {
     protected function setUp(): void

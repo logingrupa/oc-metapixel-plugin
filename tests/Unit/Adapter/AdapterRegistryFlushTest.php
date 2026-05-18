@@ -3,7 +3,9 @@
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Tests\Doubles\FakeAdapter;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use PHPUnit\Framework\Attributes\Group;
 
+#[Group('adapter')]
 final class AdapterRegistryFlushTest extends MetapixelTestCase
 {
     protected function setUp(): void

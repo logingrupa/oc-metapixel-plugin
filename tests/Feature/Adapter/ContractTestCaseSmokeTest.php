@@ -8,12 +8,14 @@ use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Tests\Doubles\FakeAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\FakeValueResolver;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * SC1 round-trip smoke — FakeAdapter + PayloadBuilder produce the documented
  * envelope shape. Complements FakeAdapterContractTest (which covers the 10
  * adapter-shape invariants) by asserting the full PayloadBuilder envelope.
  */
+#[Group('adapter')]
 final class ContractTestCaseSmokeTest extends MetapixelTestCase
 {
     protected function setUp(): void

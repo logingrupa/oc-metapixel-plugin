@@ -10,7 +10,9 @@ use Logingrupa\Metapixel\Tests\Doubles\TestSubjectAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\ZeroIdSubjectAdapter;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
+use PHPUnit\Framework\Attributes\Group;
 
+#[Group('adapter')]
 final class EventLogWriterRaceFenceTest extends MetapixelTestCase
 {
     protected function setUp(): void

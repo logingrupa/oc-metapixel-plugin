@@ -20,6 +20,7 @@ use Logingrupa\Metapixel\Tests\Doubles\TestSubjectAdapter;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * SC1 + SC5 end-to-end backbone integration — SendCapiEvent::handle through
@@ -33,6 +34,7 @@ use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
  * shape that EventLogWriter goes through under hood. The contract is the same
  * (EventSubjectAdapter), only the concrete shape changes per test concern.
  */
+#[Group('adapter')]
 final class BackboneIntegrationTest extends MetapixelTestCase
 {
     protected function setUp(): void

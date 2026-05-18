@@ -5,6 +5,7 @@ use Logingrupa\Metapixel\Classes\Adapter\EventSubjectAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\FakeAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\FakeStubAdapter;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use PHPUnit\Framework\Attributes\Group;
 
 /**
  * Hierarchy-walk fixtures local to this test file. Declared at global scope
@@ -13,6 +14,7 @@ use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 class AdapterRegistryFixtureParent {}
 class AdapterRegistryFixtureChild extends AdapterRegistryFixtureParent {}
 
+#[Group('adapter')]
 final class AdapterRegistryTest extends MetapixelTestCase
 {
     protected function setUp(): void
