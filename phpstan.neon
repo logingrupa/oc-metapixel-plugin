@@ -51,36 +51,40 @@ parameters:
         -
             function: 'request()'
             message: 'metapixel: per-event attributes MUST come from the subject via adapter — request() banned in adapter/queue/event dirs'
+            # D-16: classes/adapter/theme/* excluded — ThemeActionAdapter D-15 site fallback exception
             disallowIn:
                 - 'classes/queue/*'
                 - 'classes/event/*'
-                - 'classes/adapter/*'
+                - 'classes/adapter/shopaholic/*'
                 - 'classes/event/adapter/shopaholic/*'
 
     disallowedMethodCalls:
         -
             method: 'System\Classes\SiteManager::*'
             message: 'metapixel: site_id MUST come from subject via SiteResolver::forSubject — cross-context determinism'
+            # D-16: classes/adapter/theme/* excluded — ThemeActionAdapter D-15 site fallback exception
             disallowIn:
                 - 'classes/queue/*'
                 - 'classes/event/*'
-                - 'classes/adapter/*'
+                - 'classes/adapter/shopaholic/*'
                 - 'classes/event/adapter/shopaholic/*'
         -
             method: 'October\Rain\Support\Facades\Site::*'
             message: 'metapixel: site_id MUST come from subject via SiteResolver::forSubject — cross-context determinism'
+            # D-16: classes/adapter/theme/* excluded — ThemeActionAdapter D-15 site fallback exception
             disallowIn:
                 - 'classes/queue/*'
                 - 'classes/event/*'
-                - 'classes/adapter/*'
+                - 'classes/adapter/shopaholic/*'
                 - 'classes/event/adapter/shopaholic/*'
         -
             method: 'Illuminate\Http\Request::*'
             message: 'metapixel: per-event attributes MUST come from the subject via adapter'
+            # D-16: classes/adapter/theme/* excluded — ThemeActionAdapter D-15 site fallback exception
             disallowIn:
                 - 'classes/queue/*'
                 - 'classes/event/*'
-                - 'classes/adapter/*'
+                - 'classes/adapter/shopaholic/*'
                 - 'classes/event/adapter/shopaholic/*'
 
     disallowedAttributes:
