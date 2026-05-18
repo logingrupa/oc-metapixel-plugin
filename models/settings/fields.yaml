@@ -14,3 +14,17 @@ fields:
         commentAbove: logingrupa.metapixel::lang.settings.fields.test_event_code_comment
         type: text
         span: full
+    paid_status_code:
+        label: logingrupa.metapixel::lang.settings.fields.paid_status_code_label
+        commentAbove: logingrupa.metapixel::lang.settings.fields.paid_status_code_comment
+        type: dropdown
+        span: auto
+        default: new-payment-received
+        options: \Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicSettingsOptions::getPaidStatusCodeOptions
+    default_currency_code:
+        label: logingrupa.metapixel::lang.settings.fields.default_currency_code_label
+        commentAbove: logingrupa.metapixel::lang.settings.fields.default_currency_code_comment
+        type: dropdown
+        span: auto
+        default: EUR
+        options: \Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicSettingsOptions::getDefaultCurrencyCodeOptions
