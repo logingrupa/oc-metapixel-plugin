@@ -2,8 +2,11 @@
 
 namespace Logingrupa\Metapixel\Tests\Feature\Adapter\Theme;
 
+use Cms\Classes\Controller as CmsController;
+use Cms\Classes\Theme;
 use Cms\Classes\ThisVariable;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use PHPUnit\Framework\Attributes\Group;
@@ -92,6 +95,42 @@ final class ThemeMarkupTagsTwigTest extends MetapixelTestCase
         $this->assertSame('PageView', $arFlushed[0]['name']);
         $this->assertSame('ViewContent', $arFlushed[1]['name']);
         $this->assertSame('AddToCart', $arFlushed[2]['name']);
+    }
+
+    public function test_plugin_boot_listener_mounts_collector_on_thisvariable_when_event_fires(): void
+    {
+        $obController = new CmsController(Theme::load('logingrupa-naisstore'));
+        $obController->vars['this'] = new ThisVariable(['controller' => $obController]);
+
+        Event::dispatch('cms.page.beforeRenderPage', [$obController, null]);
+
+        $mThis = $obController->vars['this'];
+        $this->assertInstanceOf(ThisVariable::class, $mThis);
+        $this->assertSame(
+            App::make(ThemeEventCollector::class),
+            $mThis->config['metapixel'] ?? null,
+        );
+    }
+
+    public function test_register_markup_tags_returns_empty_functions_and_filters_arrays(): void
+    {
+        $obPlugin = new \Logingrupa\Metapixel\Plugin($this->app);
+
+        $arTags = $obPlugin->registerMarkupTags();
+
+        $this->assertSame([], $arTags['functions']);
+        $this->assertSame([], $arTags['filters']);
+    }
+
+    public function test_plugin_boot_listener_is_noop_when_thisvariable_missing(): void
+    {
+        $obController = new CmsController(Theme::load('logingrupa-naisstore'));
+        // Intentionally do NOT seed vars['this'] — emulate a controller that
+        // somehow fires cms.page.beforeRenderPage before runPage seeds ThisVariable.
+
+        Event::dispatch('cms.page.beforeRenderPage', [$obController, null]);
+
+        $this->assertArrayNotHasKey('this', $obController->vars);
     }
 
     public function test_collector_is_per_request_singleton_across_two_renders(): void
