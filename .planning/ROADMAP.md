@@ -145,7 +145,7 @@ class Plugin extends PluginBase {
 
 - [ ] **Phase 1: Tooling + composer + namespace rename + CI matrix** — Quality bar + PHP 8.3/8.4 dual-CI green before any business code; namespace `Logingrupa\Metapixel` lands.
 - [x] **Phase 2: Adapter system core — contracts + registry + extension hooks** — `EventSubjectAdapter` + `ValueResolver` + `AdapterRegistry` + 3 `Event::fire` hooks; v1.x I/O backbone refactored behind adapter signatures; 177 tests adapted via FakeAdapter. (completed 2026-05-17)
-- [ ] **Phase 3: ShopaholicAdapter + ThemeActionAdapter parallel wave** — Non-regression port of v1.x Order/Cart logic behind ShopaholicAdapter; generic theme-action tracking via Twig + Larajax for operators without a supported cart.
+- [x] **Phase 3: ShopaholicAdapter + ThemeActionAdapter parallel wave** — Non-regression port of v1.x Order/Cart logic behind ShopaholicAdapter; generic theme-action tracking via Twig + Larajax for operators without a supported cart. (completed 2026-05-18)
 - [ ] **Phase 4: Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations** — Per-site `pixel_id`/`capi_access_token`; operator-supplied `trusted_hosts` + PSL-aware index derivation; FailedEvents backend UI; en/lv translations.
 - [ ] **Phase 5: Documentation + marketplace launch** — README install guide (<10 min), custom-adapter authoring guide, marketplace assets, `v2.0.0` tag, `composer require` green on clean OctoberCMS 4.x.
 
@@ -204,7 +204,7 @@ class Plugin extends PluginBase {
   4. The Larajax handler `Metapixel::onFireEvent` validates incoming events against an `EVENT_NAME_ALLOWLIST` of Meta-standard event names, enforces OctoberCMS CSRF token, rate-limits per IP+session, and JS-escapes returned payload fragments. Pest fuzzing tests with XSS / SQLi-shaped / oversize / mixed-encoding inputs all return 422 with no row written to EventLog. (Prevents **P-09**.)
   5. `Components\EventPixel` accepts `subject_class` + `subject_slug_field` properties and resolves the adapter via `AdapterRegistry::resolveByClass()`. `onMarkFired` AJAX writes `channel='pixel'` row to EventLog with server-supplied `event_id` validation; `ThemeEventCollector` accumulator is request-scoped and flushed between requests.
 
-**Plans:** 7/8 plans executed
+**Plans:** 8/8 plans complete
 
 - [ ] `03-01-PLAN.md` — EventLog payload column migration + EventLogWriter::record `array $arPayload` trailing arg + `PurgeEventLog` console command + `Plugin::registerSchedule` daily wire-up (foundation; D-06..D-08)
 - [ ] `03-02-PLAN.md` — `ShopaholicOrderAdapter` + `ShopaholicOrderValueResolver` + `OrderStatusWatcher` + Plugin::boot conditional registration via `PluginManager::exists` gate (SHOP-01, SHOP-02, SHOP-03, SHOP-04)
@@ -278,7 +278,7 @@ class Plugin extends PluginBase {
 |-------|----------------|--------|-----------|
 | 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
 | 2. Adapter system core | 8/8 | Complete   | 2026-05-17 |
-| 3. ShopaholicAdapter + ThemeActionAdapter | 7/8 | In Progress|  |
+| 3. ShopaholicAdapter + ThemeActionAdapter | 8/8 | Complete   | 2026-05-18 |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 0/0 | Not started | — |
 | 5. Documentation + marketplace launch | 0/0 | Not started | — |
 
