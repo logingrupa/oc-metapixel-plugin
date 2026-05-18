@@ -56,38 +56,38 @@ class PixelHead extends ComponentBase
             $sDataJson = (string) json_encode($arCustomData, self::JS);
             $arScriptBlocks[] = sprintf('<script>fbq("track", %s, %s);</script>', $sNameJson, $sDataJson);
             if ((bool) ($arEvent['also_dispatch_capi'] ?? false)) {
-                $this->dispatchCapiMirror($sName, $arEvent);
+                try {
+                    $this->dispatchCapiMirror($sName, $arEvent);
+                } catch (Throwable $obException) {
+                    Log::warning('metapixel: PixelHead CAPI mirror failed', [
+                        'meta_pixel.event_name' => $sName,
+                        'meta_pixel.exception' => get_class($obException),
+                        'meta_pixel.message' => $obException->getMessage(),
+                    ]);
+                }
             }
         }
         $this->page['pixelHeadBlocks'] = $arScriptBlocks;
     }
 
     /**
-     * Mirror a pushed event to the CAPI queue. Tiger-Style: catch every throwable,
-     * log warning, return — page render must not break on mirror failure.
+     * Mirror a pushed event to the CAPI queue. Caller (onRun) catches any
+     * throwable so page render never breaks on mirror failure.
      *
      * @param  array<string, mixed>  $arEvent
      */
     protected function dispatchCapiMirror(string $sName, array $arEvent): void
     {
-        try {
-            $arEventArgs = $arEvent;
-            if (! isset($arEventArgs['action_key']) || ! is_string($arEventArgs['action_key']) || $arEventArgs['action_key'] === '') {
-                $arEventArgs['action_key'] = 'theme:'.$sName;
-            }
-            $obEvent = ThemeActionEvent::fromArray($arEventArgs);
-            $obAdapter = App::make(ThemeActionAdapter::class);
-            $obResolver = new ThemeActionValueResolver;
-            $obBuilder = new PayloadBuilder(new UserDataHasher);
-            $sEventId = Uuid::uuid4()->toString();
-            $arPayload = $obBuilder->buildEventPayload($sName, $obAdapter, $obEvent, $obResolver, $sEventId, time(), []);
-            SendCapiEvent::dispatch($sName, $arPayload, $obEvent, ThemeActionAdapter::class);
-        } catch (Throwable $obException) {
-            Log::warning('metapixel: PixelHead CAPI mirror failed', [
-                'meta_pixel.event_name' => $sName,
-                'meta_pixel.exception' => get_class($obException),
-                'meta_pixel.message' => $obException->getMessage(),
-            ]);
+        $arEventArgs = $arEvent;
+        if (! isset($arEventArgs['action_key']) || ! is_string($arEventArgs['action_key']) || $arEventArgs['action_key'] === '') {
+            $arEventArgs['action_key'] = 'theme:'.$sName;
         }
+        $obEvent = ThemeActionEvent::fromArray($arEventArgs);
+        $obAdapter = App::make(ThemeActionAdapter::class);
+        $obResolver = new ThemeActionValueResolver;
+        $obBuilder = new PayloadBuilder(new UserDataHasher);
+        $sEventId = Uuid::uuid4()->toString();
+        $arPayload = $obBuilder->buildEventPayload($sName, $obAdapter, $obEvent, $obResolver, $sEventId, time(), []);
+        SendCapiEvent::dispatch($sName, $arPayload, $obEvent, ThemeActionAdapter::class);
     }
 }
