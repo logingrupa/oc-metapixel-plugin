@@ -150,6 +150,31 @@ final class ShopaholicOrderValueResolverTest extends ShopaholicAdapterTestCase
     }
 
     /**
+     * Regression — Gap 1. Orphaned offer (product relation resolves to null
+     * because product_id points at a deleted product) MUST NOT raise
+     * TypeError when buildContentId calls intAttr(Model, ...). The Pattern 4
+     * productOf() helper narrows getRelationValue('product') to ?Product and
+     * the null-guard returns the documented 'SKU-0' fallback.
+     */
+    public function test_resolve_content_ids_handles_orphaned_offer_without_typeerror(): void
+    {
+        $obOrder = $this->makeBareOrder([]);
+
+        $obOffer = new Offer;
+        $obOffer->setAttribute('id', 7);
+        $obOffer->setAttribute('product_id', 999);
+        // Force the product relation cache to null — mirrors a getRelationValue
+        // result for an offer whose product_id has no matching products row.
+        $obOffer->setRelation('product', null);
+
+        $obPos = new OrderPosition;
+        $obPos->setRelation('item', $obOffer);
+        $obOrder->setRelation('order_position', collect([$obPos]));
+
+        $this->assertSame(['SKU-0'], (new ShopaholicOrderValueResolver)->resolveContentIds($obOrder));
+    }
+
+    /**
      * @param  array<string, mixed>  $arAttributes
      */
     private function makeBareOrder(array $arAttributes): Order

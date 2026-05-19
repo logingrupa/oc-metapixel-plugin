@@ -8,6 +8,7 @@ use Logingrupa\Metapixel\Models\Settings;
 use Lovata\OrdersShopaholic\Models\Order;
 use Lovata\OrdersShopaholic\Models\OrderPosition;
 use Lovata\Shopaholic\Models\Offer;
+use Lovata\Shopaholic\Models\Product;
 use October\Rain\Database\Model;
 
 /**
@@ -121,9 +122,25 @@ final class ShopaholicOrderValueResolver implements ValueResolver
         return $obPos->item instanceof Offer ? $obPos->item : null;
     }
 
+    /**
+     * Read the BelongsTo $product relation via getRelationValue() + runtime
+     * narrowing to Product — Lovata's phpdoc declares the relation non-nullable
+     * but resolves to null at the DB when product_id is unset or points at a
+     * deleted product (Pitfall 1).
+     */
+    private function productOf(Offer $obOffer): ?Product
+    {
+        $mProduct = $obOffer->getRelationValue('product');
+
+        return $mProduct instanceof Product ? $mProduct : null;
+    }
+
     private function buildContentId(Offer $obOffer): string
     {
-        $obProduct = $obOffer->product;
+        $obProduct = $this->productOf($obOffer);
+        if ($obProduct === null) {
+            return sprintf('SKU-%d', 0);
+        }
         $iProductId = $this->intAttr($obProduct, 'id');
 
         return $obProduct->offer->count() > 1

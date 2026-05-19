@@ -5,11 +5,22 @@ namespace Logingrupa\Metapixel\Classes\Adapter\Shopaholic;
 use Logingrupa\Metapixel\Classes\Adapter\EventSubjectAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\ValueResolver;
 use Lovata\OrdersShopaholic\Models\CartPosition;
+use October\Rain\Support\Facades\Site;
 
 /**
  * EventSubjectAdapter for Lovata\OrdersShopaholic\Models\CartPosition. Alias
  * 'shopaholic.cart_position'. Supports AddToCart on capi+pixel channels.
- * site_id is a 1-hop relation traversal through the parent Cart row.
+ *
+ * site_id source: prefers $obPosition->cart->site_id (1-hop relation) when
+ * non-null; falls back to October's Site::getSiteIdFromContext() as the SECOND
+ * documented P-01 exception (alongside ThemeActionAdapter; CONTEXT.md D-15).
+ * Cart events fire in-request by definition (eloquent.created /
+ * eloquent.updated on CartPosition — never from queue worker rehydration),
+ * so the request-context fallback is safe. phpstan disallowIn excludes this
+ * file from the Site/SiteManager/Request ban (D-16; second documented
+ * exception). Lovata Cart has no site_id column natively (verified via grep
+ * on lovata_orders_shopaholic_carts migrations); without this fallback,
+ * MySQL UNIQUE index dedup is broken (NULL != NULL semantics).
  */
 final class ShopaholicCartPositionAdapter implements EventSubjectAdapter
 {
@@ -34,8 +45,13 @@ final class ShopaholicCartPositionAdapter implements EventSubjectAdapter
     {
         $mCart = $this->positionOf($obSubject)?->getRelationValue('cart');
         $mSiteId = is_object($mCart) ? ($mCart->site_id ?? null) : null;
+        if (is_numeric($mSiteId)) {
+            return (int) $mSiteId;
+        }
 
-        return is_numeric($mSiteId) ? (int) $mSiteId : null;
+        $mContextSiteId = Site::getSiteIdFromContext();
+
+        return is_int($mContextSiteId) && $mContextSiteId > 0 ? $mContextSiteId : null;
     }
 
     public function getSecretKey(object $obSubject): ?string
