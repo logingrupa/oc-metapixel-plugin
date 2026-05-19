@@ -149,6 +149,17 @@ Single fix commit hash: `5e6f019` — `fix(03-09): null-guard ShopaholicOrderVal
 - Plan 03-10 (the parallel gap-closure plan for the other 2 verification blockers) remains pending and unaffected by this plan.
 - No new external dependencies. No supply-chain surface added.
 
+## Self-Check: PASSED
+
+- FOUND: `classes/adapter/shopaholic/ShopaholicOrderValueResolver.php`
+- FOUND: `classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php`
+- FOUND: `phpstan.neon`
+- FOUND: `tests/Unit/Adapter/Shopaholic/ShopaholicOrderValueResolverTest.php`
+- FOUND: `tests/Unit/Adapter/Shopaholic/ShopaholicCartPositionAdapterTest.php`
+- FOUND commit: `5e6f019` (fix) — `git log --oneline | grep 5e6f019` confirmed
+- FOUND commit: `6d009ce` (docs SUMMARY) — `git log --oneline | grep 6d009ce` confirmed
+- composer qa exit 0; minimal-install cell exit 0 (87 passed); phpstan level 10 clean across full plugin.
+
 ---
 *Phase: 03-shopaholicadapter-themeactionadapter-parallel-wave*
 *Completed: 2026-05-19*
