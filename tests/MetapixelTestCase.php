@@ -65,6 +65,7 @@ abstract class MetapixelTestCase extends TestCase
         });
 
         $this->ensureSystemSettingsTable($app);
+        $this->ensureMigrationsTableForHasDatabaseProbe($app);
 
         return $app;
     }
@@ -90,6 +91,43 @@ abstract class MetapixelTestCase extends TestCase
         });
     }
 
+    /**
+     * Provision a stub `migrations` table so System::hasDatabase() returns true.
+     * Phase 4 Multisite Settings::lookupForSite invokes Site::withContext +
+     * Settings::clearInternalCache inside the closure, which forces a fresh DB
+     * fetch through SettingModel::getSettingsRecord — that helper short-circuits
+     * to null when hasDatabase() is false, silently emptying the credential
+     * lookup. Without this stub, Phase 2 Queue tests that previously relied on
+     * the static $instances cache (populated by Settings::set) would regress
+     * after the lookup body re-implementation. Pin hasDatabase() truthy via
+     * the Manifest cache too so the parallel helper instance + the per-process
+     * memo both agree.
+     */
+    private function ensureMigrationsTableForHasDatabaseProbe($app): void
+    {
+        $obSchema = $app['db']->connection()->getSchemaBuilder();
+        if (! $obSchema->hasTable('migrations')) {
+            $obSchema->create('migrations', function ($obTable): void {
+                $obTable->increments('id');
+                $obTable->string('migration');
+                $obTable->integer('batch');
+            });
+        }
+        // Laravel's Facade::$resolvedInstance is a static cache that survives
+        // across tests; clear it so Manifest::, System:: route to THIS app's
+        // bindings (otherwise the pin lands on a stale singleton from a prior
+        // refreshApplication and System::hasDatabase() returns false here).
+        \Illuminate\Support\Facades\Facade::clearResolvedInstances();
+        $app['system.manifest']->put('database.check', true);
+        $obSystem = $app->make('system.helper');
+        $obReflect = new \ReflectionObject($obSystem);
+        if ($obReflect->hasProperty('hasDatabaseCache')) {
+            $obProp = $obReflect->getProperty('hasDatabaseCache');
+            $obProp->setAccessible(true);
+            $obProp->setValue($obSystem, true);
+        }
+    }
+
     protected function setUp(): void
     {
         $this->pluginTestCaseMigratedPlugins = [];
@@ -105,6 +143,11 @@ abstract class MetapixelTestCase extends TestCase
             $this->migrateModules();
             $this->migrateCurrentPlugin();
         }
+
+        // parent::setUp() refreshed the app — pin the hasDatabase probe again
+        // so Phase 4 Multisite Settings::lookupForSite's clearInternalCache
+        // sees System::hasDatabase()=true on the fresh helper instance.
+        $this->ensureMigrationsTableForHasDatabaseProbe($this->app);
 
         \Mail::pretend();
     }
@@ -124,6 +167,7 @@ abstract class MetapixelTestCase extends TestCase
     protected function dropHermeticSchemas(): void
     {
         Schema::dropIfExists('system_settings');
+        Schema::dropIfExists('migrations');
     }
 
     protected function flushModelEventListeners(): void

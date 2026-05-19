@@ -3,15 +3,13 @@
 namespace Logingrupa\Metapixel\Models;
 
 use Flash;
+use Illuminate\Support\Facades\DB;
 use Lovata\Toolbox\Models\CommonSettings;
 
 /**
- * Plugin settings (single-row in Phase 2). Multisite per-field whitelist on
- * pixel_id + capi_access_token lands in Phase 4 (MULT-01..02).
- *
- * lookupForSite is the credential-lookup contract callers (SendCapiEvent::handle)
- * use. Phase 2 stub returns the default row regardless of $iSiteId; Phase 4
- * MULT-03 re-implements to honor the Multisite per-site row routing.
+ * Plugin settings model. Per-site credentials route through the Multisite
+ * trait inherited from CommonSettings; $propagatable = [] locks pixel_id +
+ * capi_access_token out of the cross-site whitelist (D-02 / D-20).
  *
  * @method static mixed get(string $sCode, mixed $mDefault = null)
  * @method static void set(array<string, mixed> $arValues)
@@ -25,22 +23,107 @@ class Settings extends CommonSettings
     /** @var string */
     public $settingsFields = 'fields.yaml';
 
-    /** @var list<string> */
+    /**
+     * Explicit empty whitelist (D-02 / D-20 marketplace audit anchor). MUST
+     * stay at the descendant level so a future trait or parent change cannot
+     * silently widen the propagatable set.
+     *
+     * @var list<string>
+     */
     protected $propagatable = [];
 
     /**
-     * Multisite-aware credential lookup. Phase 2 stub ignores $iSiteId.
+     * Multisite-aware credential lookup. Returns per-site row when set;
+     * silently falls back to the default-row value for any empty per-site
+     * pixel_id / capi_access_token (D-01).
      *
      * @return array{pixel_id: string, capi_access_token: string}
      */
     public static function lookupForSite(?int $iSiteId): array
     {
-        $mPixelId = self::get('pixel_id', '');
-        $mCapiToken = self::get('capi_access_token', '');
+        [$sDefaultPixel, $sDefaultToken] = self::readCredentialsInGlobalContext();
+
+        if ($iSiteId === null) {
+            return [
+                'pixel_id' => $sDefaultPixel,
+                'capi_access_token' => $sDefaultToken,
+            ];
+        }
+
+        [$sSitePixel, $sSiteToken] = self::readCredentialsForSiteContext($iSiteId);
 
         return [
-            'pixel_id' => is_string($mPixelId) ? $mPixelId : '',
-            'capi_access_token' => is_string($mCapiToken) ? $mCapiToken : '',
+            'pixel_id' => $sSitePixel !== '' ? $sSitePixel : $sDefaultPixel,
+            'capi_access_token' => $sSiteToken !== '' ? $sSiteToken : $sDefaultToken,
+        ];
+    }
+
+    /**
+     * Read the default-row credentials via a direct DB query. Prefers a row
+     * with site_id IS NULL (explicitly seeded inside Site::withGlobalContext
+     * by an operator who wants a shared fallback); when no such row exists
+     * (single-site installs that always save under the active site), falls
+     * back to the first row matching the settings code so credentials still
+     * route correctly. Bypasses the SettingModel cache layer (static
+     * $instances + Cache::remember) so context-aware reads inside
+     * lookupForSite are not confused by getCacheKey() sharing across
+     * Site::withGlobalContext / Site::withContext switches.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private static function readCredentialsInGlobalContext(): array
+    {
+        $arNullSite = self::readCredentialsFromRow(static fn ($obQuery) => $obQuery->whereNull('site_id'));
+        if ($arNullSite[0] !== '' || $arNullSite[1] !== '') {
+            return $arNullSite;
+        }
+
+        // No explicit default row — fall back to the first row for this
+        // settings code so single-site installs (which save under the active
+        // site, not in withGlobalContext) still resolve credentials.
+        return self::readCredentialsFromRow(static fn ($obQuery) => $obQuery);
+    }
+
+    /**
+     * Read per-site row credentials by direct DB query. Same rationale as
+     * readCredentialsInGlobalContext — bypass the SettingModel cache. The
+     * cache leak across context switches makes credential routing unsafe
+     * for marketplace operators running multiple sites (P-10).
+     *
+     * @return array{0: string, 1: string}
+     */
+    private static function readCredentialsForSiteContext(int $iSiteId): array
+    {
+        return self::readCredentialsFromRow(static fn ($obQuery) => $obQuery->where('site_id', $iSiteId));
+    }
+
+    /**
+     * Shared decoder for the system_settings JSON expando column. $fnFilter
+     * narrows the row scope (whereNull('site_id') for default, where('site_id', $iSiteId)
+     * for per-site).
+     *
+     * @param  callable(\Illuminate\Database\Query\Builder): \Illuminate\Database\Query\Builder  $fnFilter
+     * @return array{0: string, 1: string}
+     */
+    private static function readCredentialsFromRow(callable $fnFilter): array
+    {
+        $obQuery = DB::table('system_settings')
+            ->where('item', (new self)->settingsCode);
+        $obQuery = $fnFilter($obQuery);
+        $obRow = $obQuery->first();
+        if ($obRow === null || ! is_string($obRow->value ?? null)) {
+            return ['', ''];
+        }
+        $mDecoded = json_decode($obRow->value, true);
+        if (! is_array($mDecoded)) {
+            return ['', ''];
+        }
+        $mPixel = $mDecoded['pixel_id'] ?? '';
+        $mToken = $mDecoded['capi_access_token'] ?? '';
+
+        return [
+            is_string($mPixel) ? $mPixel : '',
+            is_string($mToken) ? $mToken : '',
         ];
     }
 
@@ -51,11 +134,6 @@ class Settings extends CommonSettings
      */
     public function beforeSave(): void
     {
-        // Storage path B verified against modules/system/models/SettingModel.php
-        // + vendor/october/rain/src/Database/ExpandoModel.php — beforeSave runs
-        // before expandoBeforeSaveDone (priority -1) packs attributes into the
-        // `value` JSON column; reads/writes go through standard Eloquent
-        // attribute access here.
         $arLines = $this->splitEventNameInput($this->getAttribute('theme_custom_event_names'));
         if ($arLines === null) {
             return;

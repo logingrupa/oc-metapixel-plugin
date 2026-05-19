@@ -99,6 +99,36 @@ parameters:
                 - 'classes/event/adapter/shopaholic/*'
             allowIn:
                 - 'classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php'
+    disallowedStaticCalls:
+        -
+            # D-02 / MULT-02 lock — direct Settings::get('pixel_id'|'capi_access_token')
+            # is banned outside Settings::lookupForSite (which lives in models/Settings.php)
+            # and outside PluginGuard (which legitimately reads pixel_id at boot to gate
+            # the plugin without leaking it through Multisite propagation).
+            # Callers needing CAPI credentials MUST route through
+            # Settings::lookupForSite($iSiteId) so per-site Multisite routing + the
+            # silent default-row fallback (D-01) are honored.
+            #
+            # Rule semantics (Spaze\PHPStan\Rules\Disallowed\Allowed\Allowed::isAllowed):
+            # `allowIn` short-circuits to allowed for the two whitelisted files.
+            # Outside those paths, `allowExceptParamsAnywhere` only fires the disallow
+            # when the first arg matches 'pixel_id' or 'capi_access_token'; calls with
+            # any other key (test_event_code, default_currency_code, paid_status_code,
+            # etc.) remain allowed.
+            method: 'Logingrupa\Metapixel\Models\Settings::get()'
+            message: 'Direct Settings::get(''pixel_id''|''capi_access_token'') is banned per D-02 — route credentials through Settings::lookupForSite($iSiteId).'
+            allowIn:
+                - '*/models/Settings.php'
+                - '*/classes/helper/PluginGuard.php'
+            allowExceptParamsAnywhere:
+                -
+                    position: 1
+                    name: 'key'
+                    value: 'pixel_id'
+                -
+                    position: 1
+                    name: 'key'
+                    value: 'capi_access_token'
 
     disallowedAttributes:
         -
