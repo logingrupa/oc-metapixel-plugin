@@ -58,9 +58,9 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 - [ ] **THEM-02**: `Classes\Adapter\Theme\ThemeActionAdapter` implements `EventSubjectAdapter`. `getSiteId()` reads from `ThemeActionEvent->arPayload['site_id']` (operator-supplied) OR falls back to `Site::getCurrent()?->getId()` (only place where request-context site fallback allowed — documented in PHPDoc).
 - [ ] **THEM-03**: `Classes\Adapter\Theme\ThemeEventCollector` request-scoped singleton. Accumulates events pushed via Twig API. Reset between requests; test teardown calls explicit `flush()`.
 - [ ] **THEM-04**: `Plugin::registerMarkupTags()` registers `this.metapixel.pushEvent(arEvent)` Twig helper. Theme layouts call `{% do this.metapixel.pushEvent({name: 'ViewContent', action_key: 'product-view:' ~ product.id, content_ids: [...], value: 12.50, currency: 'EUR'}) %}` before PixelHead renders.
-- [ ] **THEM-05**: `Classes\Adapter\Theme\ThemeAjaxHandler` listens on `cms.ajax.beforeRunHandler` for `Metapixel::onFireEvent`. Validates against `EVENT_NAME_ALLOWLIST` (Meta-standard event names), enforces CSRF token, rate-limits per IP+session, JS-escapes returned payload. Dispatches `SendCapiEvent` + emits `<script>fbq(...)</script>` response fragment.
+- [x] **THEM-05**: `Classes\Adapter\Theme\ThemeAjaxHandler` listens on `cms.ajax.beforeRunHandler` for `Metapixel::onFireEvent`. Validates against `EVENT_NAME_ALLOWLIST` (Meta-standard event names), enforces CSRF token, rate-limits per IP+session, JS-escapes returned payload. Dispatches `SendCapiEvent` + emits `<script>fbq(...)</script>` response fragment.
 - [ ] **THEM-06**: `Components\EventPixel` — browser-side fbq() renderer for any server-confirmed subject. Operator places on thank-you/confirmation pages. Properties: `subject_class` (e.g. `Lovata\OrdersShopaholic\Models\Order`) + `subject_slug_field` (e.g. `secret_key`). On run: queries EventLog for matching CAPI row; if present + Pixel row absent, emits inline `fbq('track', name, data, {eventID})` with the server-supplied event_id. `onMarkFired` AJAX writes `channel='pixel'` row to EventLog with event_id validation.
-- [ ] **THEM-07**: `Components\PixelHead` extended with Twig API surface — reads `ThemeEventCollector` accumulator, emits `fbq('track', ...)` script blocks per pushed event. Optional `also_dispatch_capi: true` triggers CAPI mirror.
+- [x] **THEM-07**: `Components\PixelHead` extended with Twig API surface — reads `ThemeEventCollector` accumulator, emits `fbq('track', ...)` script blocks per pushed event. Optional `also_dispatch_capi: true` triggers CAPI mirror.
 
 ### Multisite + Settings rework (Phase 4)
 
@@ -212,9 +212,9 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | THEM-02 | Phase 3 | Pending |
 | THEM-03 | Phase 3 | Pending |
 | THEM-04 | Phase 3 | Pending |
-| THEM-05 | Phase 3 | Pending |
+| THEM-05 | Phase 3 | Complete |
 | THEM-06 | Phase 3 | Pending |
-| THEM-07 | Phase 3 | Pending |
+| THEM-07 | Phase 3 | Complete |
 | MULT-01 | Phase 4 | Pending |
 | MULT-02 | Phase 4 | Pending |
 | MULT-03 | Phase 4 | Pending |
