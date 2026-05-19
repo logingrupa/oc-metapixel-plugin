@@ -89,4 +89,49 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
 
         $this->assertSame([], Settings::getThemeCustomEventNames());
     }
+
+    public function test_theme_custom_event_names_round_trips_through_textarea(): void
+    {
+        // Gap 3 regression anchor: pre-fix setAttribute(array) → textarea renders
+        // 'Array' → re-save wipes the list. Post-fix setAttribute(implode("\n",
+        // $arClean)) → textarea renders "Name1\nName2\nName3" → re-save preserves.
+        $obSettings = new Settings;
+        $obSettings->setAttribute('theme_custom_event_names', "FirstEvent\nSecondEvent\nThirdEvent");
+
+        $obSettings->beforeSave();
+
+        $mStored = $obSettings->getAttribute('theme_custom_event_names');
+        $this->assertIsString($mStored);
+        $this->assertNotSame('Array', $mStored);
+        $this->assertFalse(is_array($mStored));
+        $this->assertSame(['FirstEvent', 'SecondEvent', 'ThirdEvent'], preg_split('/\R/', $mStored));
+    }
+
+    public function test_settings_fields_lang_keys_resolve_to_human_readable_strings(): void
+    {
+        // Gap 4 regression anchor: the six previously-missing settings.fields keys
+        // exist in lang/en/lang.php with non-empty human-readable English strings.
+        // Hermetic file-load (the test base runs autoRegister=false so the plugin's
+        // lang namespace is not bound to the Translator; assert directly against the
+        // file contents — the Settings backend page reads through the same loader).
+        $arLang = require dirname(__DIR__, 3).'/lang/en/lang.php';
+        $arFields = $arLang['settings']['fields'] ?? [];
+
+        $arKeys = [
+            'paid_status_code_label',
+            'paid_status_code_comment',
+            'default_currency_code_label',
+            'default_currency_code_comment',
+            'theme_custom_event_names_label',
+            'theme_custom_event_names_comment',
+        ];
+
+        foreach ($arKeys as $sKey) {
+            $this->assertArrayHasKey($sKey, $arFields, "Lang key 'settings.fields.{$sKey}' missing from lang/en/lang.php.");
+            $sValue = $arFields[$sKey];
+            $this->assertIsString($sValue, "Lang key 'settings.fields.{$sKey}' is not a string.");
+            $this->assertNotSame($sKey, $sValue, "Lang key 'settings.fields.{$sKey}' value is a placeholder copy of the key.");
+            $this->assertGreaterThan(0, strlen($sValue), "Lang key 'settings.fields.{$sKey}' resolved to an empty string.");
+        }
+    }
 }
