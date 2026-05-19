@@ -62,7 +62,7 @@ class Settings extends CommonSettings
         }
 
         [$arClean, $arDropped] = $this->partitionEventNames($arLines);
-        $this->setAttribute('theme_custom_event_names', $arClean);
+        $this->setAttribute('theme_custom_event_names', implode("\n", $arClean));
 
         if ($arDropped !== []) {
             Flash::warning('metapixel: dropped invalid event names: '.implode(', ', $arDropped));
@@ -114,21 +114,30 @@ class Settings extends CommonSettings
 
     /**
      * Sanitized list of operator-supplied custom event names. Always returns
-     * list<string> with no malformed entries (beforeSave guarantees cleanliness
-     * at save time; this method is also defensive at read time).
+     * list<string> with no malformed entries (beforeSave persists a
+     * newline-joined string; this getter explodes + trims + regex-filters).
+     * Tolerates legacy array shape (pre-Gap-3 fix) for one-shot data migration.
      *
      * @return list<string>
      */
     public static function getThemeCustomEventNames(): array
     {
-        $mList = self::get('theme_custom_event_names', []);
-        if (! is_array($mList)) {
+        $mList = self::get('theme_custom_event_names', '');
+
+        if (is_array($mList)) {
+            $arCandidates = $mList;
+        } elseif (is_string($mList)) {
+            $arParts = preg_split('/\R/', $mList);
+            $arCandidates = $arParts === false ? [] : $arParts;
+        } else {
             return [];
         }
+
         $arResult = [];
-        foreach ($mList as $mItem) {
-            if (is_string($mItem) && preg_match('/^[A-Za-z0-9_]{1,50}$/', $mItem) === 1) {
-                $arResult[] = $mItem;
+        foreach ($arCandidates as $mItem) {
+            $sTrim = is_string($mItem) ? trim($mItem) : '';
+            if ($sTrim !== '' && preg_match('/^[A-Za-z0-9_]{1,50}$/', $sTrim) === 1) {
+                $arResult[] = $sTrim;
             }
         }
 
