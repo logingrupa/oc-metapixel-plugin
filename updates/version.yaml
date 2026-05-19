@@ -5,3 +5,6 @@
 1.0.1:
     - Add payload longText NULL column to EventLog for frozen Meta payload audit.
     - AddPayloadToMetapixelEventLogTable.php
+1.0.2:
+    - Multisite per-site credential routing (MULT-01..06).
+    - AddMultisitePixelIdAndToken.php
