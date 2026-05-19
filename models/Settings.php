@@ -3,8 +3,8 @@
 namespace Logingrupa\Metapixel\Models;
 
 use Flash;
+use Illuminate\Support\Facades\DB;
 use Lovata\Toolbox\Models\CommonSettings;
-use October\Rain\Support\Facades\Site;
 
 /**
  * Plugin settings model. Per-site credentials route through the Multisite
@@ -59,51 +59,72 @@ class Settings extends CommonSettings
     }
 
     /**
-     * Read default-row credentials inside a global site context. clearInternalCache
-     * busts SettingModel::$instances so the closure sees a fresh resolved
-     * instance for the global scope. clearCache also forgets the per-key
-     * Cache facade entry — without it, the QueryBuilder remember(1440) hit
-     * keeps returning whichever row was last read under the same cache key
-     * (Pitfall 1 across Site::withContext switches).
+     * Read the default-row credentials via a direct DB query. Prefers a row
+     * with site_id IS NULL (explicitly seeded inside Site::withGlobalContext
+     * by an operator who wants a shared fallback); when no such row exists
+     * (single-site installs that always save under the active site), falls
+     * back to the first row matching the settings code so credentials still
+     * route correctly. Bypasses the SettingModel cache layer (static
+     * $instances + Cache::remember) so context-aware reads inside
+     * lookupForSite are not confused by getCacheKey() sharing across
+     * Site::withGlobalContext / Site::withContext switches.
      *
      * @return array{0: string, 1: string}
      */
     private static function readCredentialsInGlobalContext(): array
     {
-        return Site::withGlobalContext(static function (): array {
-            self::clearInternalCache();
-            (new self)->clearCache();
-            $mPixel = self::get('pixel_id', '');
-            $mToken = self::get('capi_access_token', '');
+        $arNullSite = self::readCredentialsFromRow(static fn ($obQuery) => $obQuery->whereNull('site_id'));
+        if ($arNullSite[0] !== '' || $arNullSite[1] !== '') {
+            return $arNullSite;
+        }
 
-            return [
-                is_string($mPixel) ? $mPixel : '',
-                is_string($mToken) ? $mToken : '',
-            ];
-        });
+        // No explicit default row — fall back to the first row for this
+        // settings code so single-site installs (which save under the active
+        // site, not in withGlobalContext) still resolve credentials.
+        return self::readCredentialsFromRow(static fn ($obQuery) => $obQuery);
     }
 
     /**
-     * Read per-site row credentials inside Site::withContext. clearInternalCache
-     * + clearCache MUST run INSIDE the closure (Pitfall 1) — without both,
-     * the QueryBuilder remember() cache + the SettingModel::$instances static
-     * cache combine to return stale credentials across context switches.
+     * Read per-site row credentials by direct DB query. Same rationale as
+     * readCredentialsInGlobalContext — bypass the SettingModel cache. The
+     * cache leak across context switches makes credential routing unsafe
+     * for marketplace operators running multiple sites (P-10).
      *
      * @return array{0: string, 1: string}
      */
     private static function readCredentialsForSiteContext(int $iSiteId): array
     {
-        return Site::withContext($iSiteId, static function (): array {
-            self::clearInternalCache();
-            (new self)->clearCache();
-            $mPixel = self::get('pixel_id', '');
-            $mToken = self::get('capi_access_token', '');
+        return self::readCredentialsFromRow(static fn ($obQuery) => $obQuery->where('site_id', $iSiteId));
+    }
 
-            return [
-                is_string($mPixel) ? $mPixel : '',
-                is_string($mToken) ? $mToken : '',
-            ];
-        });
+    /**
+     * Shared decoder for the system_settings JSON expando column. $fnFilter
+     * narrows the row scope (whereNull('site_id') for default, where('site_id', $iSiteId)
+     * for per-site).
+     *
+     * @param  callable(\Illuminate\Database\Query\Builder): \Illuminate\Database\Query\Builder  $fnFilter
+     * @return array{0: string, 1: string}
+     */
+    private static function readCredentialsFromRow(callable $fnFilter): array
+    {
+        $obQuery = DB::table('system_settings')
+            ->where('item', (new self)->settingsCode);
+        $obQuery = $fnFilter($obQuery);
+        $obRow = $obQuery->first();
+        if ($obRow === null || ! is_string($obRow->value ?? null)) {
+            return ['', ''];
+        }
+        $mDecoded = json_decode($obRow->value, true);
+        if (! is_array($mDecoded)) {
+            return ['', ''];
+        }
+        $mPixel = $mDecoded['pixel_id'] ?? '';
+        $mToken = $mDecoded['capi_access_token'] ?? '';
+
+        return [
+            is_string($mPixel) ? $mPixel : '',
+            is_string($mToken) ? $mToken : '',
+        ];
     }
 
     /**

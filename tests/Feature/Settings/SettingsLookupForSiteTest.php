@@ -18,25 +18,19 @@ final class SettingsLookupForSiteTest extends MetapixelTestCase
     {
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
-        // System::hasDatabase() requires a `migrations` table to return true;
-        // without it, SettingModel::getSettingsRecord() short-circuits to null
-        // and Settings::get always returns the default. Create the smallest
-        // viable schema so the per-site lookup path is exercised end-to-end.
-        $obSchema = $this->app['db']->connection()->getSchemaBuilder();
-        if (! $obSchema->hasTable('migrations')) {
-            $obSchema->create('migrations', static function ($obTable): void {
-                $obTable->increments('id');
-                $obTable->string('migration');
-                $obTable->integer('batch');
-            });
-        }
         // Seed 2-site fixture so Site::withContext(1, fn) + Site::withContext(2, fn) resolve.
+        // The migrations table + Manifest::put('database.check', true) come from
+        // MetapixelTestCase::ensureMigrationsTableForHasDatabaseProbe so the
+        // Multisite-aware lookupForSite reads the per-site row via DB on each call.
         $fnSeedSites = require __DIR__.'/../../fixtures/sites.php';
-        $fnSeedSites($obSchema, $this->app['db']->connection());
-        // Force System::hasDatabase() to return true. The helper short-circuits
-        // when Manifest 'database.check' is true; setting it bypasses the
-        // migrations-table probe + the per-instance memo without needing to
-        // populate the entire October core schema.
+        $fnSeedSites(
+            $this->app['db']->connection()->getSchemaBuilder(),
+            $this->app['db']->connection(),
+        );
+        // The system.helper / system.manifest instances are rebuilt per-test via
+        // createApplication(); re-pin the hasDatabase probe here too so the
+        // 'global context' read inside lookupForSite gets a fresh DB hit even
+        // when the framework rebinds the helper mid-test.
         Manifest::put('database.check', true);
         $obSystem = $this->app->make('system.helper');
         $obReflect = new ReflectionObject($obSystem);
@@ -51,7 +45,6 @@ final class SettingsLookupForSiteTest extends MetapixelTestCase
     protected function tearDown(): void
     {
         $this->app['db']->connection()->getSchemaBuilder()->dropIfExists('system_site_definitions');
-        $this->app['db']->connection()->getSchemaBuilder()->dropIfExists('migrations');
         Site::resetCache();
         parent::tearDown();
     }
