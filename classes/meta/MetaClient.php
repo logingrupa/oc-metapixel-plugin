@@ -124,17 +124,22 @@ class MetaClient
         }
 
         $sUrl = sprintf(
-            '%s/%s/%s/?fields=name,event_match_quality,deduplication_rate&access_token=%s',
+            '%s/%s/%s/?fields=name,event_match_quality,deduplication_rate',
             self::META_GRAPH_API_BASE,
             self::META_GRAPH_API_VERSION,
             $sPixelId,
-            rawurlencode($sToken),
         );
 
         $obClient = $this->obClient ?? new Client(['timeout' => self::DEFAULT_TIMEOUT_SECONDS]);
 
         try {
-            $obResponse = $obClient->request('GET', $sUrl, ['http_errors' => false]);
+            // Token in Authorization header — class docblock policy: NEVER in URL
+            // query string (webserver access logs leak the URL). Matches the
+            // sendForPixel POST-body transport choice (DRY rationale).
+            $obResponse = $obClient->request('GET', $sUrl, [
+                'http_errors' => false,
+                'headers' => ['Authorization' => 'Bearer '.$sToken],
+            ]);
         } catch (ConnectException $obException) {
             throw new MetaApiTransientException(
                 'metapixel: dataset quality fetch connect failure',
