@@ -69,6 +69,7 @@ return [
         'flash_dedup_success' => 'Dedup check succeeded for event_id :event_id',
         'flash_dedup_error' => 'Dedup check failed — :error',
         'flash_delete_success' => 'Deleted :count failed event(s)',
+        'flash_row_missing' => 'Failed event row no longer exists — refresh the list.',
     ],
     'exception' => [
         'missing_pixel_config' => 'Meta Pixel ID is not configured. Set it in Settings > Meta Pixel + CAPI > Pixel & CAPI tab.',

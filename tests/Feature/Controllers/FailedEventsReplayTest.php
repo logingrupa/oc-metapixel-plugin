@@ -1,6 +1,5 @@
 <?php
 
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Exception\MetaApiPermanentException;
@@ -193,7 +192,11 @@ final class FailedEventsReplayTest extends MetapixelTestCase
 
         $obController = $this->makeController();
 
-        $this->expectException(ModelNotFoundException::class);
+        // WR-04 — findRowOrFail soft-finds and flashes on stale-page-load
+        // scenarios rather than letting Eloquent's ModelNotFoundException
+        // bubble as a backend AJAX 500. RuntimeException short-circuits the
+        // handler before any Meta API dispatch.
+        $this->expectException(\RuntimeException::class);
         $obController->onReplay();
         $this->assertSame(0, $obSpy->iCallCount);
     }

@@ -371,11 +371,24 @@ class FailedEvents extends Controller
         return $obRow instanceof FailedEvent ? $obRow : null;
     }
 
+    /**
+     * Locate a FailedEvent row by id at the user-input boundary. Soft-finds
+     * (no ModelNotFoundException → no backend AJAX 500) and emits a flash on
+     * stale-page-load scenarios (operator deleted the row in tab A then hit
+     * Replay in tab B). RuntimeException is thrown after the flash so the
+     * caller short-circuits before dispatching any Meta API traffic.
+     */
     private function findRowOrFail(int $iRecordId): FailedEvent
     {
-        $obRow = FailedEvent::query()->findOrFail($iRecordId);
+        if ($iRecordId <= 0) {
+            Flash::error(trans('logingrupa.metapixel::lang.failed_events.flash_row_missing'));
+            throw new \RuntimeException('metapixel: invalid record_id '.$iRecordId);
+        }
+
+        $obRow = FailedEvent::query()->find($iRecordId);
         if (! $obRow instanceof FailedEvent) {
-            throw new \RuntimeException('metapixel: query returned non-FailedEvent row for id '.$iRecordId);
+            Flash::error(trans('logingrupa.metapixel::lang.failed_events.flash_row_missing'));
+            throw new \RuntimeException('metapixel: failed event row '.$iRecordId.' not found');
         }
 
         return $obRow;

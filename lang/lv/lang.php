@@ -69,6 +69,7 @@ return [
         'flash_dedup_success' => 'Dedublēšanas pārbaude izdevās — event_id :event_id',
         'flash_dedup_error' => 'Dedublēšanas pārbaude neizdevās — :error',
         'flash_delete_success' => 'Dzēsti :count nesekmīgie notikumi',
+        'flash_row_missing' => 'Nesekmīgais notikums vairs neeksistē — atjauniniet sarakstu.',
     ],
     'exception' => [
         'missing_pixel_config' => 'Meta Pixel ID nav konfigurēts. Iestatiet to sadaļā Iestatījumi > Meta Pixel + CAPI > Pixel & CAPI cilne.',
