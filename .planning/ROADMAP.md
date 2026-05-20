@@ -232,7 +232,7 @@ class Plugin extends PluginBase {
   4. A backend admin viewing `Controllers\FailedEvents` sees columns event_id / event_name / adapter_type / http_status / attempts / created_at / graph_error snippet with filters by event_name + adapter_type + date range. Clicking "Replay" on a row re-dispatches the event through `MetaClient`, increments attempts, flash-succeeds on HTTP 200, surfaces graph_error on failure. Clicking "CheckDedup" calls `MetaClient::fetchTestEventsStatus()` and returns JSON with dedup % + EMQ per event for the current `test_event_code`.
   5. All Settings field labels, Settings commentAbove text, FailedEvents column labels, FailedEvents action buttons (Replay, CheckDedup), backend menu label, and error messages render through `lang/en/lang.php` and `lang/lv/lang.php` (RainLab.Translate-compatible structure). No raw lang keys leak to UI; en + lv only (RU dropped per scope decision — operator adds own `lang/ru/lang.php` if needed).
 
-**Plans:** 5 plans
+**Plans:** 2/5 plans executed
 
 - [ ] `04-01-PLAN.md` — Settings Multisite trait + lookupForSite per-site body + AddMultisitePixelIdAndToken no-op migration + phpstan disallowed-calls D-02 (MULT-01, MULT-02, MULT-03, MULT-04, MULT-05, MULT-06)
 - [ ] `04-02-PLAN.md` — HostIndexResolver (jeremykendall/php-domain-parser ^6.4) + bundled PSL data + RefreshPsl artisan command + trusted_hosts beforeSave strict validation + 4-tab fields.yaml restructure (HOST-01, HOST-02, HOST-03, HOST-04, HOST-05, HOST-06)
@@ -287,7 +287,7 @@ class Plugin extends PluginBase {
 | 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
 | 2. Adapter system core | 8/8 | Complete   | 2026-05-17 |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
-| 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 0/5 | In Progress (planned) | — |
+| 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 2/5 | In Progress|  |
 | 5. Documentation + marketplace launch | 0/0 | Not started | — |
 
 ## Shipped Milestones
