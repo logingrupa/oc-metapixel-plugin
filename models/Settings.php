@@ -3,8 +3,12 @@
 namespace Logingrupa\Metapixel\Models;
 
 use Flash;
+use Illuminate\Database\Query\Builder;
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
+use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Lovata\Toolbox\Models\CommonSettings;
+use October\Rain\Database\ModelException;
 
 /**
  * Plugin settings model. Per-site credentials route through the Multisite
@@ -102,7 +106,7 @@ class Settings extends CommonSettings
      * narrows the row scope (whereNull('site_id') for default, where('site_id', $iSiteId)
      * for per-site).
      *
-     * @param  callable(\Illuminate\Database\Query\Builder): \Illuminate\Database\Query\Builder  $fnFilter
+     * @param  callable(Builder): Builder  $fnFilter
      * @return array{0: string, 1: string}
      */
     private static function readCredentialsFromRow(callable $fnFilter): array
@@ -128,11 +132,46 @@ class Settings extends CommonSettings
     }
 
     /**
-     * Sanitize operator-supplied theme_custom_event_names — split by newline,
-     * trim, drop entries that fail /^[A-Za-z0-9_]{1,50}$/, flash a warning
-     * listing dropped values. Idempotent on already-clean input.
+     * Sanitize operator-supplied trusted_hosts + theme_custom_event_names.
+     * trusted_hosts halts the save on any unknown-TLD / charset-violating
+     * line (D-14 strict); theme_custom_event_names drops invalids with a
+     * Flash::warning (pre-existing pattern).
      */
     public function beforeSave(): void
+    {
+        $this->beforeSaveTrustedHosts();
+        $this->beforeSaveThemeCustomEventNames();
+    }
+
+    /**
+     * D-14 strict halt — partition trusted_hosts into clean / rejected lines;
+     * a non-empty rejected set throws ModelException after flashing the list
+     * of bad hosts to the operator. Idempotent on already-clean input.
+     */
+    private function beforeSaveTrustedHosts(): void
+    {
+        $arLines = $this->splitHostInput($this->getAttribute('trusted_hosts'));
+        if ($arLines === null) {
+            return;
+        }
+
+        [$arClean, $arRejected] = $this->partitionHosts($arLines);
+
+        if ($arRejected !== []) {
+            $sMessage = 'metapixel: rejected trusted_hosts (unknown TLD or invalid charset): '
+                .implode(', ', $arRejected);
+            Flash::error($sMessage);
+
+            // Tiger-Style fail-fast: halt the save at the boundary so the
+            // operator gets immediate feedback. Untrusted hosts saved would
+            // silently break cookies at request time (P-15 anchor).
+            throw new ModelException($this);
+        }
+
+        $this->setAttribute('trusted_hosts', implode("\n", $arClean));
+    }
+
+    private function beforeSaveThemeCustomEventNames(): void
     {
         $arLines = $this->splitEventNameInput($this->getAttribute('theme_custom_event_names'));
         if ($arLines === null) {
@@ -145,6 +184,61 @@ class Settings extends CommonSettings
         if ($arDropped !== []) {
             Flash::warning('metapixel: dropped invalid event names: '.implode(', ', $arDropped));
         }
+    }
+
+    /**
+     * Normalize the raw trusted_hosts textarea value (string OR array shape)
+     * to a list of candidate lines. Returns null when the value is neither
+     * shape (signals beforeSave to no-op early).
+     *
+     * @return list<mixed>|null
+     */
+    private function splitHostInput(mixed $mValue): ?array
+    {
+        if (is_array($mValue)) {
+            return array_values($mValue);
+        }
+        if (! is_string($mValue)) {
+            return null;
+        }
+        $mLines = preg_split('/\R/', $mValue);
+
+        return $mLines === false ? [] : $mLines;
+    }
+
+    /**
+     * Partition trusted_hosts candidates via the basic charset gate (D-14)
+     * + the PSL-wrapped HostIndexResolver. Unknown-TLD or charset-violating
+     * lines are pushed to the rejected list; clean lines are normalised to
+     * lowercase + trimmed.
+     *
+     * @param  list<mixed>  $arLines
+     * @return array{0: list<string>, 1: list<string>}
+     */
+    private function partitionHosts(array $arLines): array
+    {
+        $obResolver = App::make(HostIndexResolver::class);
+        $arClean = [];
+        $arRejected = [];
+        foreach ($arLines as $mLine) {
+            $sHost = is_string($mLine) ? strtolower(trim($mLine)) : '';
+            if ($sHost === '') {
+                continue;
+            }
+            if (preg_match('/^[a-z0-9.-]+$/', $sHost) !== 1) {
+                $arRejected[] = $sHost;
+
+                continue;
+            }
+            if ($obResolver->resolve($sHost) === null) {
+                $arRejected[] = $sHost;
+
+                continue;
+            }
+            $arClean[] = $sHost;
+        }
+
+        return [$arClean, $arRejected];
     }
 
     /**
