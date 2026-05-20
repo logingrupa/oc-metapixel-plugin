@@ -20,6 +20,7 @@ use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Components\EventPixel;
 use Logingrupa\Metapixel\Components\PixelHead;
 use Logingrupa\Metapixel\Console\PurgeEventLog;
+use Logingrupa\Metapixel\Console\RefreshPsl;
 use Logingrupa\Metapixel\Models\Settings;
 use Lovata\OrdersShopaholic\Models\CartPosition;
 use Lovata\OrdersShopaholic\Models\Order;
@@ -63,6 +64,7 @@ class Plugin extends PluginBase
             )
         );
         $this->registerConsoleCommand('metapixel:purge-event-log', PurgeEventLog::class);
+        $this->registerConsoleCommand('metapixel:refresh-psl', RefreshPsl::class);
     }
 
     public function boot(): void
