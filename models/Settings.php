@@ -6,6 +6,7 @@ use Flash;
 use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\MessageBag;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Lovata\Toolbox\Models\CommonSettings;
 use October\Rain\Database\ModelException;
@@ -35,6 +36,21 @@ class Settings extends CommonSettings
      * @var list<string>
      */
     protected $propagatable = [];
+
+    /**
+     * Validation error bag — satisfies ModelException contract without
+     * pulling October's full Validation trait (would conflict with the
+     * SettingModel singleton save() lifecycle).
+     */
+    protected ?MessageBag $obValidationErrors = null;
+
+    /**
+     * @return MessageBag
+     */
+    public function errors()
+    {
+        return $this->obValidationErrors ??= new MessageBag();
+    }
 
     /**
      * Multisite-aware credential lookup. Returns per-site row when set;
@@ -162,9 +178,12 @@ class Settings extends CommonSettings
                 .implode(', ', $arRejected);
             Flash::error($sMessage);
 
-            // Tiger-Style fail-fast: halt the save at the boundary so the
-            // operator gets immediate feedback. Untrusted hosts saved would
-            // silently break cookies at request time (P-15 anchor).
+            // Populate errors() so ModelException can build its message bag
+            // from the model; Tiger-Style fail-fast halts the save at the
+            // boundary — untrusted hosts saved would silently break cookies
+            // at request time (P-15 anchor).
+            $this->obValidationErrors = new MessageBag(['trusted_hosts' => [$sMessage]]);
+
             throw new ModelException($this);
         }
 

@@ -30,7 +30,20 @@ final class TrustedHostsValidationTest extends MetapixelTestCase
             fn () => new HostIndexResolver(__DIR__.'/../../fixtures/data/test_psl.dat')
         );
 
+        // Flash facade root is not bound in Pest's test process — alias-mock
+        // so Settings::beforeSave error/warning calls no-op (matches
+        // SettingsBeforeSaveTest pattern).
+        $obFlash = \Mockery::mock('alias:\Flash');
+        $obFlash->shouldReceive('error')->andReturnNull();
+        $obFlash->shouldReceive('warning')->andReturnNull();
+
         Settings::clearInternalCache();
+    }
+
+    protected function tearDown(): void
+    {
+        \Mockery::close();
+        parent::tearDown();
     }
 
     public function test_save_with_only_valid_hosts_persists_normalized_lowercase_string(): void
