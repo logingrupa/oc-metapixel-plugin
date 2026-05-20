@@ -102,7 +102,10 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $obFresh = FailedEvent::find($obRow->id);
         $this->assertSame(2, (int) $obFresh->attempts);
         $this->assertNull($obFresh->graph_error);
-        $this->assertSame(200, (int) $obFresh->http_status);
+        // CR-02 — success clears the stale http_status from the prior failure;
+        // sendForPixel returns the decoded body (NOT the HTTP code) so the
+        // honest audit signal is "no failure on the latest attempt".
+        $this->assertNull($obFresh->http_status);
     }
 
     public function test_on_replay_metapixel_exception_writes_graph_error(): void
@@ -130,7 +133,10 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $obFresh = FailedEvent::find($obRow->id);
         $this->assertSame(2, (int) $obFresh->attempts);
         $this->assertStringContainsString('Invalid pixel_id', (string) $obFresh->graph_error);
-        $this->assertNotSame(200, (int) $obFresh->http_status, 'http_status must not be overwritten to 200 on permanent failure');
+        // CR-02 — http_status now reflects the actual upstream code from THIS
+        // attempt via MetaApiPermanentException::getHttpStatus() (not the
+        // stale value from the original failure that seeded the row).
+        $this->assertSame(400, (int) $obFresh->http_status);
     }
 
     public function test_on_replay_throwable_writes_graph_error_with_throwable_message(): void
@@ -158,6 +164,9 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $obFresh = FailedEvent::find($obRow->id);
         $this->assertSame(2, (int) $obFresh->attempts);
         $this->assertStringContainsString('boom', (string) $obFresh->graph_error);
+        // CR-02 — non-HTTP failure (timeout, parser, ...) has no upstream
+        // status code; clear the stale value so the audit column does not lie.
+        $this->assertNull($obFresh->http_status);
     }
 
     public function test_on_replay_unregistered_adapter_type_flashes_error_no_dispatch(): void

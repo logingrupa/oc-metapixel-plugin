@@ -178,26 +178,39 @@ class FailedEvents extends Controller
                 $arCreds['capi_access_token'],
                 $arPayload,
             );
+            // success: clear stale http_status from the previous failure so the
+            // audit column reflects the latest attempt outcome (the only
+            // honest signal — sendForPixel returns the decoded body, not a
+            // response status, so we cannot fabricate a "200" here).
             $obRow->update([
                 'attempts' => $obRow->attempts + 1,
                 'graph_error' => null,
-                'http_status' => 200,
+                'http_status' => null,
             ]);
             Flash::success('metapixel: replay succeeded — event_id '.$obRow->event_id);
         } catch (MetaPixelException $obException) {
             // log-and-persist: write the failure mode onto the row so the
             // operator sees the latest Graph API response in the list UI.
+            // Propagate the upstream HTTP status when the concrete exception
+            // exposes it (MetaApiTransientException / MetaApiPermanentException
+            // both carry getHttpStatus(); MissingPixelConfigException + the
+            // CapiToken sibling do not — fall through to null on absence).
+            $iStatus = method_exists($obException, 'getHttpStatus')
+                ? $obException->getHttpStatus()
+                : null;
             $obRow->update([
                 'attempts' => $obRow->attempts + 1,
                 'graph_error' => $obException->getMessage(),
+                'http_status' => $iStatus,
             ]);
             Flash::error('metapixel: replay failed — '.$obException->getMessage());
         } catch (Throwable $obException) {
-            // log-and-persist: unknown failure (timeout, network, etc.) —
-            // still increment attempts so retries are visible to the operator.
+            // log-and-persist: unknown failure (timeout, network, parser, …) —
+            // no HTTP status is available, clear stale value to avoid lying.
             $obRow->update([
                 'attempts' => $obRow->attempts + 1,
                 'graph_error' => $obException->getMessage(),
+                'http_status' => null,
             ]);
             Flash::error('metapixel: replay errored — '.$obException->getMessage());
         }
