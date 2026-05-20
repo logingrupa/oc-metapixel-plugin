@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Middleware\EnsureFbpFbcCookies;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
@@ -37,11 +38,26 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
         );
 
         // Seed Settings rows so the middleware reads non-default values.
+        // pixel_id seeded so PluginGuard::isDisabled() returns false — without
+        // this the WR-03 fix would short-circuit shouldSkip() to true and
+        // every cookie-writing assertion below would fail.
         Settings::clearInternalCache();
         Settings::set([
+            'pixel_id' => '1234567890',
             'trusted_hosts' => "example.com\nshop.example.co.uk",
             'ensure_fbp_fbc_server_side' => true,
         ]);
+
+        // PluginGuard memoises the disabled flag for the lifetime of the PHP
+        // process — clear it before each test so the seeded pixel_id above is
+        // actually read on the first isDisabled() call inside shouldSkip().
+        PluginGuard::reset();
+    }
+
+    protected function tearDown(): void
+    {
+        PluginGuard::reset();
+        parent::tearDown();
     }
 
     // -----------------------------------------------------------------------

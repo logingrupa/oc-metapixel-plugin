@@ -4,9 +4,9 @@ namespace Logingrupa\Metapixel\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Models\Settings;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Response;
@@ -97,11 +97,16 @@ class EnsureFbpFbcCookies
             return true;
         }
 
-        if (App::bound('metapixel.disabled') && App::make('metapixel.disabled')) {
-            return true;
-        }
-
         try {
+            // PluginGuard reads Settings::get('pixel_id') — same boundary
+            // fail-safe rationale as the kill-switch lookup below (initial
+            // migration HTTP request must not 500 when system_settings is
+            // absent). isDisabled() memoises the result, so the wrap is a
+            // first-request-only cost.
+            if (PluginGuard::isDisabled()) {
+                return true;
+            }
+
             $mToggle = Settings::get('ensure_fbp_fbc_server_side', true);
 
             return ! ($mToggle === true || $mToggle === 1 || $mToggle === '1');
@@ -110,7 +115,7 @@ class EnsureFbpFbcCookies
             // migration must not 500 the HTTP request — default to enabled and
             // let downstream readTrustedHosts handle the empty-list NO-OP.
             Log::warning(
-                'metapixel: kill-switch lookup threw — middleware defaults to enabled',
+                'metapixel: PluginGuard or kill-switch lookup threw — middleware defaults to enabled',
                 ['exception' => get_class($obException)]
             );
 
