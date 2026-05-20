@@ -36,10 +36,14 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
             'capi_access_token' => 'TOKEN-DEDUP',
         ]);
 
-        $obFlash = Mockery::mock('alias:\Flash');
+        // WR-06 — bind the Flash facade root via the container 'flash' binding
+        // instead of Mockery's alias: pattern. See FailedEventsReplayTest setUp
+        // for the full rationale (alias-mock side effects survive the process).
+        $obFlash = Mockery::mock();
         $obFlash->shouldReceive('error')->andReturnNull();
         $obFlash->shouldReceive('success')->andReturnNull();
         $obFlash->shouldReceive('warning')->andReturnNull();
+        $this->app->instance('flash', $obFlash);
     }
 
     protected function tearDown(): void

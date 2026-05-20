@@ -2,7 +2,6 @@
 
 namespace Logingrupa\Metapixel\Tests\Unit\Models;
 
-use Flash;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Mockery;
@@ -42,8 +41,9 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
 
     public function test_beforeSave_drops_entries_with_dashes_or_special_chars(): void
     {
-        $obFlashFake = Mockery::mock('alias:'.Flash::class);
+        $obFlashFake = Mockery::mock();
         $obFlashFake->shouldReceive('warning')->andReturnNull();
+        $this->app->instance('flash', $obFlashFake);
 
         Settings::set(['theme_custom_event_names' => "Good\nBad-Name\nBad name\nBad.\n"]);
 
@@ -53,8 +53,9 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
 
     public function test_beforeSave_drops_entries_over_50_chars(): void
     {
-        $obFlashFake = Mockery::mock('alias:'.Flash::class);
+        $obFlashFake = Mockery::mock();
         $obFlashFake->shouldReceive('warning')->andReturnNull();
+        $this->app->instance('flash', $obFlashFake);
 
         $sOversize = str_repeat('A', 51);
         Settings::set(['theme_custom_event_names' => "Valid\n".$sOversize."\n"]);
@@ -65,8 +66,9 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
 
     public function test_beforeSave_drops_empty_lines_silently_without_flash(): void
     {
-        $obFlashFake = Mockery::mock('alias:'.Flash::class);
+        $obFlashFake = Mockery::mock();
         $obFlashFake->shouldNotReceive('warning');
+        $this->app->instance('flash', $obFlashFake);
 
         Settings::set(['theme_custom_event_names' => "\n\nGoodName\n\n"]);
 
@@ -76,7 +78,7 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
 
     public function test_beforeSave_flashes_warning_listing_dropped_entries(): void
     {
-        $obFlashFake = Mockery::mock('alias:'.Flash::class);
+        $obFlashFake = Mockery::mock();
         $obFlashFake->shouldReceive('warning')
             ->once()
             ->with(Mockery::on(static function ($mMessage): bool {
@@ -84,6 +86,7 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
                     && str_contains($mMessage, 'X-Y')
                     && str_contains($mMessage, 'A B');
             }));
+        $this->app->instance('flash', $obFlashFake);
 
         Settings::set(['theme_custom_event_names' => "X-Y\nA B\n"]);
 

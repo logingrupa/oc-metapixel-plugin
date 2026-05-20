@@ -30,12 +30,14 @@ final class TrustedHostsValidationTest extends MetapixelTestCase
             fn () => new HostIndexResolver(__DIR__.'/../../fixtures/data/test_psl.dat')
         );
 
-        // Flash facade root is not bound in Pest's test process — alias-mock
-        // so Settings::beforeSave error/warning calls no-op (matches
-        // SettingsBeforeSaveTest pattern).
-        $obFlash = \Mockery::mock('alias:\Flash');
+        // WR-06 — bind the Flash facade root via the container 'flash' binding
+        // instead of Mockery's alias: pattern (which registers a class alias
+        // that pollutes downstream tests in the same PHP process). Per-test
+        // instance swap tears down cleanly with Mockery::close() in tearDown.
+        $obFlash = \Mockery::mock();
         $obFlash->shouldReceive('error')->andReturnNull();
         $obFlash->shouldReceive('warning')->andReturnNull();
+        $this->app->instance('flash', $obFlash);
 
         Settings::clearInternalCache();
     }

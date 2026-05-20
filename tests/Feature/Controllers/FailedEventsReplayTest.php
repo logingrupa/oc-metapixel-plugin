@@ -40,10 +40,15 @@ final class FailedEventsReplayTest extends MetapixelTestCase
 
         app(AdapterRegistry::class)->register(stdClass::class, FakeAdapter::class);
 
-        $obFlash = Mockery::mock('alias:\Flash');
+        // WR-06 — bind the Flash facade root via the container 'flash' binding
+        // instead of Mockery's alias: pattern. Alias mocks register a class
+        // alias that survives the test process; this swap is per-test and
+        // tears down cleanly with Mockery::close() in tearDown().
+        $obFlash = Mockery::mock();
         $obFlash->shouldReceive('error')->andReturnNull();
         $obFlash->shouldReceive('success')->andReturnNull();
         $obFlash->shouldReceive('warning')->andReturnNull();
+        $this->app->instance('flash', $obFlash);
     }
 
     protected function tearDown(): void
