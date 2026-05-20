@@ -1,0 +1,23 @@
+// ===BEGIN ICANN DOMAINS===
+// Hermetic PSL subset for HostIndexResolverTest. Includes the minimum
+// suffix surface needed by the data-provider matrix:
+//   - apex + www on com / test / example
+//   - multi-label TLDs co.uk + com.br
+// Snapshot from https://publicsuffix.org/list/public_suffix_list.dat (MPL 2.0).
+
+com
+test
+
+// example is reserved per RFC 2606; PSL lists it as an effective TLD for
+// fixture / documentation domains.
+example
+
+// co.uk multi-label TLD (HOST-05).
+uk
+co.uk
+
+// com.br multi-label TLD (HOST-05).
+br
+com.br
+
+// ===END ICANN DOMAINS===
