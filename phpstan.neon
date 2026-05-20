@@ -12,6 +12,7 @@ parameters:
         - models
         - console
         - components
+        - middleware
 
     excludePaths:
         - tests (?)

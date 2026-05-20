@@ -49,7 +49,7 @@ class Settings extends CommonSettings
      */
     public function errors()
     {
-        return $this->obValidationErrors ??= new MessageBag();
+        return $this->obValidationErrors ??= new MessageBag;
     }
 
     /**
