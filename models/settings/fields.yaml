@@ -1,36 +1,58 @@
-fields:
-    pixel_id:
-        label: logingrupa.metapixel::lang.settings.fields.pixel_id_label
-        commentAbove: logingrupa.metapixel::lang.settings.fields.pixel_id_comment
-        type: text
-        span: full
-    capi_access_token:
-        label: logingrupa.metapixel::lang.settings.fields.capi_access_token_label
-        commentAbove: logingrupa.metapixel::lang.settings.fields.capi_access_token_comment
-        type: password
-        span: full
-    test_event_code:
-        label: logingrupa.metapixel::lang.settings.fields.test_event_code_label
-        commentAbove: logingrupa.metapixel::lang.settings.fields.test_event_code_comment
-        type: text
-        span: full
-    paid_status_code:
-        label: logingrupa.metapixel::lang.settings.fields.paid_status_code_label
-        commentAbove: logingrupa.metapixel::lang.settings.fields.paid_status_code_comment
-        type: dropdown
-        span: auto
-        default: new-payment-received
-        options: \Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicSettingsOptions::getPaidStatusCodeOptions
-    default_currency_code:
-        label: logingrupa.metapixel::lang.settings.fields.default_currency_code_label
-        commentAbove: logingrupa.metapixel::lang.settings.fields.default_currency_code_comment
-        type: dropdown
-        span: auto
-        default: EUR
-        options: \Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicSettingsOptions::getDefaultCurrencyCodeOptions
-    theme_custom_event_names:
-        label: logingrupa.metapixel::lang.settings.fields.theme_custom_event_names_label
-        commentAbove: logingrupa.metapixel::lang.settings.fields.theme_custom_event_names_comment
-        type: textarea
-        size: small
-        span: full
+# Label keys remain settings.fields.* until plan 04-05 LANG-01 ships the
+# unified field.* shape and re-keys this file + the lang/{en,lv}/lang.php files.
+tabs:
+    fields:
+        pixel_id:
+            tab: logingrupa.metapixel::lang.tab.pixel_and_capi
+            label: logingrupa.metapixel::lang.settings.fields.pixel_id_label
+            commentAbove: logingrupa.metapixel::lang.settings.fields.pixel_id_comment
+            type: text
+            span: full
+        capi_access_token:
+            tab: logingrupa.metapixel::lang.tab.pixel_and_capi
+            label: logingrupa.metapixel::lang.settings.fields.capi_access_token_label
+            commentAbove: logingrupa.metapixel::lang.settings.fields.capi_access_token_comment
+            type: password
+            span: full
+        test_event_code:
+            tab: logingrupa.metapixel::lang.tab.pixel_and_capi
+            label: logingrupa.metapixel::lang.settings.fields.test_event_code_label
+            commentAbove: logingrupa.metapixel::lang.settings.fields.test_event_code_comment
+            type: text
+            span: full
+        paid_status_code:
+            tab: logingrupa.metapixel::lang.tab.pixel_and_capi
+            label: logingrupa.metapixel::lang.settings.fields.paid_status_code_label
+            commentAbove: logingrupa.metapixel::lang.settings.fields.paid_status_code_comment
+            type: dropdown
+            span: auto
+            default: new-payment-received
+            options: \Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicSettingsOptions::getPaidStatusCodeOptions
+        default_currency_code:
+            tab: logingrupa.metapixel::lang.tab.pixel_and_capi
+            label: logingrupa.metapixel::lang.settings.fields.default_currency_code_label
+            commentAbove: logingrupa.metapixel::lang.settings.fields.default_currency_code_comment
+            type: dropdown
+            span: auto
+            default: EUR
+            options: \Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicSettingsOptions::getDefaultCurrencyCodeOptions
+        trusted_hosts:
+            tab: logingrupa.metapixel::lang.tab.hosts_and_cookies
+            label: logingrupa.metapixel::lang.settings.fields.trusted_hosts_label
+            commentAbove: logingrupa.metapixel::lang.settings.fields.trusted_hosts_comment
+            type: textarea
+            size: small
+            span: full
+        ensure_fbp_fbc_server_side:
+            tab: logingrupa.metapixel::lang.tab.hosts_and_cookies
+            label: logingrupa.metapixel::lang.settings.fields.ensure_fbp_fbc_label
+            commentAbove: logingrupa.metapixel::lang.settings.fields.ensure_fbp_fbc_comment
+            type: switch
+            default: true
+        theme_custom_event_names:
+            tab: logingrupa.metapixel::lang.tab.theme_tracking
+            label: logingrupa.metapixel::lang.settings.fields.theme_custom_event_names_label
+            commentAbove: logingrupa.metapixel::lang.settings.fields.theme_custom_event_names_comment
+            type: textarea
+            size: small
+            span: full

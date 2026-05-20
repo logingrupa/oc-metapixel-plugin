@@ -2,20 +2,30 @@
 
 return [
     'plugin' => [
-        'name'        => 'Meta Pixel + Conversions API',
+        'name' => 'Meta Pixel + Conversions API',
         'description' => 'Servera puses dedublēta Meta Pixel un Conversions API izsekošana caur adapter modeli.',
     ],
+    'tab' => [
+        'pixel_and_capi' => 'Pixel un CAPI',
+        'hosts_and_cookies' => 'Resursdatori un sīkfaili',
+        'theme_tracking' => 'Tēmas izsekošana',
+        'advanced' => 'Papildu',
+    ],
     'settings' => [
-        'label'       => 'Meta Pixel + CAPI',
+        'label' => 'Meta Pixel + CAPI',
         'description' => 'Konfigurējiet Pixel ID, CAPI piekļuves marķieri un Test Events kodu Meta izsekošanai.',
-        'category'    => 'Mārketings',
+        'category' => 'Mārketings',
         'fields' => [
-            'pixel_id_label'             => 'Pixel ID',
-            'pixel_id_comment'           => 'Jūsu Meta Pixel ID (tikai cipari). Iegūstams no Meta Events Manager > Datu avoti > Pixel > Iestatījumi.',
-            'capi_access_token_label'    => 'CAPI piekļuves marķieris',
-            'capi_access_token_comment'  => 'Conversions API piekļuves marķieris. Iegūstams no Meta Events Manager > Iestatījumi > Ģenerēt piekļuves marķieri.',
-            'test_event_code_label'      => 'Test Events kods',
-            'test_event_code_comment'    => 'Neobligāts. Pārvirza notikumus uz Meta Test Events paneli pārbaudei. Atstājiet tukšu produkcijā.',
+            'pixel_id_label' => 'Pixel ID',
+            'pixel_id_comment' => 'Jūsu Meta Pixel ID (tikai cipari). Iegūstams no Meta Events Manager > Datu avoti > Pixel > Iestatījumi.',
+            'capi_access_token_label' => 'CAPI piekļuves marķieris',
+            'capi_access_token_comment' => 'Conversions API piekļuves marķieris. Iegūstams no Meta Events Manager > Iestatījumi > Ģenerēt piekļuves marķieri.',
+            'test_event_code_label' => 'Test Events kods',
+            'test_event_code_comment' => 'Neobligāts. Pārvirza notikumus uz Meta Test Events paneli pārbaudei. Atstājiet tukšu produkcijā.',
+            'trusted_hosts_label' => 'Uzticamie resursdatori',
+            'trusted_hosts_comment' => 'Resursdatori, kuriem atļauts saņemt servera puses _fbp / _fbc sīkfailus. Viens resursdators katrā rindā (bez shēmas, bez ceļa). Katrs resursdators tiek pārbaudīts pret Public Suffix List saglabāšanas laikā; nezināmi TLD tiek noraidīti.',
+            'ensure_fbp_fbc_label' => 'Iestatīt _fbp / _fbc sīkfailus servera pusē',
+            'ensure_fbp_fbc_comment' => 'Atspējojiet, ja tēma jau raksta šos sīkfailus, vai GDPR sīkfailu joslas integrācijai, kur sīkfaili jāgaida līdz piekrišanas.',
         ],
     ],
 ];
