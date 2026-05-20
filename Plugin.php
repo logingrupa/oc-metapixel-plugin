@@ -16,6 +16,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
+use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Components\EventPixel;
 use Logingrupa\Metapixel\Components\PixelHead;
 use Logingrupa\Metapixel\Console\PurgeEventLog;
@@ -55,6 +56,12 @@ class Plugin extends PluginBase
     {
         $this->app->singleton(AdapterRegistry::class);
         $this->app->singleton(ThemeEventCollector::class);
+        $this->app->singleton(
+            HostIndexResolver::class,
+            fn () => new HostIndexResolver(
+                base_path('plugins/logingrupa/metapixel/resources/data/public_suffix_list.dat')
+            )
+        );
         $this->registerConsoleCommand('metapixel:purge-event-log', PurgeEventLog::class);
     }
 

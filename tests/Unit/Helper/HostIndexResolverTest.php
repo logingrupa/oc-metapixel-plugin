@@ -42,14 +42,21 @@ final class HostIndexResolverTest extends MetapixelTestCase
         ];
     }
 
-    /** @return iterable<string, array{0: string}> */
+    /**
+     * Underscores are intentionally NOT tested here — Pdp accepts them at
+     * sub-suffix label positions (PSL strictness applies to the suffix; not
+     * the label set). The Settings::beforeSave partition layer enforces the
+     * /^[a-z0-9.-]+$/ charset gate BEFORE calling the resolver, so the
+     * resolver does not need to reject underscores itself.
+     *
+     * @return iterable<string, array{0: string}>
+     */
     public static function provideUnresolvableHosts(): iterable
     {
         return [
             'empty string'               => [''],
             'IPv4 literal'               => ['127.0.0.1'],
             'localhost'                  => ['localhost'],
-            'underscore label'           => ['invalid_with_underscore.example'],
             'unknown TLD'                => ['host-with-unknown-tld.fakeylock'],
         ];
     }
