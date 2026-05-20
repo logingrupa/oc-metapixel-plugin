@@ -166,6 +166,7 @@ final class SendCapiEvent implements ShouldQueue
         try {
             $sEventId = $this->readEventId();
             $iEventTime = $this->readEventTime();
+            $arSnapshot = $this->arPayload;
 
             $arMutablePayload = $this->arPayload;
             $mResult = Event::fire(
@@ -174,12 +175,18 @@ final class SendCapiEvent implements ShouldQueue
                 true,
             );
 
-            if (isset($arMutablePayload['data']) && is_array($arMutablePayload['data'])
-                && isset($arMutablePayload['data'][0]) && is_array($arMutablePayload['data'][0])
-            ) {
-                $arMutablePayload['data'][0]['event_id'] = $sEventId;
-                $arMutablePayload['data'][0]['event_time'] = $iEventTime;
+            $mData = $arMutablePayload['data'] ?? null;
+            if (! is_array($mData) || ! isset($mData[0]) || ! is_array($mData[0])) {
+                Log::warning('metapixel: before_dispatch listener destroyed envelope shape — restoring snapshot', [
+                    'meta_pixel.event_id' => $sEventId,
+                ]);
+                $this->arPayload = $arSnapshot;
+
+                return $mResult === false;
             }
+            $mData[0]['event_id'] = $sEventId;
+            $mData[0]['event_time'] = $iEventTime;
+            $arMutablePayload['data'] = $mData;
             $this->arPayload = $arMutablePayload;
 
             return $mResult === false;
