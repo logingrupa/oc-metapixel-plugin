@@ -187,7 +187,7 @@ class Plugin extends PluginBase {
   4. `MetaClient::sendForPixel(string $sPixelId, string $sToken, array $arPayload)` accepts per-call credentials (no more singleton Settings read); `PayloadBuilder::buildEventPayload(string $sEventName, EventSubjectAdapter, object $obSubject, ValueResolver, string $sEventId, int $iEventTime, array $arEventExtras)` is subject-agnostic; Graph API pinned to `v23.0` constant. `SendCapiEvent` constructor accepts a 4th `string $sAdapterClass` arg; `handle()` rehydrates the adapter via `AdapterRegistry::resolveByClass()` and writes FailedEvent on `BindingResolutionException`.
   5. All 177 v1.x tests regreen via a `FakeAdapter` test double standing in for ShopaholicOrderAdapter. `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest`, `SendCapiEventEventLogTest`, `MultiSiteEventLogTest` pass without touching real Lovata Order code.
 
-**Plans:** 8/8 plans complete
+**Plans:** 9/9 plans complete
 
 ### Phase 3: ShopaholicAdapter + ThemeActionAdapter parallel wave
 
@@ -285,7 +285,7 @@ class Plugin extends PluginBase {
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
-| 2. Adapter system core | 8/8 | Complete   | 2026-05-17 |
+| 2. Adapter system core | 9/9 | Complete   | 2026-05-20 |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
 | 5. Documentation + marketplace launch | 0/0 | Not started | — |

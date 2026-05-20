@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
-status: ready_to_plan
-stopped_at: Phase 4 complete (5/5) — ready to discuss Phase 5
-last_updated: 2026-05-20T11:40:57.626Z
-last_activity: 2026-05-19 -- Phase 4 execution started
+status: executing
+stopped_at: Phase 02 gap 02-08 closed (CR-01 envelope-shape snapshot-restore)
+last_updated: "2026-05-20T20:35:00Z"
+last_activity: 2026-05-20 -- Phase 02 fully complete (9/9 plans incl. gap-closure 02-08)
 progress:
   total_phases: 5
   completed_phases: 3
-  total_plans: 26
-  completed_plans: 26
-  percent: 60
+  total_plans: 28
+  completed_plans: 27
+  percent: 64
 ---
 
 # Project State
@@ -26,16 +26,15 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 5
-Plan: Not started
-Plans: 02-01..02-07 (with 02-03a + 02-03b split) — all 8 PLAN files + 8 SUMMARY files committed + 02-VERIFICATION-INPUTS.md scaffolded
-Status: Ready to plan
+Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — COMPLETE
+Plans: 9 of 9 (02-01 + 02-02 + 02-03a + 02-03b + 02-04 + 02-05 + 02-06 + 02-07 + 02-08 gap-closure)
+Status: Phase 02 verified + UAT-closed; ready to advance to Phase 03
 
-**Phase 2 closure:** 8 plans shipped (02-01 + 02-02 + 02-03a + 02-03b + 02-04 + 02-05 + 02-06 + 02-07). 11/11 ADAP-* requirements + 5/5 in-Phase-2 pitfalls (P-01 cross-context resolution drift + P-02 boot-order race + P-05 EventLog subject_type alias ambiguity + P-08 Event::fire mutable payload + P-13 Plugin CLAUDE.md preference ranking) closed. 111 tests / 332 assertions / 99.3% coverage.
+**Phase 2 closure:** 9 plans shipped. 11/11 ADAP-* requirements + 5/5 in-Phase-2 pitfalls (P-01 + P-02 + P-05 + P-08 + P-13) closed. Gap 02-08 (CR-01 envelope-destroyed bypass) closed via snapshot-restore + 3 tests. Final test count: 430 tests / 1532 assertions / 90.2% coverage on full-Lovata Run A; 244 tests / 834 assertions on minimal-install Run B.
 
-Last activity: 2026-05-20
+Last activity: 2026-05-20 -- Phase 02 fully complete (gap 02-08 merged + post-merge gates green)
 
-**Next action:** `/gsd:verify-phase 02-adapter-system-core-contracts-registry-extension-hooks` — gsd-verifier consumes 02-VERIFICATION-INPUTS.md + produces 02-VERIFICATION.md keyed against SC1..SC5 evidence checklist. Post-verification: apply M-7 ROADMAP.md SC5 wording fix + flip REQUIREMENTS.md ADAP-01..11 to `[x]` + update ROADMAP.md Phase 2 status to "Complete" + advance STATE.md current position to Phase 3.
+**Next action:** `/gsd:plan-phase 03` — begin Phase 3 (cart-plugin discovery + checkout-flow events). Phase 2 contracts (EventSubjectAdapter, ValueResolver, AdapterRegistry) and infrastructure (Settings, PluginGuard, SiteResolver, EventLogWriter, MetaClient, PayloadBuilder, UserDataHasher, SendCapiEvent, ShopaholicOrderAdapter) ready for downstream consumers.
 
 ## Roadmap Snapshot
 

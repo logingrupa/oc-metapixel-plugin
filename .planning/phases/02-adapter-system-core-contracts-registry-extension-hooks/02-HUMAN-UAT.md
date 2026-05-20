@@ -19,9 +19,10 @@ verified_by: orchestrator 2026-05-20 — ran four QA gates via root vendor binar
 
 ### 2. CR-01 envelope-destroyed bypass path behaviour
 expected: Decide whether `before_dispatch` listener that does `unset($arPayload['data'])` is acceptable (MetaClient POSTs empty envelope → Meta 400 → FailedEvent written) or whether the snapshot/restore logic in `SendCapiEvent::fireBeforeDispatchHalt` (lines 176-181) should restore the full payload snapshot instead of conditionally restoring `event_id`/`event_time` only.
-result: issue
+result: pass
 decision: Adopt CR-01 fix — full-snapshot fallback + Log::warning on shape destruction. Adopted by operator 2026-05-20.
 severity: major
+closed_by: Plan 02-08 — commits 4cef148 (fix), 895176b (3 tests: Case A/A-null/C), a9e1f01 (PHPStan L10 offset narrowing), 95970c7 (SUMMARY), 508a9f0 (plan tracked), b0e1d0e (worktree merge). Post-merge gates green: pint passed, phpstan L10 OK, phpmd clean, pest 430 passed / 1532 assertions / 90.2% coverage (Run A), pest --exclude-group=adapter 244 passed / 834 assertions (Run B). Verified by orchestrator 2026-05-20.
 
 ### 3. Multi-site operator awareness — Settings::lookupForSite
 expected: On a live two-site October install (e.g., nailscosmetics.lv + nailscosmetics.no), both sites read the same default Settings row. Operator is aware per-site credentials land in Phase 4 (MULT-03). No silent mis-routing in production.
@@ -31,11 +32,12 @@ note: Stale UAT premise corrected. Per-site routing IS implemented in Phase 2 �
 ## Summary
 
 total: 3
-passed: 2
-issues: 1
+passed: 3
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
+closed_gaps: 1
 
 ## Gaps
 
