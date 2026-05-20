@@ -44,6 +44,15 @@ foreach ([
             [ErrorType::DEV_DEPENDENCY_IN_PROD],
         );
     }
+
+    // Plugin.php imports Lovata\OrdersShopaholic\Models\{CartPosition,Order} in the AdapterRegistry
+    // registration block. Path-scope the file directly so only Plugin.php at the plugin root is
+    // allowlisted — sibling files (updates/*, config/*) stay under the analyser's lens.
+    $obConfig->ignoreErrorsOnPackageAndPath(
+        $sLovataPackage,
+        __DIR__.'/Plugin.php',
+        [ErrorType::DEV_DEPENDENCY_IN_PROD],
+    );
 }
 
 // Dev tooling — referenced via composer scripts, not imported.
