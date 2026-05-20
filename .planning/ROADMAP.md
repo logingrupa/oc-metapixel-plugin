@@ -146,7 +146,7 @@ class Plugin extends PluginBase {
 - [ ] **Phase 1: Tooling + composer + namespace rename + CI matrix** — Quality bar + PHP 8.3/8.4 dual-CI green before any business code; namespace `Logingrupa\Metapixel` lands.
 - [x] **Phase 2: Adapter system core — contracts + registry + extension hooks** — `EventSubjectAdapter` + `ValueResolver` + `AdapterRegistry` + 3 `Event::fire` hooks; v1.x I/O backbone refactored behind adapter signatures; 177 tests adapted via FakeAdapter. (completed 2026-05-17)
 - [x] **Phase 3: ShopaholicAdapter + ThemeActionAdapter parallel wave** — Non-regression port of v1.x Order/Cart logic behind ShopaholicAdapter; generic theme-action tracking via Twig + Larajax for operators without a supported cart. (completed 2026-05-18)
-- [ ] **Phase 4: Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations** — Per-site `pixel_id`/`capi_access_token`; operator-supplied `trusted_hosts` + PSL-aware index derivation; FailedEvents backend UI; en/lv translations.
+- [x] **Phase 4: Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations** — Per-site `pixel_id`/`capi_access_token`; operator-supplied `trusted_hosts` + PSL-aware index derivation; FailedEvents backend UI; en/lv translations. (completed 2026-05-20)
 - [ ] **Phase 5: Documentation + marketplace launch** — README install guide (<10 min), custom-adapter authoring guide, marketplace assets, `v2.0.0` tag, `composer require` green on clean OctoberCMS 4.x.
 
 ## Phase Details
@@ -232,7 +232,7 @@ class Plugin extends PluginBase {
   4. A backend admin viewing `Controllers\FailedEvents` sees columns event_id / event_name / adapter_type / http_status / attempts / created_at / graph_error snippet with filters by event_name + adapter_type + date range. Clicking "Replay" on a row re-dispatches the event through `MetaClient`, increments attempts, flash-succeeds on HTTP 200, surfaces graph_error on failure. Clicking "CheckDedup" calls `MetaClient::fetchTestEventsStatus()` and returns JSON with dedup % + EMQ per event for the current `test_event_code`.
   5. All Settings field labels, Settings commentAbove text, FailedEvents column labels, FailedEvents action buttons (Replay, CheckDedup), backend menu label, and error messages render through `lang/en/lang.php` and `lang/lv/lang.php` (RainLab.Translate-compatible structure). No raw lang keys leak to UI; en + lv only (RU dropped per scope decision — operator adds own `lang/ru/lang.php` if needed).
 
-**Plans:** 4/5 plans executed
+**Plans:** 5/5 plans complete
 
 - [ ] `04-01-PLAN.md` — Settings Multisite trait + lookupForSite per-site body + AddMultisitePixelIdAndToken no-op migration + phpstan disallowed-calls D-02 (MULT-01, MULT-02, MULT-03, MULT-04, MULT-05, MULT-06)
 - [ ] `04-02-PLAN.md` — HostIndexResolver (jeremykendall/php-domain-parser ^6.4) + bundled PSL data + RefreshPsl artisan command + trusted_hosts beforeSave strict validation + 4-tab fields.yaml restructure (HOST-01, HOST-02, HOST-03, HOST-04, HOST-05, HOST-06)
@@ -287,7 +287,7 @@ class Plugin extends PluginBase {
 | 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
 | 2. Adapter system core | 8/8 | Complete   | 2026-05-17 |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
-| 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 4/5 | In Progress|  |
+| 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete   | 2026-05-20 |
 | 5. Documentation + marketplace launch | 0/0 | Not started | — |
 
 ## Shipped Milestones
