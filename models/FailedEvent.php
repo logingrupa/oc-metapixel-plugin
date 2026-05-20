@@ -2,6 +2,7 @@
 
 namespace Logingrupa\Metapixel\Models;
 
+use Illuminate\Support\Carbon;
 use October\Rain\Database\Model;
 
 /**
@@ -10,6 +11,22 @@ use October\Rain\Database\Model;
  * model. subject_type + subject_id are populated by
  * SendCapiEvent::writeFailedEvent when the adapter is resolvable so the
  * admin UI can re-resolve the adapter for replay.
+ *
+ * @property int $id
+ * @property string $event_id
+ * @property string $event_name
+ * @property ?string $adapter_type
+ * @property ?string $subject_type
+ * @property ?int $subject_id
+ * @property array<string, mixed> $payload
+ * @property ?int $http_status
+ * @property ?string $graph_error
+ * @property int $attempts
+ * @property ?float $dedup_pct
+ * @property ?float $emq
+ * @property ?Carbon $dedup_checked_at
+ * @property ?Carbon $created_at
+ * @property ?Carbon $updated_at
  */
 class FailedEvent extends Model
 {
@@ -27,6 +44,9 @@ class FailedEvent extends Model
         'http_status',
         'graph_error',
         'attempts',
+        'dedup_pct',
+        'emq',
+        'dedup_checked_at',
     ];
 
     /** @var list<string> */
@@ -36,5 +56,8 @@ class FailedEvent extends Model
     protected $casts = [
         'attempts' => 'int',
         'http_status' => 'int',
+        'dedup_pct' => 'float',
+        'emq' => 'float',
+        'dedup_checked_at' => 'datetime',
     ];
 }

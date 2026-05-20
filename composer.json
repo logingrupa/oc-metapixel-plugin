@@ -53,7 +53,7 @@
         "pint-test": "pint --test",
         "pint": "pint",
         "analyse": "phpstan analyse",
-        "phpmd": "phpmd Plugin.php,classes,models,console,components,middleware text phpmd.xml",
+        "phpmd": "phpmd Plugin.php,classes,models,console,components,middleware,controllers text phpmd.xml",
         "test": "pest",
         "test-cov": "pest --coverage --min=90",
         "rector": "rector process --dry-run",

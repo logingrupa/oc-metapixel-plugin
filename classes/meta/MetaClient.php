@@ -102,6 +102,77 @@ class MetaClient
     }
 
     /**
+     * Meta Dataset Quality endpoint — GET /{pixel_id}/?fields=event_match_quality,deduplication_rate.
+     * Tolerant parser: every field read uses `?? null` so schema drift on the
+     * Meta side surfaces as null values, not exceptions. Returns the raw decoded
+     * body alongside the two named fields for debugging.
+     *
+     * @return array{event_match_quality: mixed, deduplication_rate: mixed, raw: array<string, mixed>}
+     *
+     * @throws MissingPixelConfigException
+     * @throws MissingCapiTokenException
+     * @throws MetaApiTransientException
+     * @throws MetaApiPermanentException
+     */
+    public function fetchTestEventsStatus(string $sPixelId, string $sToken, string $sTestEventCode = '', string $sEventId = ''): array
+    {
+        if ($sPixelId === '') {
+            throw new MissingPixelConfigException('metapixel: pixel_id is empty at dataset quality fetch');
+        }
+        if ($sToken === '') {
+            throw new MissingCapiTokenException('metapixel: capi_access_token is empty at dataset quality fetch');
+        }
+
+        $sUrl = sprintf(
+            '%s/%s/%s/?fields=name,event_match_quality,deduplication_rate&access_token=%s',
+            self::META_GRAPH_API_BASE,
+            self::META_GRAPH_API_VERSION,
+            $sPixelId,
+            rawurlencode($sToken),
+        );
+
+        $obClient = $this->obClient ?? new Client(['timeout' => self::DEFAULT_TIMEOUT_SECONDS]);
+
+        try {
+            $obResponse = $obClient->request('GET', $sUrl, ['http_errors' => false]);
+        } catch (ConnectException $obException) {
+            throw new MetaApiTransientException(
+                'metapixel: dataset quality fetch connect failure',
+                null,
+                $obException,
+                ['url' => $sUrl],
+            );
+        }
+
+        $iStatus = $obResponse->getStatusCode();
+        $arDecoded = $this->decodeBody((string) $obResponse->getBody());
+
+        if ($iStatus >= 200 && $iStatus < 300) {
+            return [
+                'event_match_quality' => $arDecoded['event_match_quality'] ?? null,
+                'deduplication_rate' => $arDecoded['deduplication_rate'] ?? null,
+                'raw' => $arDecoded,
+            ];
+        }
+
+        if (in_array($iStatus, self::TRANSIENT_STATUS_CODES, true)) {
+            throw new MetaApiTransientException(
+                'metapixel: dataset quality fetch transient '.$iStatus,
+                $iStatus,
+                null,
+                ['response' => $arDecoded],
+            );
+        }
+
+        throw new MetaApiPermanentException(
+            'metapixel: dataset quality fetch permanent '.$iStatus,
+            $iStatus,
+            null,
+            ['response' => $arDecoded],
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function decodeBody(string $sBody): array

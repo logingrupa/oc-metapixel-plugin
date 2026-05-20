@@ -1,0 +1,38 @@
+columns:
+    id:
+        label: 'logingrupa.metapixel::lang.failed_events.column_id'
+        searchable: false
+        sortable: true
+    event_id:
+        label: 'logingrupa.metapixel::lang.failed_events.column_event_id'
+        searchable: true
+    event_name:
+        label: 'logingrupa.metapixel::lang.failed_events.column_event_name'
+        searchable: true
+        sortable: true
+    adapter_type:
+        label: 'logingrupa.metapixel::lang.failed_events.column_adapter_type'
+        searchable: true
+    http_status:
+        label: 'logingrupa.metapixel::lang.failed_events.column_http_status'
+        sortable: true
+    attempts:
+        label: 'logingrupa.metapixel::lang.failed_events.column_attempts'
+        sortable: true
+    graph_error:
+        label: 'logingrupa.metapixel::lang.failed_events.column_graph_error'
+        type: partial
+        path: $/logingrupa/metapixel/models/failedevent/_graph_error.htm
+    dedup_pct:
+        label: 'logingrupa.metapixel::lang.failed_events.column_dedup_pct'
+        sortable: true
+    emq:
+        label: 'logingrupa.metapixel::lang.failed_events.column_emq'
+        sortable: true
+    dedup_checked_at:
+        label: 'logingrupa.metapixel::lang.failed_events.column_dedup_checked_at'
+        type: datetime
+    created_at:
+        label: 'logingrupa.metapixel::lang.failed_events.column_created_at'
+        type: datetime
+        sortable: true

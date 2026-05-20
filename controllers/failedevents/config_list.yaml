@@ -1,0 +1,29 @@
+# ListController config for Controllers\FailedEvents. D-08 lock — read-only
+# audit UI; no recordUrl (no FormController), so row-click does nothing.
+# Replay / CheckDedup / Delete are toolbar batch actions only.
+title: 'logingrupa.metapixel::lang.failed_events.list_title'
+modelClass: Logingrupa\Metapixel\Models\FailedEvent
+list: $/logingrupa/metapixel/models/failedevent/columns.yaml
+noRecordsMessage: 'logingrupa.metapixel::lang.failed_events.no_records'
+showCheckboxes: true
+showSorting: true
+defaultSort:
+    column: created_at
+    direction: desc
+recordsPerPage: 30
+toolbar:
+    buttons: list_toolbar
+    search:
+        prompt: 'logingrupa.metapixel::lang.failed_events.search_prompt'
+filterConfig:
+    scopes:
+        event_name:
+            label: 'logingrupa.metapixel::lang.failed_events.filter_event_name'
+            type: text
+        adapter_type:
+            label: 'logingrupa.metapixel::lang.failed_events.filter_adapter_type'
+            type: text
+        created_at:
+            label: 'logingrupa.metapixel::lang.failed_events.filter_date_range'
+            type: daterange
+            conditions: created_at >= :after AND created_at <= :before
