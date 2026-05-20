@@ -66,37 +66,37 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 
 **Settings UX:** October-native Multisite — operator picks site from backend top-bar site picker; per-site values stored as separate `system_settings` rows by October. NOT a custom repeater field. Single-site installs see no UX change (default row primary). Per-adapter Settings (paid_status_code, currency_code) ship dynamic dropdowns sourced from cart-plugin (`Status::lists()` for Shopaholic).
 
-- [ ] **MULT-01**: `models/Settings.php` adds `use Multisite;` trait. `protected $propagatable = []` (empty whitelist — explicit per-field opt-in).
-- [ ] **MULT-02**: `pixel_id` + `capi_access_token` fields marked per-site via Multisite trait (NOT in `$propagatable`). Each OctoberCMS site row stores independent value.
-- [ ] **MULT-03**: `Settings::lookupForSite(?int $iSiteId): array{pixel_id: string, capi_access_token: string}` helper. Reads per-site row via Multisite trait when `$iSiteId !== null`; falls back to default row on null.
-- [ ] **MULT-04**: `SendCapiEvent::handle()` resolves pixel+token via `Settings::lookupForSite($iSiteId)` where `$iSiteId = $obAdapter->getSiteId($obSubject)`. `MetaClient::sendForPixel($sPixelId, $sToken, $arPayload)` carries per-site credentials.
-- [ ] **MULT-05**: Multi-pixel routing integration test: 2 OctoberCMS sites × 2 adapters × 2 channels = 8-path matrix. Site A Order fires to pixel_A; Site B Order fires to pixel_B; cross-site EventLog rows independent (UNIQUE NULL-distinct semantics).
-- [ ] **MULT-06**: `updates/add_multisite_pixel_id_and_token.php` migration. Idempotent. Single-site installs see no behavior change (default row remains primary).
+- [x] **MULT-01**: `models/Settings.php` adds `use Multisite;` trait. `protected $propagatable = []` (empty whitelist — explicit per-field opt-in).
+- [x] **MULT-02**: `pixel_id` + `capi_access_token` fields marked per-site via Multisite trait (NOT in `$propagatable`). Each OctoberCMS site row stores independent value.
+- [x] **MULT-03**: `Settings::lookupForSite(?int $iSiteId): array{pixel_id: string, capi_access_token: string}` helper. Reads per-site row via Multisite trait when `$iSiteId !== null`; falls back to default row on null.
+- [x] **MULT-04**: `SendCapiEvent::handle()` resolves pixel+token via `Settings::lookupForSite($iSiteId)` where `$iSiteId = $obAdapter->getSiteId($obSubject)`. `MetaClient::sendForPixel($sPixelId, $sToken, $arPayload)` carries per-site credentials.
+- [x] **MULT-05**: Multi-pixel routing integration test: 2 OctoberCMS sites × 2 adapters × 2 channels = 8-path matrix. Site A Order fires to pixel_A; Site B Order fires to pixel_B; cross-site EventLog rows independent (UNIQUE NULL-distinct semantics).
+- [x] **MULT-06**: `updates/add_multisite_pixel_id_and_token.php` migration. Idempotent. Single-site installs see no behavior change (default row remains primary).
 
 ### TrustedHosts + php-domain-parser (Phase 4)
 
-- [ ] **HOST-01**: `trusted_hosts` Settings field (textarea, one host per line). Empty default; operator populates with own production domains. Validates host syntax on save.
-- [ ] **HOST-02**: `Classes\Helper\HostIndexResolver` wraps `jeremykendall/php-domain-parser ^6.4`. Why this lib: October provides no PSL-aware host parser (`SiteManager` knows site URLs, not eTLD+1 boundaries); naive `count(explode('.', $sHost)) - 1` is wrong for multi-TLD `.co.uk` / `.com.br` / `.com.au` (counts public suffix as subdomain). PDP uses Public Suffix List to compute correct subdomain offset. Returns 1 for apex (`example.com`, `example.co.uk`), 2 for `www.example.com` / `www.example.co.uk`, 3 for `a.b.example.com`.
-- [ ] **HOST-03**: PSL data shipped at `resources/data/public_suffix_list.dat`. `metapixel:refresh-psl` artisan command updates PSL from upstream. Cache parsed `Rules` in `storage/app/metapixel/psl/`.
-- [ ] **HOST-04**: `EnsureFbpFbcCookies` middleware reads `trusted_hosts` Setting + `HostIndexResolver`. Untrusted host → middleware skips cookie-set (fail-safe). CR-02 host-spoofing threat preserved.
-- [ ] **HOST-05**: Multi-TLD test matrix — fixtures for apex `example.test`, `www.example.test`, `example.co.uk`, `www.example.co.uk`, `subdomain.example.com.br`, IDN host `xn--bcher-kva.example`. All resolve correctly via PSL.
-- [ ] **HOST-06**: Untrusted host fail-safe test — host not in `trusted_hosts` → middleware NO-OP, no cookies set, no exception.
+- [x] **HOST-01**: `trusted_hosts` Settings field (textarea, one host per line). Empty default; operator populates with own production domains. Validates host syntax on save.
+- [x] **HOST-02**: `Classes\Helper\HostIndexResolver` wraps `jeremykendall/php-domain-parser ^6.4`. Why this lib: October provides no PSL-aware host parser (`SiteManager` knows site URLs, not eTLD+1 boundaries); naive `count(explode('.', $sHost)) - 1` is wrong for multi-TLD `.co.uk` / `.com.br` / `.com.au` (counts public suffix as subdomain). PDP uses Public Suffix List to compute correct subdomain offset. Returns 1 for apex (`example.com`, `example.co.uk`), 2 for `www.example.com` / `www.example.co.uk`, 3 for `a.b.example.com`.
+- [x] **HOST-03**: PSL data shipped at `resources/data/public_suffix_list.dat`. `metapixel:refresh-psl` artisan command updates PSL from upstream. Cache parsed `Rules` in `storage/app/metapixel/psl/`.
+- [x] **HOST-04**: `EnsureFbpFbcCookies` middleware reads `trusted_hosts` Setting + `HostIndexResolver`. Untrusted host → middleware skips cookie-set (fail-safe). CR-02 host-spoofing threat preserved.
+- [x] **HOST-05**: Multi-TLD test matrix — fixtures for apex `example.test`, `www.example.test`, `example.co.uk`, `www.example.co.uk`, `subdomain.example.com.br`, IDN host `xn--bcher-kva.example`. All resolve correctly via PSL.
+- [x] **HOST-06**: Untrusted host fail-safe test — host not in `trusted_hosts` → middleware NO-OP, no cookies set, no exception.
 
 ### Cookie middleware carry-forward (Phase 4)
 
-- [ ] **COOK-01**: `EnsureFbpFbcCookies` keeps `Settings::get('ensure_fbp_fbc_server_side', true)` kill switch — operator toggle disables middleware entirely.
-- [ ] **COOK-02**: CR-03 fbclid validation preserved — `[A-Za-z0-9_-]` charset, ≤255 chars, invalid → skip `_fbc` (fail-safe).
-- [ ] **COOK-03**: `Cache-Control: private` documented as operator responsibility in README — middleware does not auto-set. Class-level PHPDoc references README section.
+- [x] **COOK-01**: `EnsureFbpFbcCookies` keeps `Settings::get('ensure_fbp_fbc_server_side', true)` kill switch — operator toggle disables middleware entirely.
+- [x] **COOK-02**: CR-03 fbclid validation preserved — `[A-Za-z0-9_-]` charset, ≤255 chars, invalid → skip `_fbc` (fail-safe).
+- [x] **COOK-03**: `Cache-Control: private` documented as operator responsibility in README — middleware does not auto-set. Class-level PHPDoc references README section.
 
 ### FailedEvents backend audit (Phase 4)
 
-- [ ] **FAIL-01**: `Controllers\FailedEvents` extends `Backend\Classes\Controller` with `Backend.Behaviors.ListController`. Columns: event_id, event_name, adapter_type, http_status, attempts, created_at, graph_error snippet. Filters by event_name + adapter_type + date range.
-- [ ] **FAIL-02**: `FailedEvents::onReplay(): array` re-dispatches selected FailedEvent through `MetaClient`. Updates attempts counter. Flash-success on 200 OK; surfaces graph_error on failure.
-- [ ] **FAIL-03**: `FailedEvents::onCheckDedup(): JsonResponse` queries Meta Test Events endpoint via `MetaClient::fetchTestEventsStatus()`. Returns JSON with dedup % + EMQ per event for current `test_event_code`.
+- [x] **FAIL-01**: `Controllers\FailedEvents` extends `Backend\Classes\Controller` with `Backend.Behaviors.ListController`. Columns: event_id, event_name, adapter_type, http_status, attempts, created_at, graph_error snippet. Filters by event_name + adapter_type + date range.
+- [x] **FAIL-02**: `FailedEvents::onReplay(): array` re-dispatches selected FailedEvent through `MetaClient`. Updates attempts counter. Flash-success on 200 OK; surfaces graph_error on failure.
+- [x] **FAIL-03**: `FailedEvents::onCheckDedup(): JsonResponse` queries Meta Test Events endpoint via `MetaClient::fetchTestEventsStatus()`. Returns JSON with dedup % + EMQ per event for current `test_event_code`.
 
 ### Translations (Phase 4)
 
-- [ ] **LANG-01**: `lang/{en,lv}/lang.php` files populated. EN + LV only (no RU at v2.0 — operator adds own `lang/ru/lang.php` if needed). Cover: Settings field labels + commentAbove, FailedEvents column labels + buttons (Replay, CheckDedup), backend menu label, error messages. RainLab.Translate-compatible structure.
+- [x] **LANG-01**: `lang/{en,lv}/lang.php` files populated. EN + LV only (no RU at v2.0 — operator adds own `lang/ru/lang.php` if needed). Cover: Settings field labels + commentAbove, FailedEvents column labels + buttons (Replay, CheckDedup), backend menu label, error messages. RainLab.Translate-compatible structure.
 
 ### Documentation (Phase 5)
 
@@ -215,25 +215,25 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | THEM-05 | Phase 3 | Complete |
 | THEM-06 | Phase 3 | Pending |
 | THEM-07 | Phase 3 | Complete |
-| MULT-01 | Phase 4 | Pending |
-| MULT-02 | Phase 4 | Pending |
-| MULT-03 | Phase 4 | Pending |
-| MULT-04 | Phase 4 | Pending |
-| MULT-05 | Phase 4 | Pending |
-| MULT-06 | Phase 4 | Pending |
-| HOST-01 | Phase 4 | Pending |
-| HOST-02 | Phase 4 | Pending |
-| HOST-03 | Phase 4 | Pending |
-| HOST-04 | Phase 4 | Pending |
-| HOST-05 | Phase 4 | Pending |
-| HOST-06 | Phase 4 | Pending |
-| COOK-01 | Phase 4 | Pending |
-| COOK-02 | Phase 4 | Pending |
-| COOK-03 | Phase 4 | Pending |
-| FAIL-01 | Phase 4 | Pending |
-| FAIL-02 | Phase 4 | Pending |
-| FAIL-03 | Phase 4 | Pending |
-| LANG-01 | Phase 4 | Pending |
+| MULT-01 | Phase 4 | Complete |
+| MULT-02 | Phase 4 | Complete |
+| MULT-03 | Phase 4 | Complete |
+| MULT-04 | Phase 4 | Complete |
+| MULT-05 | Phase 4 | Complete |
+| MULT-06 | Phase 4 | Complete |
+| HOST-01 | Phase 4 | Complete |
+| HOST-02 | Phase 4 | Complete |
+| HOST-03 | Phase 4 | Complete |
+| HOST-04 | Phase 4 | Complete |
+| HOST-05 | Phase 4 | Complete |
+| HOST-06 | Phase 4 | Complete |
+| COOK-01 | Phase 4 | Complete |
+| COOK-02 | Phase 4 | Complete |
+| COOK-03 | Phase 4 | Complete |
+| FAIL-01 | Phase 4 | Complete |
+| FAIL-02 | Phase 4 | Complete |
+| FAIL-03 | Phase 4 | Complete |
+| LANG-01 | Phase 4 | Complete |
 | DOCS-01 | Phase 5 | Pending |
 | DOCS-02 | Phase 5 | Pending |
 | DOCS-03 | Phase 5 | Pending |

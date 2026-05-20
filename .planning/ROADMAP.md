@@ -287,7 +287,7 @@ class Plugin extends PluginBase {
 | 1. Tooling + composer + namespace rename + CI matrix | 3/3 | Executed — pending verification | 2026-05-16 |
 | 2. Adapter system core | 8/8 | Complete   | 2026-05-17 |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
-| 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete   | 2026-05-20 |
+| 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
 | 5. Documentation + marketplace launch | 0/0 | Not started | — |
 
 ## Shipped Milestones
