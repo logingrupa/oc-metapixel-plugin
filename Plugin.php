@@ -2,6 +2,7 @@
 
 namespace Logingrupa\Metapixel;
 
+use Backend;
 use Cms\Classes\Controller as CmsController;
 use Cms\Classes\ThisVariable;
 use Illuminate\Console\Scheduling\Schedule;
@@ -171,6 +172,17 @@ class Plugin extends PluginBase
                 'icon' => 'icon-bullseye',
                 'class' => Settings::class,
                 'order' => 500,
+            ],
+            // Pitfall 6 Option A — FailedEvents lives under the SettingsManager
+            // parent via URL entry rather than registerNavigation; matches the
+            // sibling Lovata convention and avoids backend-menu sprawl.
+            'failed_events' => [
+                'label' => 'logingrupa.metapixel::lang.menu.failed_events',
+                'description' => 'logingrupa.metapixel::lang.menu.failed_events_description',
+                'category' => 'logingrupa.metapixel::lang.settings.category',
+                'icon' => 'icon-bell',
+                'url' => Backend::url('logingrupa/metapixel/failedevents'),
+                'order' => 510,
             ],
         ];
     }

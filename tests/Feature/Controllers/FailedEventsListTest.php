@@ -50,7 +50,7 @@ final class FailedEventsListTest extends MetapixelTestCase
 
     public function test_controller_implements_listcontroller_behavior(): void
     {
-        $obReflect = new \ReflectionClass(FailedEvents::class);
+        $obReflect = new ReflectionClass(FailedEvents::class);
         $arImplement = $obReflect->getDefaultProperties()['implement'] ?? null;
 
         $this->assertIsArray($arImplement);
@@ -59,7 +59,7 @@ final class FailedEventsListTest extends MetapixelTestCase
 
     public function test_controller_does_not_implement_formcontroller(): void
     {
-        $obReflect = new \ReflectionClass(FailedEvents::class);
+        $obReflect = new ReflectionClass(FailedEvents::class);
         $arImplement = $obReflect->getDefaultProperties()['implement'] ?? [];
 
         foreach ((array) $arImplement as $sBehavior) {
@@ -73,7 +73,7 @@ final class FailedEventsListTest extends MetapixelTestCase
 
     public function test_controller_declares_list_config_yaml(): void
     {
-        $obReflect = new \ReflectionClass(FailedEvents::class);
+        $obReflect = new ReflectionClass(FailedEvents::class);
         $arDefaults = $obReflect->getDefaultProperties();
 
         $this->assertSame('config_list.yaml', $arDefaults['listConfig'] ?? null);

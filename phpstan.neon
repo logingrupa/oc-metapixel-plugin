@@ -13,6 +13,7 @@ parameters:
         - console
         - components
         - middleware
+        - controllers
 
     excludePaths:
         - tests (?)

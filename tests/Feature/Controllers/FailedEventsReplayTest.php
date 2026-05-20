@@ -1,7 +1,7 @@
 <?php
 
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\App;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Exception\MetaApiPermanentException;
 use Logingrupa\Metapixel\Classes\Meta\MetaClient;
@@ -39,9 +39,9 @@ final class FailedEventsReplayTest extends MetapixelTestCase
             'capi_access_token' => 'TOKEN-REPLAY',
         ]);
 
-        app(AdapterRegistry::class)->register(\stdClass::class, FakeAdapter::class);
+        app(AdapterRegistry::class)->register(stdClass::class, FakeAdapter::class);
 
-        $obFlash = \Mockery::mock('alias:\Flash');
+        $obFlash = Mockery::mock('alias:\Flash');
         $obFlash->shouldReceive('error')->andReturnNull();
         $obFlash->shouldReceive('success')->andReturnNull();
         $obFlash->shouldReceive('warning')->andReturnNull();
@@ -49,7 +49,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
 
     protected function tearDown(): void
     {
-        \Mockery::close();
+        Mockery::close();
         (new AddDedupColumnsToFailedEvents)->down();
         (new CreateMetapixelFailedEventsTable)->down();
         app()->forgetInstance(AdapterRegistry::class);
@@ -83,7 +83,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $this->app->bind('request', fn () => Request::create('/', 'POST', ['record_id' => $iId]));
     }
 
-    public function test_onReplay_success_increments_attempts_and_clears_graph_error(): void
+    public function test_on_replay_success_increments_attempts_and_clears_graph_error(): void
     {
         $obRow = $this->seedRow();
         $this->bindRequestWithRecordId((int) $obRow->id);
@@ -105,14 +105,18 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $this->assertSame(200, (int) $obFresh->http_status);
     }
 
-    public function test_onReplay_metapixel_exception_writes_graph_error(): void
+    public function test_on_replay_metapixel_exception_writes_graph_error(): void
     {
         $obRow = $this->seedRow();
         $this->bindRequestWithRecordId((int) $obRow->id);
 
         $obFakeClient = new class extends MetaClient
         {
-            public function __construct() { parent::__construct(null); }
+            public function __construct()
+            {
+                parent::__construct(null);
+            }
+
             public function sendForPixel(string $sPixelId, string $sToken, array $arPayload): array
             {
                 throw new MetaApiPermanentException('metapixel: Invalid pixel_id', 400);
@@ -129,17 +133,21 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $this->assertNotSame(200, (int) $obFresh->http_status, 'http_status must not be overwritten to 200 on permanent failure');
     }
 
-    public function test_onReplay_throwable_writes_graph_error_with_throwable_message(): void
+    public function test_on_replay_throwable_writes_graph_error_with_throwable_message(): void
     {
         $obRow = $this->seedRow();
         $this->bindRequestWithRecordId((int) $obRow->id);
 
         $obFakeClient = new class extends MetaClient
         {
-            public function __construct() { parent::__construct(null); }
+            public function __construct()
+            {
+                parent::__construct(null);
+            }
+
             public function sendForPixel(string $sPixelId, string $sToken, array $arPayload): array
             {
-                throw new \RuntimeException('boom');
+                throw new RuntimeException('boom');
             }
         };
         $this->app->instance(MetaClient::class, $obFakeClient);
@@ -152,7 +160,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $this->assertStringContainsString('boom', (string) $obFresh->graph_error);
     }
 
-    public function test_onReplay_unregistered_adapter_type_flashes_error_no_dispatch(): void
+    public function test_on_replay_unregistered_adapter_type_flashes_error_no_dispatch(): void
     {
         $obRow = $this->seedRow('Nonexistent\\Adapter\\Class');
         $this->bindRequestWithRecordId((int) $obRow->id);
@@ -167,7 +175,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $this->assertSame(0, $obSpy->iCallCount, 'sendForPixel MUST NOT be called when adapter unresolvable');
     }
 
-    public function test_onReplay_record_id_zero_or_missing_rejects(): void
+    public function test_on_replay_record_id_zero_or_missing_rejects(): void
     {
         $this->bindRequestWithRecordId(0);
 
@@ -176,12 +184,12 @@ final class FailedEventsReplayTest extends MetapixelTestCase
 
         $obController = $this->makeController();
 
-        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $this->expectException(ModelNotFoundException::class);
         $obController->onReplay();
         $this->assertSame(0, $obSpy->iCallCount);
     }
 
-    public function test_onReplay_uses_default_credentials_via_lookup_for_site_null(): void
+    public function test_on_replay_uses_default_credentials_via_lookup_for_site_null(): void
     {
         $obRow = $this->seedRow();
         $this->bindRequestWithRecordId((int) $obRow->id);
@@ -198,7 +206,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $this->assertSame('TOKEN-REPLAY', $obSpy->sLastToken);
     }
 
-    public function test_onReplay_returns_failed_event_list_refresh_partial(): void
+    public function test_on_replay_returns_failed_event_list_refresh_partial(): void
     {
         $obRow = $this->seedRow();
         $this->bindRequestWithRecordId((int) $obRow->id);

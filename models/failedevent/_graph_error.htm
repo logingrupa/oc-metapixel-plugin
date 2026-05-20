@@ -1,0 +1,6 @@
+<?php $sError = (string) ($record->graph_error ?? ''); ?>
+<?php if ($sError === ''): ?>
+    <span class="text-muted">&mdash;</span>
+<?php else: ?>
+    <span title="<?= e($sError) ?>"><?= e(mb_substr($sError, 0, 80)) . (mb_strlen($sError) > 80 ? '&hellip;' : '') ?></span>
+<?php endif; ?>

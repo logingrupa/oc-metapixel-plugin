@@ -25,6 +25,7 @@
             <directory>./console</directory>
             <directory>./components</directory>
             <directory>./middleware</directory>
+            <directory>./controllers</directory>
         </include>
         <exclude>
             <directory>./classes/testing</directory>

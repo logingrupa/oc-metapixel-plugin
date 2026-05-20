@@ -36,7 +36,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
             'capi_access_token' => 'TOKEN-DEDUP',
         ]);
 
-        $obFlash = \Mockery::mock('alias:\Flash');
+        $obFlash = Mockery::mock('alias:\Flash');
         $obFlash->shouldReceive('error')->andReturnNull();
         $obFlash->shouldReceive('success')->andReturnNull();
         $obFlash->shouldReceive('warning')->andReturnNull();
@@ -44,7 +44,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
 
     protected function tearDown(): void
     {
-        \Mockery::close();
+        Mockery::close();
         (new AddDedupColumnsToFailedEvents)->down();
         (new CreateMetapixelFailedEventsTable)->down();
         app()->forgetInstance(AdapterRegistry::class);
@@ -65,22 +65,24 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
         return $obRow;
     }
 
-    private function makeController(array $arDedupResponse, bool $bThrow = false, ?\Throwable $obException = null): TestableFailedEventsForDedup
+    private function makeController(array $arDedupResponse, bool $bThrow = false, ?Throwable $obException = null): TestableFailedEventsForDedup
     {
         $obFakeClient = new class($arDedupResponse, $bThrow, $obException) extends MetaClient
         {
             public function __construct(
                 private array $arResponse,
                 private bool $bThrow,
-                private ?\Throwable $obException,
+                private ?Throwable $obException,
             ) {
                 parent::__construct(null);
             }
+
             public function fetchTestEventsStatus(string $sPixelId, string $sToken, string $sTestEventCode = '', string $sEventId = ''): array
             {
                 if ($this->bThrow && $this->obException !== null) {
                     throw $this->obException;
                 }
+
                 return $this->arResponse;
             }
         };
@@ -94,7 +96,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
         $this->app->bind('request', fn () => Request::create('/', 'POST', ['record_id' => $iId]));
     }
 
-    public function test_onCheckDedup_writes_dedup_columns_from_meta_response(): void
+    public function test_on_check_dedup_writes_dedup_columns_from_meta_response(): void
     {
         $obRow = $this->seedRow('Purchase');
         $this->bindRequestWithRecordId((int) $obRow->id);
@@ -115,7 +117,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
         $this->assertNotNull($obFresh->dedup_checked_at);
     }
 
-    public function test_onCheckDedup_tolerates_missing_event_match_quality(): void
+    public function test_on_check_dedup_tolerates_missing_event_match_quality(): void
     {
         $obRow = $this->seedRow('Purchase');
         $this->bindRequestWithRecordId((int) $obRow->id);
@@ -134,7 +136,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
         $this->assertNotNull($obFresh->dedup_checked_at);
     }
 
-    public function test_onCheckDedup_tolerates_completely_empty_response(): void
+    public function test_on_check_dedup_tolerates_completely_empty_response(): void
     {
         $obRow = $this->seedRow('Purchase');
         $this->bindRequestWithRecordId((int) $obRow->id);
@@ -153,7 +155,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
         $this->assertNotNull($obFresh->dedup_checked_at, 'dedup_checked_at always updated to mark a check ran');
     }
 
-    public function test_onCheckDedup_returns_json_response_for_live_refresh(): void
+    public function test_on_check_dedup_returns_json_response_for_live_refresh(): void
     {
         $obRow = $this->seedRow('Purchase');
         $this->bindRequestWithRecordId((int) $obRow->id);
@@ -171,7 +173,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
         $this->assertArrayHasKey('checked_at', $mResponse);
     }
 
-    public function test_onCheckDedup_metapixel_exception_flashes_error_no_column_write(): void
+    public function test_on_check_dedup_metapixel_exception_flashes_error_no_column_write(): void
     {
         $obRow = $this->seedRow('Purchase');
         // pre-set the row's dedup values; failure must NOT overwrite.
