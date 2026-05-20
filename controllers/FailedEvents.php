@@ -2,7 +2,6 @@
 
 namespace Logingrupa\Metapixel\Controllers;
 
-use Backend;
 use Backend\Classes\Controller;
 use BackendMenu;
 use Flash;
