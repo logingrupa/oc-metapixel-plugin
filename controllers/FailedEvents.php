@@ -133,7 +133,10 @@ class FailedEvents extends Controller
         }
         if ($arIds !== []) {
             FailedEvent::whereIn('id', $arIds)->delete();
-            Flash::success('metapixel: deleted '.count($arIds).' failed event(s)');
+            Flash::success(trans(
+                'logingrupa.metapixel::lang.failed_events.flash_delete_success',
+                ['count' => (string) count($arIds)],
+            ));
         }
 
         return ['#failedEventList' => $this->listRefresh()];
@@ -156,7 +159,10 @@ class FailedEvents extends Controller
         } catch (Throwable $obException) {
             // silent: adapter no longer registered (operator removed it or
             // the third-party plugin was uninstalled) — replay impossible.
-            Flash::error('metapixel: cannot replay event_id '.$obRow->event_id.' — adapter '.$sAdapterType.' not registered');
+            Flash::error(trans(
+                'logingrupa.metapixel::lang.failed_events.flash_replay_adapter_missing',
+                ['event_id' => (string) $obRow->event_id, 'adapter' => $sAdapterType],
+            ));
 
             return;
         }
@@ -186,7 +192,10 @@ class FailedEvents extends Controller
                 'graph_error' => null,
                 'http_status' => null,
             ]);
-            Flash::success('metapixel: replay succeeded — event_id '.$obRow->event_id);
+            Flash::success(trans(
+                'logingrupa.metapixel::lang.failed_events.flash_replay_success',
+                ['event_id' => (string) $obRow->event_id],
+            ));
         } catch (MetaPixelException $obException) {
             // log-and-persist: write the failure mode onto the row so the
             // operator sees the latest Graph API response in the list UI.
@@ -202,7 +211,10 @@ class FailedEvents extends Controller
                 'graph_error' => $obException->getMessage(),
                 'http_status' => $iStatus,
             ]);
-            Flash::error('metapixel: replay failed — '.$obException->getMessage());
+            Flash::error(trans(
+                'logingrupa.metapixel::lang.failed_events.flash_replay_error',
+                ['error' => $obException->getMessage()],
+            ));
         } catch (Throwable $obException) {
             // log-and-persist: unknown failure (timeout, network, parser, …) —
             // no HTTP status is available, clear stale value to avoid lying.
@@ -211,7 +223,10 @@ class FailedEvents extends Controller
                 'graph_error' => $obException->getMessage(),
                 'http_status' => null,
             ]);
-            Flash::error('metapixel: replay errored — '.$obException->getMessage());
+            Flash::error(trans(
+                'logingrupa.metapixel::lang.failed_events.flash_replay_errored',
+                ['error' => $obException->getMessage()],
+            ));
         }
     }
 
@@ -246,7 +261,10 @@ class FailedEvents extends Controller
             // silent: dataset quality fetch is best-effort; existing row
             // dedup_pct / emq / dedup_checked_at MUST NOT be overwritten on
             // failure so the operator keeps the last-known-good snapshot.
-            Flash::error('metapixel: dedup check failed — '.$obException->getMessage());
+            Flash::error(trans(
+                'logingrupa.metapixel::lang.failed_events.flash_dedup_error',
+                ['error' => $obException->getMessage()],
+            ));
 
             return $arEmpty;
         }
@@ -262,7 +280,10 @@ class FailedEvents extends Controller
             'dedup_checked_at' => $sCheckedAt,
         ]);
 
-        Flash::success('metapixel: dedup check succeeded for event_id '.$obRow->event_id);
+        Flash::success(trans(
+            'logingrupa.metapixel::lang.failed_events.flash_dedup_success',
+            ['event_id' => (string) $obRow->event_id],
+        ));
 
         return [
             'dedup_pct' => $fDedupPct,

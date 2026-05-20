@@ -64,7 +64,11 @@ return [
         'confirm_delete' => 'Delete the selected failed events permanently?',
         'flash_replay_success' => 'Replay succeeded — event_id :event_id',
         'flash_replay_error' => 'Replay failed — :error',
-        'flash_dedup_success' => 'Dedup status updated for :count events',
+        'flash_replay_errored' => 'Replay errored — :error',
+        'flash_replay_adapter_missing' => 'Cannot replay event_id :event_id — adapter :adapter not registered',
+        'flash_dedup_success' => 'Dedup check succeeded for event_id :event_id',
+        'flash_dedup_error' => 'Dedup check failed — :error',
+        'flash_delete_success' => 'Deleted :count failed event(s)',
     ],
     'exception' => [
         'missing_pixel_config' => 'Meta Pixel ID is not configured. Set it in Settings > Meta Pixel + CAPI > Pixel & CAPI tab.',

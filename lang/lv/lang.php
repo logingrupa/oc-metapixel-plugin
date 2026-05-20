@@ -64,7 +64,11 @@ return [
         'confirm_delete' => 'Neatgriezeniski dzēst atlasītos nesekmīgos notikumus?',
         'flash_replay_success' => 'Pārsūtīšana izdevās — event_id :event_id',
         'flash_replay_error' => 'Pārsūtīšana neizdevās — :error',
-        'flash_dedup_success' => 'Dedublēšanas statuss atjaunināts :count notikumiem',
+        'flash_replay_errored' => 'Pārsūtīšanas kļūda — :error',
+        'flash_replay_adapter_missing' => 'Nevar pārsūtīt event_id :event_id — adapteris :adapter nav reģistrēts',
+        'flash_dedup_success' => 'Dedublēšanas pārbaude izdevās — event_id :event_id',
+        'flash_dedup_error' => 'Dedublēšanas pārbaude neizdevās — :error',
+        'flash_delete_success' => 'Dzēsti :count nesekmīgie notikumi',
     ],
     'exception' => [
         'missing_pixel_config' => 'Meta Pixel ID nav konfigurēts. Iestatiet to sadaļā Iestatījumi > Meta Pixel + CAPI > Pixel & CAPI cilne.',
