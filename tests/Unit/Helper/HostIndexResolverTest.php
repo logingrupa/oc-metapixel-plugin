@@ -32,13 +32,13 @@ final class HostIndexResolverTest extends MetapixelTestCase
     public static function provideKnownHosts(): iterable
     {
         return [
-            'apex example.com'           => ['example.com', 1],
-            'www example.com'            => ['www.example.com', 2],
-            'apex example.co.uk'         => ['example.co.uk', 1],
-            'www example.co.uk'          => ['www.example.co.uk', 2],
-            'shop.example.com.br'        => ['shop.example.com.br', 2],
-            'a.b.example.com'            => ['a.b.example.com', 3],
-            'IDN xn--bcher-kva.example'  => ['xn--bcher-kva.example', 1],
+            'apex example.com' => ['example.com', 1],
+            'www example.com' => ['www.example.com', 2],
+            'apex example.co.uk' => ['example.co.uk', 1],
+            'www example.co.uk' => ['www.example.co.uk', 2],
+            'shop.example.com.br' => ['shop.example.com.br', 2],
+            'a.b.example.com' => ['a.b.example.com', 3],
+            'IDN xn--bcher-kva.example' => ['xn--bcher-kva.example', 1],
         ];
     }
 
@@ -54,10 +54,10 @@ final class HostIndexResolverTest extends MetapixelTestCase
     public static function provideUnresolvableHosts(): iterable
     {
         return [
-            'empty string'               => [''],
-            'IPv4 literal'               => ['127.0.0.1'],
-            'localhost'                  => ['localhost'],
-            'unknown TLD'                => ['host-with-unknown-tld.fakeylock'],
+            'empty string' => [''],
+            'IPv4 literal' => ['127.0.0.1'],
+            'localhost' => ['localhost'],
+            'unknown TLD' => ['host-with-unknown-tld.fakeylock'],
         ];
     }
 

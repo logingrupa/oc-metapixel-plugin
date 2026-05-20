@@ -7,6 +7,7 @@ use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Middleware;
 use GuzzleHttp\Psr7\Request;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
@@ -24,13 +25,10 @@ use Logingrupa\Metapixel\Tests\MetapixelTestCase;
  */
 final class RefreshPslTest extends MetapixelTestCase
 {
-    /** @var string */
     private string $sBundlePath;
 
-    /** @var string */
     private string $sBundleBackup;
 
-    /** @var string */
     private string $sCacheDir;
 
     protected function setUp(): void
@@ -196,7 +194,7 @@ final class RefreshPslTest extends MetapixelTestCase
 
         $this->app->bind(RefreshPsl::class, fn () => new RefreshPsl($obFakeClient));
 
-        $obKernel = $this->app->make(\Illuminate\Contracts\Console\Kernel::class);
+        $obKernel = $this->app->make(Kernel::class);
         $obKernel->registerCommand($this->app->make(RefreshPsl::class));
     }
 }
