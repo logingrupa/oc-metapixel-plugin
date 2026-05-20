@@ -181,7 +181,7 @@ class FailedEvents extends Controller
 
         /** @var MetaClient $obClient */
         $obClient = App::make(MetaClient::class);
-        $arPayload = is_array($obRow->payload) ? $this->normalisePayload($obRow->payload) : [];
+        $arPayload = $this->normalisePayload($obRow->payload);
 
         try {
             $obClient->sendForPixel(
@@ -326,7 +326,9 @@ class FailedEvents extends Controller
      */
     protected function listRefresh(): string
     {
-        return (string) $this->makePartial('list');
+        $mResult = $this->makePartial('list');
+
+        return is_string($mResult) ? $mResult : '';
     }
 
     /**
