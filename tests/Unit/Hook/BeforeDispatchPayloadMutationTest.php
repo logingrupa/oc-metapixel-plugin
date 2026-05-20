@@ -82,6 +82,94 @@ final class BeforeDispatchPayloadMutationTest extends MetapixelTestCase
         );
     }
 
+    public function test_listener_unsetting_data_triggers_full_snapshot_restore(): void
+    {
+        Event::listen(
+            SendCapiEvent::HOOK_BEFORE_DISPATCH,
+            function (string $sEventName, array &$arPayload, object $obSubject): void {
+                unset($arPayload['data']);
+            },
+        );
+
+        $obSpyClient = new SpyMetaClient;
+        $obJob = new SendCapiEvent('Purchase', $this->makePayload(), new stdClass, FakeStubAdapter::class);
+        $obJob->handle(app(AdapterRegistry::class), $obSpyClient);
+
+        $this->assertSame(1, $obSpyClient->iCallCount);
+        $this->assertSame(
+            'uuid-1',
+            $obSpyClient->arLastPayload['data'][0]['event_id'] ?? null,
+            'envelope shape destroyed (unset data) → snapshot restored → event_id intact',
+        );
+        $this->assertSame(
+            1700000000,
+            $obSpyClient->arLastPayload['data'][0]['event_time'] ?? null,
+            'event_time restored from snapshot',
+        );
+        $this->assertSame(
+            'Purchase',
+            $obSpyClient->arLastPayload['data'][0]['event_name'] ?? null,
+            'event_name restored from snapshot (not just event_id/event_time)',
+        );
+    }
+
+    public function test_listener_nulling_data_triggers_full_snapshot_restore(): void
+    {
+        Event::listen(
+            SendCapiEvent::HOOK_BEFORE_DISPATCH,
+            function (string $sEventName, array &$arPayload, object $obSubject): void {
+                $arPayload['data'] = null;
+            },
+        );
+
+        $obSpyClient = new SpyMetaClient;
+        $obJob = new SendCapiEvent('Purchase', $this->makePayload(), new stdClass, FakeStubAdapter::class);
+        $obJob->handle(app(AdapterRegistry::class), $obSpyClient);
+
+        $this->assertSame(1, $obSpyClient->iCallCount);
+        $this->assertSame(
+            'uuid-1',
+            $obSpyClient->arLastPayload['data'][0]['event_id'] ?? null,
+            'envelope shape destroyed (data=null) → snapshot restored → event_id intact',
+        );
+        $this->assertSame(
+            'Purchase',
+            $obSpyClient->arLastPayload['data'][0]['event_name'] ?? null,
+            'event_name restored from snapshot',
+        );
+    }
+
+    public function test_listener_replacing_data_zero_preserves_server_owned_event_id_and_documents_mutation_surface(): void
+    {
+        Event::listen(
+            SendCapiEvent::HOOK_BEFORE_DISPATCH,
+            function (string $sEventName, array &$arPayload, object $obSubject): void {
+                $arPayload['data'][0] = ['event_id' => 'attacker-uuid', 'extra' => 'x'];
+            },
+        );
+
+        $obSpyClient = new SpyMetaClient;
+        $obJob = new SendCapiEvent('Purchase', $this->makePayload(), new stdClass, FakeStubAdapter::class);
+        $obJob->handle(app(AdapterRegistry::class), $obSpyClient);
+
+        $this->assertSame(1, $obSpyClient->iCallCount);
+        $this->assertSame(
+            'uuid-1',
+            $obSpyClient->arLastPayload['data'][0]['event_id'] ?? null,
+            'server-owned event_id re-applied over listener replacement (dedup contract)',
+        );
+        $this->assertSame(
+            1700000000,
+            $obSpyClient->arLastPayload['data'][0]['event_time'] ?? null,
+            'server-owned event_time re-applied over listener replacement',
+        );
+        $this->assertSame(
+            'x',
+            $obSpyClient->arLastPayload['data'][0]['extra'] ?? null,
+            'documented mutation surface: listener-added fields survive when data[0] shape stays array',
+        );
+    }
+
     /** @return array<string, mixed> */
     private function makePayload(): array
     {
