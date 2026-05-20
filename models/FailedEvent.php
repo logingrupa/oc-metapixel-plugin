@@ -27,6 +27,9 @@ class FailedEvent extends Model
         'http_status',
         'graph_error',
         'attempts',
+        'dedup_pct',
+        'emq',
+        'dedup_checked_at',
     ];
 
     /** @var list<string> */
@@ -36,5 +39,8 @@ class FailedEvent extends Model
     protected $casts = [
         'attempts' => 'int',
         'http_status' => 'int',
+        'dedup_pct' => 'float',
+        'emq' => 'float',
+        'dedup_checked_at' => 'datetime',
     ];
 }
