@@ -24,6 +24,7 @@
             <directory>./models</directory>
             <directory>./console</directory>
             <directory>./components</directory>
+            <directory>./middleware</directory>
         </include>
         <exclude>
             <directory>./classes/testing</directory>

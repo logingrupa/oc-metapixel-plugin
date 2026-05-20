@@ -5,6 +5,7 @@ namespace Logingrupa\Metapixel;
 use Cms\Classes\Controller as CmsController;
 use Cms\Classes\ThisVariable;
 use Illuminate\Console\Scheduling\Schedule;
+use Illuminate\Contracts\Http\Kernel;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
@@ -21,6 +22,7 @@ use Logingrupa\Metapixel\Components\EventPixel;
 use Logingrupa\Metapixel\Components\PixelHead;
 use Logingrupa\Metapixel\Console\PurgeEventLog;
 use Logingrupa\Metapixel\Console\RefreshPsl;
+use Logingrupa\Metapixel\Middleware\EnsureFbpFbcCookies;
 use Logingrupa\Metapixel\Models\Settings;
 use Lovata\OrdersShopaholic\Models\CartPosition;
 use Lovata\OrdersShopaholic\Models\Order;
@@ -92,6 +94,8 @@ class Plugin extends PluginBase
             ThemeActionAdapter::class,
         );
         Event::subscribe(ThemeAjaxHandler::class);
+
+        $this->app[Kernel::class]->pushMiddleware(EnsureFbpFbcCookies::class);
     }
 
     /**
