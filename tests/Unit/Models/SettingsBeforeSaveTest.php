@@ -109,13 +109,16 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
 
     public function test_settings_fields_lang_keys_resolve_to_human_readable_strings(): void
     {
-        // Gap 4 regression anchor: the six previously-missing settings.fields keys
+        // Gap 4 regression anchor — the six previously-missing field label keys
         // exist in lang/en/lang.php with non-empty human-readable English strings.
+        // Plan 04-05 / LANG-01 migrated the lang shape from settings.fields.* to
+        // the top-level field.* group (RESEARCH Pattern 11); this assertion now
+        // reads against the new group.
         // Hermetic file-load (the test base runs autoRegister=false so the plugin's
         // lang namespace is not bound to the Translator; assert directly against the
         // file contents — the Settings backend page reads through the same loader).
         $arLang = require dirname(__DIR__, 3).'/lang/en/lang.php';
-        $arFields = $arLang['settings']['fields'] ?? [];
+        $arFields = $arLang['field'] ?? [];
 
         $arKeys = [
             'paid_status_code_label',
@@ -127,11 +130,11 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
         ];
 
         foreach ($arKeys as $sKey) {
-            $this->assertArrayHasKey($sKey, $arFields, "Lang key 'settings.fields.{$sKey}' missing from lang/en/lang.php.");
+            $this->assertArrayHasKey($sKey, $arFields, "Lang key 'field.{$sKey}' missing from lang/en/lang.php.");
             $sValue = $arFields[$sKey];
-            $this->assertIsString($sValue, "Lang key 'settings.fields.{$sKey}' is not a string.");
-            $this->assertNotSame($sKey, $sValue, "Lang key 'settings.fields.{$sKey}' value is a placeholder copy of the key.");
-            $this->assertGreaterThan(0, strlen($sValue), "Lang key 'settings.fields.{$sKey}' resolved to an empty string.");
+            $this->assertIsString($sValue, "Lang key 'field.{$sKey}' is not a string.");
+            $this->assertNotSame($sKey, $sValue, "Lang key 'field.{$sKey}' value is a placeholder copy of the key.");
+            $this->assertGreaterThan(0, strlen($sValue), "Lang key 'field.{$sKey}' resolved to an empty string.");
         }
     }
 }
