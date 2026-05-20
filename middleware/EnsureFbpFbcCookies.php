@@ -70,17 +70,30 @@ class EnsureFbpFbcCookies
      * Response shape statically. The helper mirrors the SendCapiEvent
      * firstEventRecord + MetaClient decodeBody + Settings::lookupForSite
      * runtime-guard idiom for level-10 narrowing without a phpstan-ignore.
+     *
+     * Fail-SAFE on non-Response return values — the rest of this middleware
+     * NO-OPs on every error path (untrusted host, missing PSL, kill-switch
+     * lookup throwing). A LogicException here would contradict the docblock
+     * ("no exception thrown") at line 19 and turn an upstream-middleware bug
+     * into a 500 before Laravel's Kernel::handle could wrap the value. Log
+     * the surprise and cast to an empty Response so downstream cookie writes
+     * still attach correctly.
      */
     private function resolveResponse(Closure $fnNext, Request $obRequest): Response
     {
         $mResponse = $fnNext($obRequest);
-        if (! $mResponse instanceof Response) {
-            throw new \LogicException(
-                'metapixel: middleware pipeline returned non-Response — got '.get_debug_type($mResponse)
-            );
+        if ($mResponse instanceof Response) {
+            return $mResponse;
         }
 
-        return $mResponse;
+        Log::warning(
+            'metapixel: middleware pipeline returned non-Response — wrapping in empty Response (fail-safe)',
+            ['got' => get_debug_type($mResponse)],
+        );
+
+        $sBody = is_scalar($mResponse) ? (string) $mResponse : '';
+
+        return new Response($sBody, 200);
     }
 
     /**
