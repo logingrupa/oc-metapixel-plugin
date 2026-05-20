@@ -25,10 +25,16 @@ use Throwable;
  * rows. (int) post('record_id') + findOrFail validates the user-input
  * boundary in lieu of the Validation trait on the model (Pitfall 10).
  *
- * Replay uses Settings::lookupForSite(null) — D-01 default-row fallback per
- * Open Question 1 Option A (no site_id column on FailedEvent in v2.0).
- * Operators on multi-site setups should configure the default-row credentials
- * as their primary site for safe replay behaviour (README troubleshooting).
+ * WARNING: Replay AND CheckDedup do NOT honour per-site credentials in v2.0.
+ * Both call Settings::lookupForSite(null) — D-01 default-row fallback per
+ * Open Question 1 Option A. FailedEvent rows carry no site_id column, the
+ * adapter contract carries no subject-loader method, and re-hydrating the
+ * subject from subject_type + subject_id to call EventSubjectAdapter::getSiteId
+ * would require a contract expansion deferred to v2.1. On multi-site installs
+ * (.no/.lv/.lt) operators MUST configure the default-row credentials as their
+ * primary site's pixel — Replay through a non-primary-site row will dispatch
+ * under the wrong pixel ID. Marketplace operators are warned via README
+ * troubleshooting (DOCS-01).
  */
 class FailedEvents extends Controller
 {
