@@ -67,7 +67,7 @@ final class ShopaholicCartPositionAdapter implements EventSubjectAdapter
     /**
      * Anonymous cart subjects carry no PII columns. All 13 Meta CAPI keys stay
      * null — theme-side cookies (fbp/fbc/client_ip/user_agent) populate via the
-     * EventPixel render path; Phase 4 cookie middleware sets them at the
+     * EventPixel render path; the cookie middleware sets them at the
      * request boundary. UserDataHasher honors null + omits the field hash.
      *
      * @return array<string, ?string>

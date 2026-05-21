@@ -42,7 +42,7 @@ use Throwable;
  * never propagate to the dispatch pipeline.
  *
  * writeFailedEvent populates FailedEvent.subject_type + subject_id from the
- * resolved adapter when available (enables Phase 4 admin UI re-resolution).
+ * resolved adapter when available (enables admin UI re-resolution).
  * BindingResolutionException early-return passes null — adapter does not
  * exist, re-resolution is impossible.
  */
@@ -247,7 +247,7 @@ final class SendCapiEvent implements ShouldQueue
 
     /**
      * Persist a FailedEvent row. When the adapter is non-null, subject_type and
-     * subject_id are populated from it so Phase 4 admin UI can re-resolve the subject
+     * subject_id are populated from it so admin UI can re-resolve the subject
      * for replay. The BindingResolutionException early-return path passes null —
      * adapter does not exist; re-resolution is impossible by definition.
      */

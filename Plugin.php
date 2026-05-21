@@ -145,12 +145,11 @@ class Plugin extends PluginBase
     }
 
     /**
-     * Wire the daily TTL purge of EventLog rows older than 7 days (Phase 3 D-08).
+     * Wire the daily TTL purge of EventLog rows older than 7 days.
      * October fires console.schedule on each `php artisan schedule:run` and forwards
      * to every plugin's registerSchedule. Param is untyped to match
-     * PluginBase::registerSchedule($schedule) signature (LSP variance — RESEARCH
-     * pitfall 7); the concrete Illuminate\Console\Scheduling\Schedule is documented
-     * via @param.
+     * PluginBase::registerSchedule($schedule) signature (LSP variance); the concrete
+     * Illuminate\Console\Scheduling\Schedule is documented via @param.
      *
      * @param  Schedule  $obSchedule
      */

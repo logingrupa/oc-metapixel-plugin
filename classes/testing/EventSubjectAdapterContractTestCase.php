@@ -11,9 +11,9 @@ use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 
 /**
  * Contract test base for any EventSubjectAdapter implementation. First-party
- * adapters (FakeAdapter in Phase 2, ShopaholicOrderAdapter + ThemeActionAdapter
- * in Phase 3) extend this base + supply makeAdapter() + makeSubject() to prove
- * their implementation satisfies the marketplace contract.
+ * adapters (FakeAdapter, ShopaholicOrderAdapter + ThemeActionAdapter) extend
+ * this base + supply makeAdapter() + makeSubject() to prove their
+ * implementation satisfies the marketplace contract.
  *
  * Third-party authoring pattern (post v2.1 when first real third party arrives):
  *
@@ -31,12 +31,12 @@ use Logingrupa\Metapixel\Tests\MetapixelTestCase;
  *     }
  *
  * `pest tests/AcmeCartAdapterContractTest.php` exits 0 → the adapter satisfies
- * the Phase 2 marketplace contract.
+ * the marketplace contract.
  *
- * Extending MetapixelTestCase is a Phase 2 YAGNI choice — Phase 2 has exactly
- * one in-tree consumer; adding a marketplace test-harness dependency adds no
+ * Extending MetapixelTestCase is a YAGNI choice — the suite has exactly one
+ * in-tree consumer; adding a marketplace test-harness dependency adds no
  * value until a real third party authors an adapter outside this repo.
- * Revisit at v2.1 when the first real third-party adapter ships.
+ * Revisit when first third-party adapter ships.
  */
 abstract class EventSubjectAdapterContractTestCase extends MetapixelTestCase
 {

@@ -35,7 +35,7 @@ final class ShopaholicSettingsOptions
     /**
      * Options for the Settings default_currency_code dropdown. Small static
      * map covering the ISO-4217 currencies the multisite cluster uses
-     * (NOK, EUR, USD, GBP). Extend at Phase 4 if operator demand surfaces.
+     * (NOK, EUR, USD, GBP). Extend when operator demand surfaces.
      *
      * @return array<string, string>
      */
