@@ -6,9 +6,9 @@
 **Granularity:** coarse
 **Coverage:** 61/61 v2 requirements mapped (100%)
 **Started:** 2026-05-15
-**Numbering:** Fresh start at Phase 1 — v1.x phases archived under `.planning/archive/v1.1.1/phases/`. v2.0 is its own milestone; v1.x history not folded into v2.0 numbering.
+**Numbering:** Fresh start at Phase 1 — prior-milestone phases archived under `.planning/archive/`. v2.0 is its own milestone; prior history not folded into v2.0 numbering.
 
-**Build philosophy (locked):** Simple logic, fresh ideas, no over-engineering. No BC shims to v1.x — operators stay on `legacy/v1.1.1` branch indefinitely. No dead code, no unused functions, no premature abstractions. Class names describe purpose, not shape. v2.0 adapters = FRESH implementations using v2.0 contracts, NOT v1.x ports. All host fixtures generic (`example.test`, `example.co.uk` per RFC 2606) — no operator-specific names baked in.
+**Build philosophy (locked):** Simple logic, fresh ideas, no over-engineering. No BC shims; fresh installs only. No dead code, no unused functions, no premature abstractions. Class names describe purpose, not shape. v2.0 adapters = FRESH implementations using v2.0 contracts. All host fixtures generic (`example.test`, `example.co.uk` per RFC 2606) — no operator-specific names baked in.
 
 ## Architecture at a glance
 
@@ -252,8 +252,8 @@ class Plugin extends PluginBase {
   1. A timed dry-run on a fresh OctoberCMS 4.x install (no cart plugin) following only the README — `composer require` → Settings configuration → first CAPI event verified in Meta Test Events — completes in under 10 minutes. This dry-run is the launch acceptance gate.
   2. `docs/CUSTOM-ADAPTERS.md` contains a working ~50-LOC `AcmeCartAdapter` + `AcmeCartValueResolver` example documenting the `AdapterRegistry::register()` pattern, `$require` plugin dependency declaration, and the three `Event::fire` hooks. A developer copying the example, swapping cart-model names, and registering from their own `Plugin::boot()` ships a working third-party adapter without touching plugin core.
   3. `composer require logingrupa/oc-metapixel-plugin` succeeds on (a) clean OctoberCMS 4.x with no cart plugin, (b) clean OctoberCMS 4.x with Shopaholic + OrdersShopaholic + Buddies. `composer qa` exits 0 on both. CI matrix Run A + Run B remain green on the `v2.0.0` tag commit.
-  4. Plugin manifest (`plugin.yaml`) ships generic name "Meta Pixel + Conversions API", generic description, generic icon. Marketplace assets present: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting v2.0.0 changes vs `legacy/v1.1.1` branch.
-  5. Git tag `v2.0.0` annotated and pushed to remote; `legacy/v1.1.1` branch preserved on origin (operator may stay on legacy indefinitely — no BC shim, no upgrade migration in v2.0).
+  4. Plugin manifest (`plugin.yaml`) ships generic name "Meta Pixel + Conversions API", generic description, generic icon. Marketplace assets present: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting the v2.0.0 initial public release.
+  5. Git tag `v2.0.0` annotated and pushed to remote. No BC shim; no upgrade migration in v2.0.
 
 **Plans:** 1/12 plans executed
 
@@ -291,7 +291,7 @@ class Plugin extends PluginBase {
 | P-18 PSL cache write fails on Forge | MEDIUM | Phase 4 (HOST-03 cache path = storage/app/metapixel/psl/) |
 | P-20 Coverage on partial code paths | LOW | Phase 1 (TOOL-09 coverage gate on Run A only) |
 
-(Pitfalls P-04, P-14, P-16, P-17 — BC migration — DROPPED for v2.0: no upgrade path. Operators stay on `legacy/v1.1.1` branch.)
+(Pitfalls P-04, P-14, P-16, P-17 — BC migration — DROPPED for v2.0: no upgrade path. Fresh installs only.)
 
 ## Progress
 
@@ -305,7 +305,7 @@ class Plugin extends PluginBase {
 
 ## Shipped Milestones
 
-- ✅ **v1.1.1** — Shopaholic-coupled Meta Pixel + CAPI (2026-04-22 → 2026-05-14). Partial close: 28/50 v1 requirements validated, 22 dropped on architecture pivot. Phases 1, 2, 3.1, 3.1-07, 3.1-08 complete; Phase 3 task 9 superseded by 3.1; Phase 4 + 5 dropped. Codebase frozen on `legacy/v1.1.1` branch. See [`milestones/v1.1.1-ROADMAP.md`](milestones/v1.1.1-ROADMAP.md) and [`milestones/v1.1.1-REQUIREMENTS.md`](milestones/v1.1.1-REQUIREMENTS.md).
+- ✅ **Prior milestone** — Shopaholic-coupled Meta Pixel + CAPI (2026-04-22 → 2026-05-14). Partial close: 28/50 requirements validated, 22 dropped on architecture pivot. Phases 1, 2, 3.1, 3.1-07, 3.1-08 complete; Phase 3 task 9 superseded by 3.1; Phase 4 + 5 dropped. Archived under `.planning/archive/` and `.planning/milestones/`.
 
 ## Backlog
 

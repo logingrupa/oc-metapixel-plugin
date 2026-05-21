@@ -4,14 +4,14 @@
 **Milestone:** v2.0.0 — Generic-event-tracking marketplace plugin
 **Core Value:** Any OctoberCMS operator can install Logingrupa.Metapixel from Composer, configure pixel_id + capi_access_token + trusted_hosts via backend Settings, and ship Meta Pixel + Conversions API tracking for their cart-plugin (Shopaholic, Theme, or custom) in under 10 minutes. Server-deduplicated event_id contract preserved; multi-site per-pixel routing supported; third parties extend with custom adapters without forking.
 
-**Build philosophy (locked):** Simple logic, fresh ideas, no over-engineering. No BC shims to v1.x — operators stay on `legacy/v1.1.1` branch indefinitely. No dead code, no unused functions, no premature abstractions. Build for current need.
+**Build philosophy (locked):** Simple logic, fresh ideas, no over-engineering. No BC shims; fresh installs only. No dead code, no unused functions, no premature abstractions. Build for current need.
 
 ## v2 Requirements
 
-### Tooling (Phase 1 — composer.json + namespace rename + CI)
+### Tooling
 
 - [x] **TOOL-01**: `composer.json` declares `"name": "logingrupa/oc-metapixel-plugin"`, `"php": "^8.3 || ^8.4"`, generic description (no "shopaholic" or vendor-specific terms). `lovata/shopaholic-plugin` + `lovata/ordersshopaholic-plugin` + `lovata/buddies-plugin` move from `require:` to `suggest:`. Stay in `require-dev:` so test suite exercises ShopaholicAdapter. PSR-4 autoload uses `Logingrupa\\Metapixel\\` namespace.
-- [x] **TOOL-02**: Plugin directory renamed from `plugins/logingrupa/metapixelshopaholic/` to `plugins/logingrupa/metapixel/`. PSR-4 + October PluginManager identifier `Logingrupa.Metapixel`. v1.x source on `legacy/v1.1.1` branch; master tree contains only v2.0 source.
+- [x] **TOOL-02**: Plugin directory renamed from `plugins/logingrupa/metapixelshopaholic/` to `plugins/logingrupa/metapixel/`. PSR-4 + October PluginManager identifier `Logingrupa.Metapixel`. Master tree contains only v2.0 source.
 - [x] **TOOL-03**: Namespace rename `Logingrupa\Metapixelshopaholic` → `Logingrupa\Metapixel` across all source. Lang keys `logingrupa.metapixelshopaholic::lang.*` → `logingrupa.metapixel::lang.*`.
 - [x] **TOOL-04**: `phpstan.neon` config: `phpVersion: 80300` (PHP 8.3 baseline), level 10, larastan, spaze/phpstan-disallowed-calls bans `assert()`, `@` suppression, `array_find()`, `array_any()`, `array_all()`, `array_find_key()`, property hooks, asymmetric visibility, `#[\Deprecated]`. `universalObjectCratesClasses` covers `Lovata\Toolbox\Classes\Item\ElementItem` + `ElementCollection`. `reportUnmatchedIgnoredErrors: true`, `treatPhpDocTypesAsCertain: true`, `checkUninitializedProperties: true`.
 - [x] **TOOL-05**: `rector.php` config: `LevelSetList::UP_TO_PHP_83` (NOT 84 — caps upgrade rewrites at 8.3-safe), `SetList::CODE_QUALITY`, `SetList::DEAD_CODE`, `SetList::EARLY_RETURN`, `SetList::TYPE_DECLARATION`.
@@ -24,7 +24,7 @@
 - [x] **TOOL-10**: `composer qa` script chains `pint-test` → `analyse` → `phpmd` → `test-cov`. Exits 0 on fresh clone (both Run A and Run B branches).
 - [x] **TOOL-11**: `shipmonk/composer-dependency-analyser` dev dependency + config enforces no Lovata.OrdersShopaholic / Lovata.Shopaholic imports outside `Classes\Adapter\Shopaholic\` directory.
 
-### Adapter system core (Phase 2 — contracts + registry + extension hooks)
+### Adapter system core
 
 - [x] **ADAP-01**: `Classes\Adapter\EventSubjectAdapter` interface defines: `getSubjectType(object $obSubject): string` (opaque alias, NOT class FQN — e.g. `'shopaholic.order'`), `getSubjectId(object $obSubject): int`, `getSiteId(object $obSubject): ?int` (MUST read from subject, never request context), `getSecretKey(object $obSubject): ?string`, `getValueResolver(object $obSubject): ValueResolver`, `getUserData(object $obSubject): array<string, ?string>`, `getSupportedEvents(): array<string, list<string>>`. Class-level PHPDoc documents the cross-context-determinism contract.
 - [x] **ADAP-02**: `Classes\Adapter\ValueResolver` interface defines: `resolveContentIds(object $obSubject): list<string>`, `resolveValue(object $obSubject): float`, `resolveCurrency(object $obSubject): string`, `resolveContents(object $obSubject): list<array{id: string, quantity: int, item_price: float}>`, `resolveNumItems(object $obSubject): int`.
@@ -42,7 +42,7 @@
 - [x] **ADAP-10**: `Classes\Queue\SendCapiEvent` constructor adds `string $sAdapterClass` 4th arg. `handle()` resolves adapter via `AdapterRegistry::resolveByClass($sAdapterClass)`. `BindingResolutionException` boundary catch writes FailedEvent + log critical.
 - [x] **ADAP-11**: All 177 v1.x tests adapt via `FakeAdapter` test double. `OrderStatusWatcherEventLogTest`, `PurchasePixelEventLogGateTest`, `SendCapiEventEventLogTest`, `MultiSiteEventLogTest` regreen.
 
-### ShopaholicAdapter (Phase 3 — fresh implementation, modern OctoberCMS patterns)
+### ShopaholicAdapter
 
 Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_ids = `SKU-{product_id}[-{offer_id}]`, paid_status_code dropdown) but writes FRESH code following current October 4 + Laravel 12 + Lovata.Toolbox idioms. NOT a v1.x port.
 
@@ -52,7 +52,7 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 - [ ] **SHOP-04**: `Plugin::boot()` conditionally registers ShopaholicOrderAdapter + subscribes OrderStatusWatcher only when `PluginManager::instance()->exists('Lovata.OrdersShopaholic')` is true. Composer-dependency-analyser enforces no `Lovata\OrdersShopaholic\*` imports outside `Classes\Adapter\Shopaholic\` directory.
 - [ ] **SHOP-05**: Pest integration test exercises end-to-end Purchase flow on a generic Order fixture (`example.test` host, hermetic SQLite): status flip to `new-payment-received` → dispatch → `EventLogWriter::record` race-fence (channel=capi) → MetaClient mocked via Guzzle MockHandler → assert payload shape, event_id round-trip, dedup contract. Second admin-flip flow asserts EventLog row prevents re-fire.
 
-### ThemeActionAdapter (Phase 3 — generic theme tracking)
+### ThemeActionAdapter
 
 - [ ] **THEM-01**: `Classes\Adapter\Theme\ThemeActionEvent` value object: `sActionKey` (e.g. `'product-view:42'`), `iSyntheticId` (hash of action_key for event_log subject_id), `sEventName`, `arPayload`.
 - [ ] **THEM-02**: `Classes\Adapter\Theme\ThemeActionAdapter` implements `EventSubjectAdapter`. `getSiteId()` reads from `ThemeActionEvent->arPayload['site_id']` (operator-supplied) OR falls back to `Site::getCurrent()?->getId()` (only place where request-context site fallback allowed — documented in PHPDoc).
@@ -62,7 +62,7 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 - [ ] **THEM-06**: `Components\EventPixel` — browser-side fbq() renderer for any server-confirmed subject. Operator places on thank-you/confirmation pages. Properties: `subject_class` (e.g. `Lovata\OrdersShopaholic\Models\Order`) + `subject_slug_field` (e.g. `secret_key`). On run: queries EventLog for matching CAPI row; if present + Pixel row absent, emits inline `fbq('track', name, data, {eventID})` with the server-supplied event_id. `onMarkFired` AJAX writes `channel='pixel'` row to EventLog with event_id validation.
 - [x] **THEM-07**: `Components\PixelHead` extended with Twig API surface — reads `ThemeEventCollector` accumulator, emits `fbq('track', ...)` script blocks per pushed event. Optional `also_dispatch_capi: true` triggers CAPI mirror.
 
-### Multisite + Settings rework (Phase 4)
+### Multisite + Settings rework
 
 **Settings UX:** October-native Multisite — operator picks site from backend top-bar site picker; per-site values stored as separate `system_settings` rows by October. NOT a custom repeater field. Single-site installs see no UX change (default row primary). Per-adapter Settings (paid_status_code, currency_code) ship dynamic dropdowns sourced from cart-plugin (`Status::lists()` for Shopaholic).
 
@@ -73,7 +73,7 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 - [x] **MULT-05**: Multi-pixel routing integration test: 2 OctoberCMS sites × 2 adapters × 2 channels = 8-path matrix. Site A Order fires to pixel_A; Site B Order fires to pixel_B; cross-site EventLog rows independent (UNIQUE NULL-distinct semantics).
 - [x] **MULT-06**: `updates/add_multisite_pixel_id_and_token.php` migration. Idempotent. Single-site installs see no behavior change (default row remains primary).
 
-### TrustedHosts + php-domain-parser (Phase 4)
+### TrustedHosts + php-domain-parser
 
 - [x] **HOST-01**: `trusted_hosts` Settings field (textarea, one host per line). Empty default; operator populates with own production domains. Validates host syntax on save.
 - [x] **HOST-02**: `Classes\Helper\HostIndexResolver` wraps `jeremykendall/php-domain-parser ^6.4`. Why this lib: October provides no PSL-aware host parser (`SiteManager` knows site URLs, not eTLD+1 boundaries); naive `count(explode('.', $sHost)) - 1` is wrong for multi-TLD `.co.uk` / `.com.br` / `.com.au` (counts public suffix as subdomain). PDP uses Public Suffix List to compute correct subdomain offset. Returns 1 for apex (`example.com`, `example.co.uk`), 2 for `www.example.com` / `www.example.co.uk`, 3 for `a.b.example.com`.
@@ -82,34 +82,34 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 - [x] **HOST-05**: Multi-TLD test matrix — fixtures for apex `example.test`, `www.example.test`, `example.co.uk`, `www.example.co.uk`, `subdomain.example.com.br`, IDN host `xn--bcher-kva.example`. All resolve correctly via PSL.
 - [x] **HOST-06**: Untrusted host fail-safe test — host not in `trusted_hosts` → middleware NO-OP, no cookies set, no exception.
 
-### Cookie middleware carry-forward (Phase 4)
+### Cookie middleware carry-forward
 
 - [x] **COOK-01**: `EnsureFbpFbcCookies` keeps `Settings::get('ensure_fbp_fbc_server_side', true)` kill switch — operator toggle disables middleware entirely.
 - [x] **COOK-02**: CR-03 fbclid validation preserved — `[A-Za-z0-9_-]` charset, ≤255 chars, invalid → skip `_fbc` (fail-safe).
 - [x] **COOK-03**: `Cache-Control: private` documented as operator responsibility in README — middleware does not auto-set. Class-level PHPDoc references README section.
 
-### FailedEvents backend audit (Phase 4)
+### FailedEvents backend audit
 
 - [x] **FAIL-01**: `Controllers\FailedEvents` extends `Backend\Classes\Controller` with `Backend.Behaviors.ListController`. Columns: event_id, event_name, adapter_type, http_status, attempts, created_at, graph_error snippet. Filters by event_name + adapter_type + date range.
 - [x] **FAIL-02**: `FailedEvents::onReplay(): array` re-dispatches selected FailedEvent through `MetaClient`. Updates attempts counter. Flash-success on 200 OK; surfaces graph_error on failure.
 - [x] **FAIL-03**: `FailedEvents::onCheckDedup(): JsonResponse` queries Meta Test Events endpoint via `MetaClient::fetchTestEventsStatus()`. Returns JSON with dedup % + EMQ per event for current `test_event_code`.
 
-### Translations (Phase 4)
+### Translations
 
 - [x] **LANG-01**: `lang/{en,lv}/lang.php` files populated. EN + LV only (no RU at v2.0 — operator adds own `lang/ru/lang.php` if needed). Cover: Settings field labels + commentAbove, FailedEvents column labels + buttons (Replay, CheckDedup), backend menu label, error messages. RainLab.Translate-compatible structure.
 
-### Documentation (Phase 5)
+### Documentation
 
 - [ ] **DOCS-01**: `README.md` install guide walks buyer from `composer require logingrupa/oc-metapixel-plugin` → Settings configuration → first CAPI event verified in Meta Test Events in under 10 minutes. Timed dry-run as launch acceptance gate.
 - [ ] **DOCS-02**: `README.md` includes: Settings field walkthrough, Shopaholic + Theme adapter setup, Pixel + CAPI token acquisition with Meta UI screenshots, `.env` variable reference, troubleshooting runbook keyed to `Log::*` context arrays, multi-site routing setup.
 - [ ] **DOCS-03**: `docs/CUSTOM-ADAPTERS.md` — custom-adapter authoring guide with working `AcmeCartAdapter` + `AcmeCartValueResolver` example (~50 LOC). Documents AdapterRegistry::register pattern, $require dependency declaration, the 3 Event::fire hooks.
 
-### Marketplace launch (Phase 5)
+### Marketplace launch
 
 - [ ] **MKT-01**: Composer package published as `logingrupa/oc-metapixel-plugin` on private GitHub repo. Composer install on clean OctoberCMS 4.x + no cart-plugin completes without errors.
 - [ ] **MKT-02**: Plugin manifest (`plugin.yaml`): generic name "Meta Pixel + Conversions API", generic description, generic icon. Author `Logingrupa`. Homepage = GitHub repo.
-- [ ] **MKT-03**: Marketplace assets: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting v2.0.0 changes vs v1.x legacy branch.
-- [ ] **MKT-04**: Plugin git tag `v2.0.0` annotated. Pushed to remote. v1.1.1 + legacy/v1.1.1 branch preserved (operator may stay on legacy indefinitely).
+- [ ] **MKT-03**: Marketplace assets: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting the v2.0.0 initial public release.
+- [ ] **MKT-04**: Plugin git tag `v2.0.0` annotated. Pushed to remote.
 - [ ] **MKT-05**: `composer qa` exits 0 on clean OctoberCMS + Shopaholic install AND on clean OctoberCMS + no-cart install. Both CI matrix runs green.
 
 ## Future Requirements (v2.1+, deferred)
@@ -147,7 +147,7 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 
 | Feature | Reason |
 |---|---|
-| Backward-compat migration from v1.x | Operators stay on `legacy/v1.1.1` branch indefinitely. Fresh installs only. |
+| Backward-compat migration from v1.x | Fresh installs only. |
 | GDPR / cookie-consent banner integration | Live theme has no banner. Re-gate if stakeholder ships one. |
 | Russian translation | Drop until real ru-traffic user emerges. Operator adds own `lang/ru/lang.php`. |
 | Multi-vendor pixel routing (GA4, GTM, Pinterest, TikTok) | Anti-feature — separate plugin in v2.x. |
