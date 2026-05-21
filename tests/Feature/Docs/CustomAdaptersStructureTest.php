@@ -107,4 +107,21 @@ final class CustomAdaptersStructureTest extends MetapixelTestCase
             'docs/CUSTOM-ADAPTERS.md must show the AdapterRegistry registration snippet (either AdapterRegistry::instance()->register or AdapterRegistry::register).',
         );
     }
+
+    public function test_doc_contains_both_acme_cart_minimal_and_mall_full_examples(): void
+    {
+        $sDoc = $this->loadCustomAdaptersDoc();
+
+        $bHasAcmeCart = str_contains($sDoc, 'AcmeCartAdapter') || str_contains($sDoc, 'class AcmeCart');
+        $this->assertTrue(
+            $bHasAcmeCart,
+            'docs/CUSTOM-ADAPTERS.md must reference AcmeCartAdapter (DOCS-03 + ROADMAP.md Architecture-at-a-glance — minimal register snippet uses canonical AcmeCart name).',
+        );
+
+        $bHasMall = str_contains($sDoc, 'OFFLINE\\Mall') || str_contains($sDoc, 'class MallOrderAdapter');
+        $this->assertTrue(
+            $bHasMall,
+            'docs/CUSTOM-ADAPTERS.md must reference OFFLINE\\Mall or MallOrderAdapter (CONTEXT.md D-14 — full inline example tracks OFFLINE\\Mall\\Models\\Order).',
+        );
+    }
 }
