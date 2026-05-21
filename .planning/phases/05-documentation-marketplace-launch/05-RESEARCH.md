@@ -866,22 +866,22 @@ gh release view v2.0.0   # OR git ls-remote --tags origin v2.0.0
 
 **The Assumptions Log is short by design.** Phase 5 deliberately picks well-trodden tooling and conventions. The handful of [ASSUMED] entries above need user confirmation only at the planner level — none are load-bearing for the locked plan sequence.
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Should plan 05-12 also write `assets/images/icon.png` PNG as a defensive measure even though D-20 punts?**
    - What we know: October backend renders `icon-bullseye` FA glyph natively [CITED: docs.octobercms.com]; marketplace listing MAY require PNG [CITED: octobercms.com/help/guidelines/quality]
    - What's unclear: whether D-20 "punt to that point" intends to defer the PNG to a separate plan trigger or accept the marketplace-listing risk
-   - Recommendation: Surface to operator at planning time; default to D-20's punt. If buyer surveys post-launch demand PNG, ship v2.0.1.
+   - **RESOLVED:** Keep FA `icon-bullseye` per D-20. No PNG defensive ship in plan 05-12. If marketplace listing later requires PNG, defer to v2.0.1 patch (already a Deferred Idea in 05-CONTEXT.md).
 
 2. **What `composer.json` license should v2.0.0 ship?**
    - What we know: Currently `"proprietary"`. D-25 public-flip + Deferred Ideas note "license re-evaluation punt to planner discretion in plan 05-14".
    - What's unclear: Whether MIT/Apache-2.0/proprietary best matches operator intent (commercial-friendly marketplace vs. permissive open source)
-   - Recommendation: Ask operator in plan 05-14 task. Default to MIT for ecosystem-standard composer-installable plugins; operator may pick `proprietary` to retain commercial control even with public source.
+   - **RESOLVED:** Operator picks at plan 05-14 Task 1 as `checkpoint:decision`. Default fallback if no operator choice is recorded: keep `"proprietary"` (the current state) and document as a v2.0.1 follow-up. This is acknowledged as a deferred decision, NOT an unresolved blocker — the plan 05-14 checkpoint provides the resolution surface.
 
 3. **Does `git filter-repo` need installation in plan 05-13 or is the security sweep guaranteed to find nothing?**
    - What we know: Current `git log --all -p` scan finds only D-18 dummy values + test fixtures (`1234567890`) [VERIFIED 2026-05-21]
-   - What's unclear: Whether a future commit between now and 05-13 could introduce a real secret — possible if smoke or any other plan inadvertently commits a real `pixel_id`
-   - Recommendation: Plan 05-13 task 1 installs git-filter-repo opportunistically (`pip install --user git-filter-repo`); task 2 runs the grep. If grep is clean, filter-repo isn't invoked (no-op). Defense in depth.
+   - What's unclear: Whether a future commit between now and 05-13 could introduce a real secret
+   - **RESOLVED:** Install opportunistically in plan 05-13 Task 1 (`pip install --user git-filter-repo`) ONLY if the secret-history grep returns hits. If the grep is clean (RESEARCH baseline 2026-05-21), filter-repo is never invoked. Plan 05-13 documents the install-vs-skip decision explicitly in the sweep doc.
 
 ## Environment Availability
 
