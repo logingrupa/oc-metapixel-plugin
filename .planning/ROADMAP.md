@@ -255,7 +255,7 @@ class Plugin extends PluginBase {
   4. Plugin manifest (`plugin.yaml`) ships generic name "Meta Pixel + Conversions API", generic description, generic icon. Marketplace assets present: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting v2.0.0 changes vs `legacy/v1.1.1` branch.
   5. Git tag `v2.0.0` annotated and pushed to remote; `legacy/v1.1.1` branch preserved on origin (operator may stay on legacy indefinitely — no BC shim, no upgrade migration in v2.0).
 
-**Plans:** 12 plans (post-revision: 05-01 folded into 05-02 Task 0; 05-05 merged into 05-04 Task 2; 05-07 merged into 05-06 Task 2 — gap-numbering preserves 05-08..05-14 IDs to avoid invalidating downstream SUMMARY refs)
+**Plans:** 1/12 plans executed
 
 - [ ] `05-00-PLAN.md` — Wave 0 test scaffolding (ReadmeStructureTest + CustomAdaptersStructureTest + AssetsExistTest + PluginYamlSanityTest) (DOCS-01, DOCS-02, DOCS-03, MKT-02, MKT-03)
 - [ ] `05-02-PLAN.md` — Legacy JS pixel inventory + strip: Task 0 inventory grep, Tasks 1-3 four deletes + eleven edits + bundle rebuild + dead-v1.x `purchasePixel` block strip (DOCS-01 cutover)
@@ -301,7 +301,7 @@ class Plugin extends PluginBase {
 | 2. Adapter system core | 9/9 | Complete   | 2026-05-20 |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
-| 5. Documentation + marketplace launch | 0/12 | Planned     | — |
+| 5. Documentation + marketplace launch | 1/12 | In Progress|  |
 
 ## Shipped Milestones
 

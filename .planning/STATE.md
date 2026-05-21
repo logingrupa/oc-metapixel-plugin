@@ -4,8 +4,8 @@ milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
 stopped_at: Phase 5 context gathered
-last_updated: "2026-05-21T10:11:57.297Z"
-last_activity: 2026-05-21 -- Phase 05 planning complete
+last_updated: "2026-05-21T10:16:22.778Z"
+last_activity: 2026-05-21 -- Phase 5 execution started
 progress:
   total_phases: 5
   completed_phases: 4
@@ -26,13 +26,14 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 02 (adapter-system-core-contracts-registry-extension-hooks) — COMPLETE
+Phase: 5 (documentation-marketplace-launch) — EXECUTING
+Plan: 1 of 12
 Plans: 9 of 9 (02-01 + 02-02 + 02-03a + 02-03b + 02-04 + 02-05 + 02-06 + 02-07 + 02-08 gap-closure)
-Status: Ready to execute
+Status: Executing Phase 5
 
 **Phase 2 closure:** 9 plans shipped. 11/11 ADAP-* requirements + 5/5 in-Phase-2 pitfalls (P-01 + P-02 + P-05 + P-08 + P-13) closed. Gap 02-08 (CR-01 envelope-destroyed bypass) closed via snapshot-restore + 3 tests. Final test count: 430 tests / 1532 assertions / 90.2% coverage on full-Lovata Run A; 244 tests / 834 assertions on minimal-install Run B.
 
-Last activity: 2026-05-21 -- Phase 05 planning complete
+Last activity: 2026-05-21 -- Phase 5 execution started
 
 **Next action:** `/gsd:plan-phase 03` — begin Phase 3 (cart-plugin discovery + checkout-flow events). Phase 2 contracts (EventSubjectAdapter, ValueResolver, AdapterRegistry) and infrastructure (Settings, PluginGuard, SiteResolver, EventLogWriter, MetaClient, PayloadBuilder, UserDataHasher, SendCapiEvent, ShopaholicOrderAdapter) ready for downstream consumers.
 
