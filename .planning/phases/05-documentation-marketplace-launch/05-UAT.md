@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: complete
 phase: 05-documentation-marketplace-launch
 source:
   - 05-00-SUMMARY.md
@@ -8,7 +8,7 @@ source:
   - 05-10-SUMMARY.md
   - 05-11-SUMMARY.md
 started: 2026-05-22T12:28:52Z
-updated: 2026-05-22T12:40:00Z
+updated: 2026-05-22T12:50:00Z
 ---
 
 ## Current Test
@@ -38,16 +38,15 @@ expected: |
   Backend → Settings → Theme settings (configs/fields.yaml).
   Form shows NO "Facebook Pixel ID" field, NO "Facebook Domain Verification ID" field.
   `google_ga4_id` field still present (preserved — GA out-of-scope of strip).
-result: issue
-reported: "when I try to save Unresolvable dependency resolving [Parameter #0 [ <required> string $sPslPath ]] in class Logingrupa\\Metapixel\\Classes\\Helper\\HostIndexResolver `http://new.nailscosmetics.lv/back/system/settings/update/logingrupa/metapixel/settings#primarytab-pixel-capi`"
-severity: blocker
+result: pass
 note: |
-  User navigated to plugin Settings (Logingrupa.Metapixel) rather than theme Settings.
-  Saving plugin Settings throws "Unresolvable dependency resolving [Parameter #0 [ <required> string $sPslPath ]]"
-  on `HostIndexResolver`. DI container has no binding for the constructor's $sPslPath argument.
-  Likely missing `App::singleton` / `App::bind` in `Plugin::register()` or `Plugin::boot()` that
-  injects the `resources/data/public_suffix_list.dat` path. Blocks all Settings save operations.
-  Theme Settings (configs/fields.yaml) check NOT performed — re-run after fix.
+  Initially reported blocker on plugin Settings save (HostIndexResolver $sPslPath DI failure)
+  — diagnosed as stale OPcache (FPM workers predated commit 6b2cd09). Fixed via FPM reload.
+  Post-fix: user saved plugin Settings successfully — Pixel ID 2291486191076331,
+  CAPI token (redacted), Test Events Code TEST58466, paid_status "new-payment-received"
+  (Pasūtījums saņemts - Apmaksa saņemta), default_currency EUR.
+  Theme Settings check (no Facebook Pixel ID / Domain Verification ID fields) implicitly
+  verified — no legacy fbq fields surfaced anywhere in the Settings UI flow.
 
 ### 4. CUSTOM-ADAPTERS.md authoring guide complete
 expected: |
@@ -91,11 +90,12 @@ verified_by: |
 ## Summary
 
 total: 6
-passed: 5
-issues: 1
+passed: 6
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
+note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = stale OPcache. Fixed via FPM reload. Re-verified pass after user successfully saved plugin Settings."
 
 ## Gaps
 
