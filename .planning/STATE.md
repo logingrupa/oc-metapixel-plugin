@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Phase 5 plan 05-03 closed; awaiting 05-04 wave
-last_updated: "2026-05-22T21:30:00Z"
-last_activity: 2026-05-22 -- Phase 5 plan 05-03 UAT Gate 1 closed (5/5 PASS)
+stopped_at: Phase 5 plan 05-04 Task 1 shipped; blocked on operator UAT Gate 2
+last_updated: "2026-05-22T21:40:00Z"
+last_activity: 2026-05-22 -- Phase 5 plan 05-04 Task 1 layouts shipped (theme 524189f)
 progress:
   total_phases: 5
   completed_phases: 4
@@ -26,16 +26,22 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 5 (documentation-marketplace-launch) — EXECUTING
-Plan: 4 of 12 next (05-04 PixelHead wire + UAT Gate 2)
-Plans: 5 of 12 closed (05-00, 05-02, 05-03, 05-10, 05-11) — remaining 05-04, 05-06, 05-08, 05-09, 05-12, 05-13, 05-14
-Status: Executing Phase 5
+Phase: 5 (documentation-marketplace-launch) — EXECUTING (paused on UAT Gate 2)
+Plan: 4 of 12 in progress (05-04 — Task 1 shipped, Task 2 operator-gated)
+Plans: 5 of 12 closed (05-00, 05-02, 05-03, 05-10, 05-11) — in-progress 05-04, remaining 05-06, 05-08, 05-09, 05-12, 05-13, 05-14
+Status: Awaiting operator UAT Gate 2
 
-**Phase 5 Wave 3 closure:** Plan 05-03 UAT Gate 1 signed by operator (Rolands Zeltins, 2026-05-22 21:17 UTC). Three-source convergence on zero events across /, /catalog, /product/<slug>, /checkout, /order-complete. Authority: commit `20d0c92` (6/6 UAT script PASS). Stale-OPcache blocker diagnosed as deploy-time only; Forge symlink-swap deploys reload FPM automatically.
+**Phase 5 Wave 4 Task 1 closure:** Theme commit `524189f` adds `[pixelHead]` INI + `{% component 'pixelHead' %}` render to main.htm, content.htm, light.htm, catalog_default.htm. Component placed before `{% partial 'google_analythics' %}` inside <head>. PixelHead component is registered in plugin Plugin.php line 112 (alias `pixelHead` → `Logingrupa\Metapixel\Components\PixelHead`).
 
-Last activity: 2026-05-22 -- Phase 5 plan 05-03 UAT Gate 1 closed (5/5 PASS)
+Last activity: 2026-05-22 -- Phase 5 plan 05-04 Task 1 layouts shipped (theme 524189f)
 
-**Next action:** Execute plan `05-04-PLAN.md` Task 1 (autonomous code: declare `[pixelHead]` in 4 theme layouts — main.htm, content.htm, light.htm, catalog_default.htm — and render via `{% component 'pixelHead' %}` inside `<head>`). Task 2 is operator-gated UAT Gate 2 (PageView-only verify + event_id round-trip on the same 5 pages). Theme repo lives at `/home/forge/nailscosmetics.lv/themes/logingrupa-naisstore/` — NOT in this plugin repo. Operator approval required between Task 1 deploy and Task 2 UAT capture per D-03.
+**Next action (operator-gated):**
+1. Operator deploys theme commit `524189f` to https://new.nailscosmetics.lv (Forge UI → Deploy Now)
+2. Verify 5 pages (`/`, `/catalog`, `/product/<slug>`, `/checkout`, `/order-complete`) — Pixel Helper sees 1 PageView per page-load, Test Events shows Browser+Server "Deduplicated" rows, EventLog `WHERE event_name='PageView' AND channel='capi'` count=1 per page-load, same `event_id` (UUID v4) across all three sources
+3. Author `.planning/phases/05-documentation-marketplace-launch/05-04-UAT-GATE-2.md` per 05-04-PLAN.md Task 2 Step C template
+4. Re-invoke `/gsd-execute-phase 5` to resume — close 05-04 + drive 05-06 EventPixel wire on order-complete pages
+
+If any source under-counts or event_id round-trip fails, route to `/gsd-debug` per D-09 — do NOT type resume signal.
 
 ## Roadmap Snapshot
 
