@@ -1,5 +1,5 @@
 ---
-status: partial
+status: diagnosed
 phase: 05-documentation-marketplace-launch
 source:
   - 05-00-SUMMARY.md
@@ -104,6 +104,15 @@ blocked: 0
   reason: "User reported: when I try to save Unresolvable dependency resolving [Parameter #0 [ <required> string $sPslPath ]] in class Logingrupa\\Metapixel\\Classes\\Helper\\HostIndexResolver `http://new.nailscosmetics.lv/back/system/settings/update/logingrupa/metapixel/settings#primarytab-pixel-capi`"
   severity: blocker
   test: 3
-  artifacts: []
-  missing: []
-  debug_session: ""
+  root_cause: "Stale PHP 8.4 FPM workers (started May 14) running OPcache-compiled bytecode of Plugin.php from BEFORE the May 21 commit 6b2cd09 that wired App::singleton(HostIndexResolver::class). On-disk code is correct (Plugin.php:63-68 has the binding). CLI bootstrap resolves cleanly. Production error log 2026-05-22 20:49:47 shows the stack trace from Container.php:1425 → Settings.php:239. NOT a code bug — operational deploy step missed."
+  artifacts:
+    - path: "Plugin.php:63-68"
+      issue: "Binding present on disk but not in OPcache memory"
+    - path: "classes/helper/HostIndexResolver.php:36"
+      issue: "Constructor: public function __construct(private readonly string $sPslPath)"
+    - path: "models/Settings.php:239"
+      issue: "DI call site: App::make(HostIndexResolver::class) via beforeSave → partitionHosts"
+  missing:
+    - "Operator must run: sudo systemctl reload php8.4-fpm  (per parent CLAUDE.md OPcache flush protocol)"
+  debug_session: ".planning/debug/settings-save-host-resolver-di.md"
+  phase_scope: "Phase 4 carry-over — commit 6b2cd09 deploy missed the FPM reload step. NOT a Phase 5 code change."
