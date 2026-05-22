@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-05-21T10:16:22.778Z"
-last_activity: 2026-05-21 -- Phase 5 execution started
+stopped_at: Phase 5 plan 05-03 closed; awaiting 05-04 wave
+last_updated: "2026-05-22T21:30:00Z"
+last_activity: 2026-05-22 -- Phase 5 plan 05-03 UAT Gate 1 closed (5/5 PASS)
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 39
-  completed_plans: 27
-  percent: 69
+  completed_plans: 28
+  percent: 72
 ---
 
 # Project State
@@ -27,15 +27,15 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 5 (documentation-marketplace-launch) — EXECUTING
-Plan: 1 of 12
-Plans: 9 of 9 (02-01 + 02-02 + 02-03a + 02-03b + 02-04 + 02-05 + 02-06 + 02-07 + 02-08 gap-closure)
+Plan: 4 of 12 next (05-04 PixelHead wire + UAT Gate 2)
+Plans: 5 of 12 closed (05-00, 05-02, 05-03, 05-10, 05-11) — remaining 05-04, 05-06, 05-08, 05-09, 05-12, 05-13, 05-14
 Status: Executing Phase 5
 
-**Phase 2 closure:** 9 plans shipped. 11/11 ADAP-* requirements + 5/5 in-Phase-2 pitfalls (P-01 + P-02 + P-05 + P-08 + P-13) closed. Gap 02-08 (CR-01 envelope-destroyed bypass) closed via snapshot-restore + 3 tests. Final test count: 430 tests / 1532 assertions / 90.2% coverage on full-Lovata Run A; 244 tests / 834 assertions on minimal-install Run B.
+**Phase 5 Wave 3 closure:** Plan 05-03 UAT Gate 1 signed by operator (Rolands Zeltins, 2026-05-22 21:17 UTC). Three-source convergence on zero events across /, /catalog, /product/<slug>, /checkout, /order-complete. Authority: commit `20d0c92` (6/6 UAT script PASS). Stale-OPcache blocker diagnosed as deploy-time only; Forge symlink-swap deploys reload FPM automatically.
 
-Last activity: 2026-05-21 -- Phase 5 execution started
+Last activity: 2026-05-22 -- Phase 5 plan 05-03 UAT Gate 1 closed (5/5 PASS)
 
-**Next action:** `/gsd:plan-phase 03` — begin Phase 3 (cart-plugin discovery + checkout-flow events). Phase 2 contracts (EventSubjectAdapter, ValueResolver, AdapterRegistry) and infrastructure (Settings, PluginGuard, SiteResolver, EventLogWriter, MetaClient, PayloadBuilder, UserDataHasher, SendCapiEvent, ShopaholicOrderAdapter) ready for downstream consumers.
+**Next action:** Execute plan `05-04-PLAN.md` Task 1 (autonomous code: declare `[pixelHead]` in 4 theme layouts — main.htm, content.htm, light.htm, catalog_default.htm — and render via `{% component 'pixelHead' %}` inside `<head>`). Task 2 is operator-gated UAT Gate 2 (PageView-only verify + event_id round-trip on the same 5 pages). Theme repo lives at `/home/forge/nailscosmetics.lv/themes/logingrupa-naisstore/` — NOT in this plugin repo. Operator approval required between Task 1 deploy and Task 2 UAT capture per D-03.
 
 ## Roadmap Snapshot
 

@@ -255,17 +255,17 @@ class Plugin extends PluginBase {
   4. Plugin manifest (`plugin.yaml`) ships generic name "Meta Pixel + Conversions API", generic description, generic icon. Marketplace assets present: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting the v2.0.0 initial public release.
   5. Git tag `v2.0.0` annotated and pushed to remote. No BC shim; no upgrade migration in v2.0.
 
-**Plans:** 5/12 plans executed
+**Plans:** 5/12 plans executed (05-00, 05-02, 05-03, 05-10, 05-11 closed)
 
-- [ ] `05-00-PLAN.md` — Wave 0 test scaffolding (ReadmeStructureTest + CustomAdaptersStructureTest + AssetsExistTest + PluginYamlSanityTest) (DOCS-01, DOCS-02, DOCS-03, MKT-02, MKT-03)
-- [ ] `05-02-PLAN.md` — Legacy JS pixel inventory + strip: Task 0 inventory grep, Tasks 1-3 four deletes + eleven edits + bundle rebuild + dead-v1.x `purchasePixel` block strip (DOCS-01 cutover)
-- [ ] `05-03-PLAN.md` — UAT Gate 1: zero-events verification on 5 pages via Pixel Helper + Test Events + EventLog DB (D-03 + D-05)
+- [x] `05-00-PLAN.md` — Wave 0 test scaffolding (ReadmeStructureTest + CustomAdaptersStructureTest + AssetsExistTest + PluginYamlSanityTest) (DOCS-01, DOCS-02, DOCS-03, MKT-02, MKT-03)
+- [x] `05-02-PLAN.md` — Legacy JS pixel inventory + strip: Task 0 inventory grep, Tasks 1-3 four deletes + eleven edits + bundle rebuild + dead-v1.x `purchasePixel` block strip (DOCS-01 cutover)
+- [x] `05-03-PLAN.md` — UAT Gate 1: zero-events verification on 5 pages via Pixel Helper + Test Events + EventLog DB (D-03 + D-05) — closed 2026-05-22 5/5 PASS (commit `933f194`)
 - [ ] `05-04-PLAN.md` — PixelHead layout wire + UAT Gate 2: Task 1 wires `[pixelHead]` in 4 layouts; Task 2 operator-verifies PageView-only + event_id round-trip (D-03 + D-05; DOCS-01)
 - [ ] `05-06-PLAN.md` — EventPixel per-event wire + UAT Gate 3: Task 1 wires `[eventPixel]` on order-complete + order-complete-proforma; Task 2 operator-places test order + verifies Purchase event_id round-trip across 4 sources (D-03 + D-05; DOCS-01)
 - [ ] `05-08-PLAN.md` — Live smoke on new.nailscosmetics.lv → 05-SMOKE-LOG.md + 5 screenshots at plugin-relative `docs/screenshots/` (DOCS-01, MKT-03)
 - [ ] `05-09-PLAN.md` — README.md single-page walkthrough (DOCS-01, DOCS-02)
-- [ ] `05-10-PLAN.md` — docs/CUSTOM-ADAPTERS.md with AcmeCart minimal register snippet + OFFLINE Mall full inline example + 3 hook patterns + Testing section (DOCS-03)
-- [ ] `05-11-PLAN.md` — v1.x reference strip (13 docblock decorators + ROADMAP/REQUIREMENTS MKT-* wording) + NoV1xReferencesTest gate (release hygiene)
+- [x] `05-10-PLAN.md` — docs/CUSTOM-ADAPTERS.md with AcmeCart minimal register snippet + OFFLINE Mall full inline example + 3 hook patterns + Testing section (DOCS-03)
+- [x] `05-11-PLAN.md` — v1.x reference strip (13 docblock decorators + ROADMAP/REQUIREMENTS MKT-* wording) + NoV1xReferencesTest gate (release hygiene)
 - [ ] `05-12-PLAN.md` — CHANGELOG.md fresh v2.0.0 + plugin.yaml verify + composer.json keywords + screenshot visual review (MKT-02, MKT-03)
 - [ ] `05-13-PLAN.md` — Pre-flip security sweep (git history secret scan + opportunistic git-filter-repo + .planning/ operator-infra redact) (release blocker)
 - [ ] `05-14-PLAN.md` — Repo flip public + v2.0.0 annotated tag + composer VCS install smoke from /tmp + CI matrix verify (MKT-01, MKT-04, MKT-05)
