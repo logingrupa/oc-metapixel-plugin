@@ -10,7 +10,7 @@ tabs:
             tab: logingrupa.metapixel::lang.tab.pixel_and_capi
             label: logingrupa.metapixel::lang.field.capi_access_token_label
             commentAbove: logingrupa.metapixel::lang.field.capi_access_token_comment
-            type: password
+            type: sensitive
             span: full
         test_event_code:
             tab: logingrupa.metapixel::lang.tab.pixel_and_capi
