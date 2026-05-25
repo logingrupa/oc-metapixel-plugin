@@ -117,9 +117,10 @@ final class SendCapiEvent implements ShouldQueue
         }
 
         $arCreds = Settings::lookupForSite($iSiteId);
+        $arOutgoing = $this->withTestEventCode($this->arPayload);
 
         try {
-            $arResponse = $obClient->sendForPixel($arCreds['pixel_id'], $arCreds['capi_access_token'], $this->arPayload);
+            $arResponse = $obClient->sendForPixel($arCreds['pixel_id'], $arCreds['capi_access_token'], $arOutgoing);
         } catch (MetaApiTransientException $obException) {
             throw $obException;
         } catch (MetaApiPermanentException|MissingPixelConfigException|MissingCapiTokenException $obException) {
@@ -251,6 +252,29 @@ final class SendCapiEvent implements ShouldQueue
      * for replay. The BindingResolutionException early-return path passes null —
      * adapter does not exist; re-resolution is impossible by definition.
      */
+    /**
+     * Merge Settings.test_event_code into the top-level CAPI payload. Required
+     * by Meta Events Manager Test Events panel to pair Browser + Server.
+     * No-op when the setting is empty (production) or when the payload already
+     * carries an override (third-party before_dispatch listener wins).
+     *
+     * @param  array<string, mixed>  $arPayload
+     * @return array<string, mixed>
+     */
+    private function withTestEventCode(array $arPayload): array
+    {
+        if (isset($arPayload['test_event_code'])) {
+            return $arPayload;
+        }
+        $mTestCode = Settings::get('test_event_code', '');
+        if (! is_string($mTestCode) || $mTestCode === '') {
+            return $arPayload;
+        }
+        $arPayload['test_event_code'] = $mTestCode;
+
+        return $arPayload;
+    }
+
     private function writeFailedEvent(Throwable $obException, ?int $iHttpStatus, ?EventSubjectAdapter $obAdapter): void
     {
         try {
