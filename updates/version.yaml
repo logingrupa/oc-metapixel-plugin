@@ -11,3 +11,6 @@
 1.0.3:
     - Add dedup_pct, emq, dedup_checked_at columns to failed_events for CheckDedup admin action (FAIL-03).
     - AddDedupColumnsToFailedEvents.php
+1.0.4:
+    - Add adapter_type, subject_type, subject_id columns to failed_events — covers v1.x deploys where the edit-in-place to CreateMetapixelFailedEventsTable was invisible to October's migration tracker.
+    - AddSubjectColumnsToFailedEvents.php
