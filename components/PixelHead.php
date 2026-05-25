@@ -4,7 +4,9 @@ namespace Logingrupa\Metapixel\Components;
 
 use Cms\Classes\ComponentBase;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Request;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionValueResolver;
@@ -94,11 +96,12 @@ class PixelHead extends ComponentBase
             // not silently drop every row after the first via INSERT IGNORE.
             // The event_id (UUIDv4) makes crc32 per-request unique.
             $sActionKey = self::BASE_ACTION_KEY_PREFIX.':'.($iSiteId ?? 0).':'.$sEventId;
-            $obEvent = ThemeActionEvent::fromArray([
+            $arUserData = $this->collectRequestUserData();
+            $obEvent = ThemeActionEvent::fromArray(array_merge($arUserData, [
                 'name' => 'PageView',
                 'action_key' => $sActionKey,
                 'site_id' => $iSiteId,
-            ]);
+            ]));
 
             $this->dispatchBasePageViewCapi($obAdapter, $obEvent, $sEventId, $iEventTime);
 
@@ -120,6 +123,38 @@ class PixelHead extends ComponentBase
             ]);
             $this->page['pixelHeadBase'] = null;
         }
+    }
+
+    /**
+     * Collect Meta CAPI user_data fields from the request context. PixelHead
+     * lives in `components/` so the PHPStan disallowed-calls ban on Request /
+     * SiteManager (scoped to classes/queue|event|adapter per D-15+D-16) does
+     * not apply here — request-context capture is exactly what this layer is
+     * for. The values are then propagated through ThemeActionEvent.arPayload
+     * so the queue-side ThemeActionAdapter.getUserData can read them without
+     * touching the request itself.
+     *
+     * Captured: client_ip_address (Request::ip), client_user_agent
+     * (Request::userAgent), fbp (_fbp cookie set by EnsureFbpFbcCookies
+     * middleware), fbc (_fbc cookie set by same middleware when ?fbclid
+     * present). Meta requires at least one customer-info parameter or it
+     * rejects the event with HTTP 400 subcode 2804050.
+     *
+     * @return array<string, ?string>
+     */
+    protected function collectRequestUserData(): array
+    {
+        $sClientIp = (string) Request::ip();
+        $sClientUa = (string) Request::userAgent();
+        $mFbp = Cookie::get('_fbp');
+        $mFbc = Cookie::get('_fbc');
+
+        return [
+            'client_ip_address' => $sClientIp !== '' ? $sClientIp : null,
+            'client_user_agent' => $sClientUa !== '' ? $sClientUa : null,
+            'fbp' => is_string($mFbp) && $mFbp !== '' ? $mFbp : null,
+            'fbc' => is_string($mFbc) && $mFbc !== '' ? $mFbc : null,
+        ];
     }
 
     /**

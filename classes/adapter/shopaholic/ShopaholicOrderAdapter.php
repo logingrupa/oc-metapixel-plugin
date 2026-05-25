@@ -81,10 +81,29 @@ final class ShopaholicOrderAdapter implements EventSubjectAdapter
         return $obSubject instanceof Order ? $obSubject : null;
     }
 
+    /**
+     * Read a string column off the Order. Falls back to the property JSON
+     * column for customer fields that Lovata stores there (email, phone,
+     * name, last_name, billing_*, shipping_*) — Lovata's Order model exposes
+     * them only via the `property` jsonable, not as direct attributes.
+     */
     private function stringAttr(?Order $obOrder, string $sAttr): ?string
     {
-        $mValue = $obOrder?->getAttribute($sAttr);
+        if ($obOrder === null) {
+            return null;
+        }
+        $mDirect = $obOrder->getAttribute($sAttr);
+        if (is_string($mDirect) && $mDirect !== '') {
+            return $mDirect;
+        }
+        $mProperty = $obOrder->getAttribute('property');
+        if (is_array($mProperty)) {
+            $mJson = $mProperty[$sAttr] ?? null;
+            if (is_string($mJson) && $mJson !== '') {
+                return $mJson;
+            }
+        }
 
-        return (is_string($mValue) && $mValue !== '') ? $mValue : null;
+        return null;
     }
 }
