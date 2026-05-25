@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionValueResolver;
+use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
@@ -22,6 +23,8 @@ use Throwable;
  */
 final class CartPositionWatcher
 {
+    use CapturesRequestUserData;
+
     public function subscribe(Dispatcher $obDispatcher): void
     {
         $obDispatcher->listen('eloquent.created: '.CartPosition::class, [$this, 'handleCreated']);
@@ -79,6 +82,7 @@ final class CartPositionWatcher
             time(),
             [],
         );
+        $arPayload = $this->injectRequestUserData($arPayload);
 
         SendCapiEvent::dispatch('AddToCart', $arPayload, $obCartPosition, ShopaholicCartPositionAdapter::class);
     }

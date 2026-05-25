@@ -6,6 +6,7 @@ use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver;
+use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
@@ -20,6 +21,8 @@ use Throwable;
  */
 final class OrderStatusWatcher
 {
+    use CapturesRequestUserData;
+
     public function subscribe(Dispatcher $obDispatcher): void
     {
         $obDispatcher->listen('eloquent.updated: '.Order::class, [$this, 'handle']);
@@ -54,6 +57,7 @@ final class OrderStatusWatcher
                 time(),
                 [],
             );
+            $arPayload = $this->injectRequestUserData($arPayload);
 
             SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class);
         } catch (Throwable $obException) {
