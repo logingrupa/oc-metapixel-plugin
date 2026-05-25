@@ -1,6 +1,6 @@
 {% if eventPixelData %}
 <script>
-fbq('track', {{ eventPixelData.event_name_json|raw }}, {{ eventPixelData.custom_data_json|raw }}, {eventID: {{ eventPixelData.event_id_json|raw }}});
+fbq('track', {{ eventPixelData.event_name_json|raw }}, {{ eventPixelData.custom_data_json|raw }}, {eventID: {{ eventPixelData.event_id_json|raw }}{% if eventPixelData.test_event_code_json %}, test_event_code: {{ eventPixelData.test_event_code_json|raw }}{% endif %}});
 document.addEventListener('DOMContentLoaded', function() {
     jax.ajax('eventPixel::onMarkFired', { data: {
         subject_type: {{ eventPixelData.subject_type_json|raw }},

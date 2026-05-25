@@ -7,6 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Logingrupa\Metapixel\Models\Settings;
 use October\Rain\Support\Facades\Input;
 use Throwable;
 
@@ -73,6 +74,7 @@ final class EventPixel extends ComponentBase
             'event_id_json' => (string) json_encode($sEventId, self::JS),
             'subject_type_json' => (string) json_encode($sSubjectType, self::JS),
             'custom_data_json' => (string) json_encode($arCustomData, self::JS),
+            'test_event_code_json' => $this->readTestEventCodeJson(),
         ];
     }
 
@@ -95,6 +97,16 @@ final class EventPixel extends ComponentBase
         }
 
         return $this->insertPixelRow($sServerEventId, $sEventName, $sSubjectType, $iSubjectId, $arCapiRow);
+    }
+
+    private function readTestEventCodeJson(): ?string
+    {
+        $mTestCode = Settings::get('test_event_code', '');
+        if (! is_string($mTestCode) || $mTestCode === '') {
+            return null;
+        }
+
+        return (string) json_encode($mTestCode, self::JS);
     }
 
     private function inputString(string $sKey): string

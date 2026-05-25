@@ -105,12 +105,16 @@ class PixelHead extends ComponentBase
 
             $this->dispatchBasePageViewCapi($obAdapter, $obEvent, $sEventId, $iEventTime);
 
+            $mTestCode = Settings::get('test_event_code', '');
+            $sTestCode = is_string($mTestCode) ? $mTestCode : '';
+
             $this->page['pixelHeadBase'] = [
                 'pixel_id' => $sPixelId,
                 'pixel_id_js' => (string) json_encode($sPixelId, self::JS),
                 'event_name_js' => (string) json_encode('PageView', self::JS),
                 'event_id_js' => (string) json_encode($sEventId, self::JS),
                 'event_time_js' => (string) json_encode($iEventTime, self::JS),
+                'test_event_code_js' => $sTestCode !== '' ? (string) json_encode($sTestCode, self::JS) : null,
                 'noscript_pixel_id' => rawurlencode($sPixelId),
                 'noscript_event_name' => rawurlencode('PageView'),
             ];
