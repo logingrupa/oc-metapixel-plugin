@@ -92,7 +92,8 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
                 && ($arEventRecord['event_id'] ?? null) === $sBrowserEventId
                 && ($arEventRecord['event_name'] ?? null) === 'PageView'
                 && $obJob->obSubject instanceof ThemeActionEvent
-                && str_starts_with($obJob->obSubject->sActionKey, 'base:pageview');
+                && str_starts_with($obJob->obSubject->sActionKey, 'base:pageview:')
+                && str_ends_with($obJob->obSubject->sActionKey, $sBrowserEventId);
         });
     }
 

@@ -88,7 +88,12 @@ class PixelHead extends ComponentBase
 
             $sEventId = Uuid::uuid4()->toString();
             $iEventTime = time();
-            $sActionKey = self::BASE_ACTION_KEY_PREFIX.':'.($iSiteId ?? 0);
+            // PageView is per-pageload, not per-subject. action_key MUST be
+            // request-unique so the EventLog UNIQUE race-fence
+            // (subject_type, subject_id, event_name, channel, site_id) does
+            // not silently drop every row after the first via INSERT IGNORE.
+            // The event_id (UUIDv4) makes crc32 per-request unique.
+            $sActionKey = self::BASE_ACTION_KEY_PREFIX.':'.($iSiteId ?? 0).':'.$sEventId;
             $obEvent = ThemeActionEvent::fromArray([
                 'name' => 'PageView',
                 'action_key' => $sActionKey,
