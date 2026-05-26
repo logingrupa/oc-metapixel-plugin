@@ -35,6 +35,8 @@ use Throwable;
  * primary site's pixel — Replay through a non-primary-site row will dispatch
  * under the wrong pixel ID. Marketplace operators are warned via README
  * troubleshooting (DOCS-01).
+ *
+ * @method string listRefresh($definition = null) provided by Backend.Behaviors.ListController; PHPDoc tells PHPStan level 10 that the magic-__call method exists and returns a string-castable list-partial HTML fragment.
  */
 class FailedEvents extends Controller
 {
@@ -317,18 +319,6 @@ class FailedEvents extends Controller
         }
 
         return (float) $mValue;
-    }
-
-    /**
-     * Render the list partial for AJAX-driven refresh after a per-row or
-     * batch action. Wraps makePartial('list') so test subclasses can stub
-     * the heavy backend ListController rendering.
-     */
-    protected function listRefresh(): string
-    {
-        $mResult = $this->makePartial('list');
-
-        return is_string($mResult) ? $mResult : '';
     }
 
     /**
