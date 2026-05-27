@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Phase 5 plan 05-04 Task 1 shipped; blocked on operator UAT Gate 2
-last_updated: "2026-05-22T21:40:00Z"
-last_activity: 2026-05-22 -- Phase 5 plan 05-04 Task 1 layouts shipped (theme 524189f)
+stopped_at: Phase 5 cutover UAT (Gate 2 + items 1-6) PASS; ready to ship 05-06/05-08/05-12/05-13/05-14
+last_updated: "2026-05-27T00:00:00Z"
+last_activity: 2026-05-27 -- Phase 5 UAT Gate 2 + cutover items 1-6 PASS; 02-VERIFICATION re-verified (composer qa green)
 progress:
   total_phases: 5
   completed_phases: 4
@@ -26,22 +26,28 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 5 (documentation-marketplace-launch) — EXECUTING (paused on UAT Gate 2)
-Plan: 4 of 12 in progress (05-04 — Task 1 shipped, Task 2 operator-gated)
-Plans: 5 of 12 closed (05-00, 05-02, 05-03, 05-10, 05-11) — in-progress 05-04, remaining 05-06, 05-08, 05-09, 05-12, 05-13, 05-14
-Status: Awaiting operator UAT Gate 2
+Phase: 5 (documentation-marketplace-launch) — EXECUTING (cutover UAT closed, ready to ship remaining artifacts)
+Plans closed: 6 of 12 (05-00, 05-02, 05-03, 05-04, 05-10, 05-11) — remaining 05-06, 05-08, 05-09 (operator-skipped), 05-12, 05-13, 05-14
+Status: Cutover UAT (Gate 2 + items 1-6) PASS — operator-signed 2026-05-27
 
-**Phase 5 Wave 4 Task 1 closure:** Theme commit `524189f` adds `[pixelHead]` INI + `{% component 'pixelHead' %}` render to main.htm, content.htm, light.htm, catalog_default.htm. Component placed before `{% partial 'google_analythics' %}` inside <head>. PixelHead component is registered in plugin Plugin.php line 112 (alias `pixelHead` → `Logingrupa\Metapixel\Components\PixelHead`).
+**UAT closure 2026-05-27:**
+- `05-04-UAT-GATE-2.md` PASS — PageView browser+server dedup confirmed across 5 pages.
+- `05-UAT-CUTOVER.md` PASS — AddToCart + Purchase browser+server dedup, FailedEvents admin UI Replay, Multisite per-site pixel_id, Cookie kill switch + TrustedHosts allowlist, Translations en/lv.
 
-Last activity: 2026-05-22 -- Phase 5 plan 05-04 Task 1 layouts shipped (theme 524189f)
+**Outside UAT scope:**
+- Debug sessions: `pixelhead-no-base-pageview` (resolved by commit 0658788 — close on next pass), `settings-save-host-resolver-di` (OPcache root cause, FPM reload fix applied — close on next pass).
+- Pending todo `2026-05-27-enable-optional-queue-for-capi-server-events` deferred to next release (post-v2.0.0).
 
-**Next action (operator-gated):**
-1. Operator deploys theme commit `524189f` to https://new.nailscosmetics.lv (Forge UI → Deploy Now)
-2. Verify 5 pages (`/`, `/catalog`, `/product/<slug>`, `/checkout`, `/order-complete`) — Pixel Helper sees 1 PageView per page-load, Test Events shows Browser+Server "Deduplicated" rows, EventLog `WHERE event_name='PageView' AND channel='capi'` count=1 per page-load, same `event_id` (UUID v4) across all three sources
-3. Author `.planning/phases/05-documentation-marketplace-launch/05-04-UAT-GATE-2.md` per 05-04-PLAN.md Task 2 Step C template
-4. Re-invoke `/gsd-execute-phase 5` to resume — close 05-04 + drive 05-06 EventPixel wire on order-complete pages
+**Phase 2 re-verification 2026-05-27:** `02-VERIFICATION.md` flipped human_needed → verified. composer qa green (pint ✓ phpstan L10 ✓ phpmd ✓ pest 455/466). 11 pest failures are Phase 5 scope (README + screenshots + CHANGELOG, owned by plans 05-09/05-08/05-12 — TDD tests written ahead of artifact).
 
-If any source under-counts or event_id round-trip fails, route to `/gsd-debug` per D-09 — do NOT type resume signal.
+**Next action (resume execution):**
+1. README (05-09) is OPERATOR-SKIPPED — defer to post-v2.0.0.
+2. Execute 05-06 (EventPixel wire — already covered by Gate 2 + cutover UAT, just needs SUMMARY).
+3. Execute 05-08 (smoke log + operator-shot screenshots).
+4. Execute 05-12 (CHANGELOG + plugin.yaml + composer.json version bump — closes 4/11 pest failures).
+5. Execute 05-13 (git tag v2.0.0) + 05-14 (marketplace launch wrap).
+
+Resume via `/gsd-execute-phase 5`.
 
 ## Roadmap Snapshot
 

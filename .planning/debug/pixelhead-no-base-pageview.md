@@ -1,9 +1,12 @@
 ---
 slug: pixelhead-no-base-pageview
-status: investigating
-trigger: PixelHead v2.0 component does not emit fbevents.js loader, fbq('init', pixel_id), or base fbq('track', 'PageView', {}, {eventID}) on page-load. Pixel Helper reports "No Pixels found on this page" on staging http://new.nailscosmetics.lv/lv/p/virsejais-parklajums-builder-top-coat-uvled-15ml even after plan 05-04 wires [pixelHead] component into all 4 theme layouts (theme commit 524189f). Blocks Phase 5 UAT Gate 2. Also breaks plan 05-06 EventPixel (template calls fbq() but no loader exists anywhere in plugin code).
+status: resolved
+resolved_on: 2026-05-27
+resolved_by: commit 0658788 "feat(pixelhead): restore base-pixel emission lost in Phase 3 re-derive"
+verified_by: 2026-05-27 operator cutover UAT — PageView fires browser+server with matching event_id; Pixel Helper shows 1 PageView per page-load across all 5 critical pages (05-04-UAT-GATE-2.md PASS).
+trigger: PixelHead v2.0 component did not emit fbevents.js loader, fbq('init', pixel_id), or base fbq('track', 'PageView', {}, {eventID}) on page-load. Pixel Helper reported "No Pixels found on this page" on staging http://new.nailscosmetics.lv/lv/p/virsejais-parklajums-builder-top-coat-uvled-15ml even after plan 05-04 wired [pixelHead] component into all 4 theme layouts (theme commit 524189f). Blocked Phase 5 UAT Gate 2.
 created: 2026-05-25T00:00:00Z
-updated: 2026-05-25T00:00:00Z
+updated: 2026-05-27T00:00:00Z
 ---
 
 # Debug session — pixelhead-no-base-pageview

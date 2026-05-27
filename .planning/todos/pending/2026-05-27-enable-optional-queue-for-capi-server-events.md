@@ -2,6 +2,14 @@
 created: 2026-05-27T10:22:35.986Z
 title: Enable optional queue for CAPI server events
 area: general
+status: deferred
+defer_to: post-v2.0.0
+deferred_on: 2026-05-27
+deferred_reason: |
+  Operator-confirmed during /gsd-verify-work closure 2026-05-27. v2.0.0 ships
+  with sync dispatch; queue toggle is additive work for v2.1 alongside the
+  other deferred Phase 2 extension hooks (adapter.resolve, value.resolve,
+  user_data.resolve, pixel.before_render, settings.lookup).
 files:
   - classes/queue/SendCapiEvent.php:38-77
   - components/PixelHead.php:60-130
@@ -192,7 +200,7 @@ FailedEvents — every event reads the same Settings.use_queue at dispatch time.
        in-action-key so each retry has its own subject_id and would
        legitimately re-fire. Acceptable.
 
-Estimate: ~half day work (2 fields.yaml entries + lang keys for 4 locales +
+Estimate: ~1h work (2 fields.yaml entries + lang keys for 4 locales +
 SendCapiEvent.dispatchForCurrentSettings helper + 5 call-site updates + 2 new
 test cases + README/CHANGELOG paragraphs). No migration — CommonSettings JSON
 blob absorbs the new fields for free.
