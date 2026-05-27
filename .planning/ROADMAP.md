@@ -147,7 +147,10 @@ class Plugin extends PluginBase {
 - [x] **Phase 2: Adapter system core — contracts + registry + extension hooks** — `EventSubjectAdapter` + `ValueResolver` + `AdapterRegistry` + 3 `Event::fire` hooks; v1.x I/O backbone refactored behind adapter signatures; 177 tests adapted via FakeAdapter. (completed 2026-05-17)
 - [x] **Phase 3: ShopaholicAdapter + ThemeActionAdapter parallel wave** — Non-regression port of v1.x Order/Cart logic behind ShopaholicAdapter; generic theme-action tracking via Twig + Larajax for operators without a supported cart. (completed 2026-05-18)
 - [x] **Phase 4: Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations** — Per-site `pixel_id`/`capi_access_token`; operator-supplied `trusted_hosts` + PSL-aware index derivation; FailedEvents backend UI; en/lv translations. (completed 2026-05-20)
-- [ ] **Phase 5: Documentation + marketplace launch** — README install guide (<10 min), custom-adapter authoring guide, marketplace assets, `v2.0.0` tag, `composer require` green on clean OctoberCMS 4.x.
+- [ ] **Phase 5: Documentation + marketplace launch (partial)** — Cutover wave + CHANGELOG shipped 2026-05-27. README + smoke + screenshots deferred until Phase 6 ViewContent funnel ships. 05-13 + 05-14 split out to Launch Milestone.
+- [ ] **Phase 6: ViewContent funnel — Shopaholic PDP + offer-switch** — Close conversion funnel at offer-level grain. ShopaholicProductAdapter + ProductPageWatcher + offer-switch JS. Refactor PixelHead to flush at `cms.page.beforeRenderPage` (breaking timing change — no callout, plugin is fresh, no operators on legacy timing yet). See brief `.planning/briefs/2026-05-27-viewcontent-funnel-shopaholic.md`.
+
+**Launch Milestone (deferred, separate from numbered phases)** — Pre-flip security sweep Step B + public repo flip + `v2.0.0` annotated tag. Triggered when operator decides to launch; not gated by phase progress.
 
 ## Phase Details
 
@@ -255,20 +258,39 @@ class Plugin extends PluginBase {
   4. Plugin manifest (`plugin.yaml`) ships generic name "Meta Pixel + Conversions API", generic description, generic icon. Marketplace assets present: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting the v2.0.0 initial public release.
   5. Git tag `v2.0.0` annotated and pushed to remote. No BC shim; no upgrade migration in v2.0.
 
-**Plans:** 5/12 plans executed (05-00, 05-02, 05-03, 05-10, 05-11 closed)
+**Plans:** 8/10 plans executed (05-00, 05-02, 05-03, 05-04, 05-06, 05-10, 05-11, 05-12 closed). 05-13 + 05-14 split out to **Launch Milestone** below (deferred until Phase 6 ViewContent funnel ships + operator decides launch). 05-08 + 05-09 remain in Phase 5 — block on Phase 6 (smoke needs ViewContent firing; README must document it).
 
 - [x] `05-00-PLAN.md` — Wave 0 test scaffolding (ReadmeStructureTest + CustomAdaptersStructureTest + AssetsExistTest + PluginYamlSanityTest) (DOCS-01, DOCS-02, DOCS-03, MKT-02, MKT-03)
 - [x] `05-02-PLAN.md` — Legacy JS pixel inventory + strip: Task 0 inventory grep, Tasks 1-3 four deletes + eleven edits + bundle rebuild + dead-v1.x `purchasePixel` block strip (DOCS-01 cutover)
 - [x] `05-03-PLAN.md` — UAT Gate 1: zero-events verification on 5 pages via Pixel Helper + Test Events + EventLog DB (D-03 + D-05) — closed 2026-05-22 5/5 PASS (commit `933f194`)
-- [ ] `05-04-PLAN.md` — PixelHead layout wire + UAT Gate 2: Task 1 wires `[pixelHead]` in 4 layouts; Task 2 operator-verifies PageView-only + event_id round-trip (D-03 + D-05; DOCS-01)
-- [ ] `05-06-PLAN.md` — EventPixel per-event wire + UAT Gate 3: Task 1 wires `[eventPixel]` on order-complete + order-complete-proforma; Task 2 operator-places test order + verifies Purchase event_id round-trip across 4 sources (D-03 + D-05; DOCS-01)
-- [ ] `05-08-PLAN.md` — Live smoke on new.nailscosmetics.lv → 05-SMOKE-LOG.md + 5 screenshots at plugin-relative `docs/screenshots/` (DOCS-01, MKT-03)
-- [ ] `05-09-PLAN.md` — README.md single-page walkthrough (DOCS-01, DOCS-02)
+- [x] `05-04-PLAN.md` — PixelHead layout wire + UAT Gate 2 — closed 2026-05-27 PASS (theme commit `524189f`)
+- [x] `05-06-PLAN.md` — EventPixel per-event wire + UAT Gate 3 — closed 2026-05-27 PASS (theme commits `6d2367c` + `866236e`)
+- [ ] `05-08-PLAN.md` — Live smoke on new.nailscosmetics.lv → 05-SMOKE-LOG.md + 5 screenshots at plugin-relative `docs/screenshots/` (DOCS-01, MKT-03) — **blocks on Phase 6 ViewContent shipping**
+- [ ] `05-09-PLAN.md` — README.md single-page walkthrough (DOCS-01, DOCS-02) — **blocks on Phase 6 ViewContent + PixelHead deferred-flush shipping (README must document ViewContent scope + breaking lifecycle change)**
 - [x] `05-10-PLAN.md` — docs/CUSTOM-ADAPTERS.md with AcmeCart minimal register snippet + OFFLINE Mall full inline example + 3 hook patterns + Testing section (DOCS-03)
 - [x] `05-11-PLAN.md` — v1.x reference strip (13 docblock decorators + ROADMAP/REQUIREMENTS MKT-* wording) + NoV1xReferencesTest gate (release hygiene)
-- [ ] `05-12-PLAN.md` — CHANGELOG.md fresh v2.0.0 + plugin.yaml verify + composer.json keywords + screenshot visual review (MKT-02, MKT-03)
-- [ ] `05-13-PLAN.md` — Pre-flip security sweep (git history secret scan + opportunistic git-filter-repo + .planning/ operator-infra redact) (release blocker)
-- [ ] `05-14-PLAN.md` — Repo flip public + v2.0.0 annotated tag + composer VCS install smoke from /tmp + CI matrix verify (MKT-01, MKT-04, MKT-05)
+- [x] `05-12-PLAN.md` — CHANGELOG.md fresh v2.0.0 + composer.json keywords + plugin.yaml verify (MKT-02, MKT-03) — closed 2026-05-27 4/5 AssetsExistTest GREEN (screenshots assertion owned by 05-08)
+
+### Phase 6: ViewContent funnel — Shopaholic PDP + offer-switch
+
+**Goal:** Close the Meta Pixel conversion funnel for Shopaholic operators at offer-level grain — `ViewContent (SKU) → AddToCart (SKU) → Purchase (SKU per line item)`. Zero theme code required. Plugin auto-fires on Shopaholic PDP render AND on offer-selector change. Browser fbq + Server CAPI share `event_id` for Meta dedup.
+
+**Depends on:** Phase 5 cutover wave (PixelHead + EventPixel shipped + UAT Gates 2 + 3 PASS). MUST ship before Phase 5 plans 05-08 (smoke needs ViewContent firing) and 05-09 (README must document ViewContent + breaking PixelHead lifecycle change).
+
+**Source brief:** `.planning/briefs/2026-05-27-viewcontent-funnel-shopaholic.md` — D-1 through D-6 locked 2026-05-27.
+
+**Requirements:** New — to be enumerated in REQUIREMENTS.md as `VIEW-01..NN` during `/gsd-plan-phase 6`.
+
+**Success Criteria** (what must be TRUE):
+  1. `ViewContent` fires on every Shopaholic PDP render via `shopaholic.product.open` event subscriber. content_ids = `['SKU-{pid}-{oid}']` for multi-offer products; `['SKU-{pid}']` for single-offer. Browser fbq + Server CAPI share event_id.
+  2. `ViewContent` re-fires with new event_id + new offer SKU on every `[name="offer_id"]` DOM change (select / radio / hidden input) via plugin-injected vanilla JS + ThemeAjaxHandler endpoint.
+  3. `PixelHead` flushes at `cms.page.beforeRenderPage` (NOT `onRun()`) so page-tier components can push events to ThemeEventCollector before flush. Base PageView still emits; action_key shape `base:pageview:{site_id}:{event_id}` unchanged.
+  4. `ShopaholicProductAdapter` + `ShopaholicProductValueResolver` ship with PHPStan level 10 + PHPMD + Pint clean. PHPStan disallowed-calls deny-list still bans `SiteManager::*`, `Request::*`, `request()` inside adapter dir — `getSiteId()` reads from `$obProduct->site_id`.
+  5. `composer deps` boundary check confirms `ShopaholicProductAdapter` is the only new file importing `Lovata\Shopaholic\*`.
+  6. Test matrix (11 ProductPageWatcher assertions + 4 PixelHeadDeferredFlush assertions) all GREEN; coverage stays ≥90 % on full-Lovata CI cell.
+  7. CHANGELOG.md gets a new `### Changed` subsection under `## [2.0.0] - YYYY-MM-DD` documenting PixelHead lifecycle change. README documents ViewContent + offer-switch behaviour.
+
+**Plans:** 0/0 — to be authored via `/gsd-plan-phase 6` against the brief.
 
 ## Pitfall Coverage Map
 
@@ -293,6 +315,17 @@ class Plugin extends PluginBase {
 
 (Pitfalls P-04, P-14, P-16, P-17 — BC migration — DROPPED for v2.0: no upgrade path. Fresh installs only.)
 
+### Launch Milestone (deferred, separate from numbered phases)
+
+**Goal:** Make the plugin publicly installable. Triggered when operator decides to launch — gated by Phase 5 close + Phase 6 ship + operator readiness.
+
+**Plans:** 0/2
+
+- [ ] `launch-01-PLAN.md` — Pre-flip security sweep Step B: `.planning/` operator-infra redaction (replaces `new.nailscosmetics.lv` → `your-staging-host.example` in STATE.md + 05-CONTEXT.md + 05-DISCUSSION-LOG.md + research/PITFALLS.md). Worklist captured in `.planning/phases/05-documentation-marketplace-launch/05-13-SECURITY-SWEEP.md`. _(was Phase 5 plan 05-13)_
+- [ ] `launch-02-PLAN.md` — Repo flip public + `v2.0.0` annotated tag + composer VCS install smoke from /tmp + CI matrix verify (MKT-01, MKT-04, MKT-05). _(was Phase 5 plan 05-14)_
+
+Resume signal: `LAUNCH SCHEDULED` after operator decision.
+
 ## Progress
 
 | Phase | Plans Complete | Status | Completed |
@@ -301,7 +334,9 @@ class Plugin extends PluginBase {
 | 2. Adapter system core | 9/9 | Complete   | 2026-05-20 |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
-| 5. Documentation + marketplace launch | 5/12 | In Progress|  |
+| 5. Documentation + marketplace launch | 8/10 | Partial — 05-08 + 05-09 block on Phase 6 |  |
+| 6. ViewContent funnel — Shopaholic PDP + offer-switch | 0/0 | Planned — brief locked 2026-05-27 |  |
+| Launch Milestone | 0/2 | Deferred — awaits operator decision |  |
 
 ## Shipped Milestones
 

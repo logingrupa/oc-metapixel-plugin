@@ -3,9 +3,9 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Phase 5 cutover UAT (Gate 2 + items 1-6) PASS; ready to ship 05-06/05-08/05-12/05-13/05-14
+stopped_at: Phase 5 cutover wave + 05-12 shipped; reorg 2026-05-27 — 05-13/05-14 split out to Launch Milestone; Phase 6 ViewContent funnel queued
 last_updated: "2026-05-27T00:00:00Z"
-last_activity: 2026-05-27 -- Phase 5 UAT Gate 2 + cutover items 1-6 PASS; 02-VERIFICATION re-verified (composer qa green)
+last_activity: 2026-05-27 -- v2.0.0-rc.1 tagged (local); ROADMAP reorg = Phase 5 10 plans (8 closed), Phase 6 brief locked, Launch Milestone defined
 progress:
   total_phases: 5
   completed_phases: 4
@@ -26,9 +26,10 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 5 (documentation-marketplace-launch) — EXECUTING (cutover UAT closed, ready to ship remaining artifacts)
-Plans closed: 6 of 12 (05-00, 05-02, 05-03, 05-04, 05-10, 05-11) — remaining 05-06, 05-08, 05-09 (operator-skipped), 05-12, 05-13, 05-14
-Status: Cutover UAT (Gate 2 + items 1-6) PASS — operator-signed 2026-05-27
+Phase: 5 (documentation-marketplace-launch) — PARTIAL (8/10 plans closed). 05-13 + 05-14 split out to **Launch Milestone** 2026-05-27.
+Plans closed: 8 of 10 (05-00, 05-02, 05-03, 05-04, 05-06, 05-10, 05-11, 05-12)
+Open in Phase 5: 05-08 (smoke + screenshots), 05-09 (README) — both block on Phase 6 ViewContent funnel shipping.
+Status: cutover wave done; Phase 6 queued; Launch Milestone deferred.
 
 **UAT closure 2026-05-27:**
 - `05-04-UAT-GATE-2.md` PASS — PageView browser+server dedup confirmed across 5 pages.
@@ -40,14 +41,11 @@ Status: Cutover UAT (Gate 2 + items 1-6) PASS — operator-signed 2026-05-27
 
 **Phase 2 re-verification 2026-05-27:** `02-VERIFICATION.md` flipped human_needed → verified. composer qa green (pint ✓ phpstan L10 ✓ phpmd ✓ pest 455/466). 11 pest failures are Phase 5 scope (README + screenshots + CHANGELOG, owned by plans 05-09/05-08/05-12 — TDD tests written ahead of artifact).
 
-**Next action (resume execution):**
-1. README (05-09) is OPERATOR-SKIPPED — defer to post-v2.0.0.
-2. Execute 05-06 (EventPixel wire — already covered by Gate 2 + cutover UAT, just needs SUMMARY).
-3. Execute 05-08 (smoke log + operator-shot screenshots).
-4. Execute 05-12 (CHANGELOG + plugin.yaml + composer.json version bump — closes 4/11 pest failures).
-5. Execute 05-13 (git tag v2.0.0) + 05-14 (marketplace launch wrap).
-
-Resume via `/gsd-execute-phase 5`.
+**Next action:**
+1. `/gsd-plan-phase 6` — author PLAN.md for ViewContent funnel from `.planning/briefs/2026-05-27-viewcontent-funnel-shopaholic.md`. D-1..D-6 locked.
+2. Execute Phase 6 waves (PixelHead deferred-flush → ShopaholicProductAdapter+Watcher → JS offer-switch+AJAX → docs).
+3. Return to Phase 5: ship 05-08 (smoke + screenshots) + 05-09 (README) with ViewContent in scope.
+4. When ready to launch: `LAUNCH SCHEDULED` resume signal → execute Launch Milestone (launch-01 redact + launch-02 public flip + v2.0.0 tag).
 
 ## Roadmap Snapshot
 
