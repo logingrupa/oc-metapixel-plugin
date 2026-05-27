@@ -157,6 +157,7 @@ Anchored CRITICALs:
 - Phase 3 SHOP-* adds `<testsuite name="Metapixel Adapter Tests">` block to phpunit.xml when tests/Unit/Adapter/Shopaholic + tests/Feature/Adapter/Shopaholic land (Run B's --exclude-testsuite='Metapixel Adapter Tests' becomes a real exclude then; currently a no-op).
 - Phase 2 ADAP-03 wires AdapterRegistry::flush() call into MetapixelTestCase::flushModelEventListeners() (currently absent — Phase 1 plan 01-03 intentionally did not add a placeholder comment).
 - Phase 2 plans 02-02..02-07 MUST use lowercase folder paths (`classes/{adapter,helper,meta,queue,exception,testing}/`, `tests/{doubles,unit,feature,contract}/…`) for October Rain ClassLoader autoload — locked by 02-01 deviation 1. Namespaces stay PascalCase. Plan markdown files that show `classes/Adapter/`, `tests/Doubles/`, etc., should be treated as folder-name typos and shipped lowercase.
+- `.planning/todos/pending/2026-05-27-enable-optional-queue-for-capi-server-events.md` — post-v2.0.0 Settings toggle (`use_queue` + `queue_name`) so CAPI dispatch defers to Laravel queue instead of running sync inside page-load. Reference: Lovata.Shopaholic XML import `import_queue_on` / `import_queue_name` pattern. Reason: sync Guzzle POST adds 50-200ms (worst case 5s timeout) to every page-load and the four trigger points (PixelHead, EventPixel, CartPositionWatcher, OrderStatusWatcher) cascade into measurable conversion-rate regression.
 
 ### Blockers/Concerns
 
