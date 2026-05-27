@@ -90,17 +90,19 @@ late-resolve at handle() time. Worth a dedicated test to lock the invariant.
 ## Solution
 
 Phase 4 already shipped Multisite settings + per-site credentials. Plumbing
-this toggle is straightforward additive work:
+this toggle is additive work in two files plus lang keys:
 
-1. Settings migration v1.0.5 (or v1.1.0 if we want to bundle this into the
-   first post-v2.0.0 release):
-     -- add `use_queue` BOOLEAN DEFAULT 0 column (or store as part of the
-        existing JSON settings blob via the standard October pattern -- check
-        how `ensure_fbp_fbc_server_side` is stored; mirror that exactly).
-     -- add `queue_name` VARCHAR(64) NULL column or JSON blob entry, same
-        storage pattern as the existing string fields.
+**No migration needed.** Settings inherits Lovata.Toolbox CommonSettings, which
+stores every field inside the single `system_settings.value` longText JSON
+blob (one row per setting record, all fields serialised into `value`). Adding
+new keys to `fields.yaml` is enough — `Settings::set(['use_queue' => true])`
+and `Settings::get('use_queue')` work out-of-the-box against the existing
+column. `ensure_fbp_fbc_server_side` is stored exactly this way: zero
+migration shipped for that field, zero migration shipped for these. The toggle
+is a global flag on the settings record, not a per-event column on EventLog or
+FailedEvents — every event reads the same Settings.use_queue at dispatch time.
 
-2. fields.yaml additions:
+1. fields.yaml additions:
 
    ```yaml
    use_queue:
@@ -121,7 +123,7 @@ this toggle is straightforward additive work:
            condition: checked
    ```
 
-3. Lang keys in `lang/{lv,en,no,lt}/lang.php`:
+2. Lang keys in `lang/{lv,en,no,lt}/lang.php`:
      -- `tab.performance` = "Performance" / "Veiktspeja" etc.
      -- `field.use_queue_label` = "Use background queue for Meta CAPI"
      -- `field.use_queue_comment` -> explain the requirement to run
@@ -130,7 +132,7 @@ this toggle is straightforward additive work:
      -- `field.queue_name_comment` -> "Defaults to the Laravel default queue.
         Set a dedicated name (e.g. metapixel) to isolate the CAPI worker."
 
-4. SendCapiEvent dispatch routing:
+3. SendCapiEvent dispatch routing:
 
    ```php
    public static function dispatchForCurrentSettings(
@@ -167,7 +169,7 @@ this toggle is straightforward additive work:
        replay should also honour the toggle or stay synchronous so the operator
        gets immediate Flash::success/error feedback on the admin click).
 
-5. Forge / production note (README + CHANGELOG): when use_queue is enabled, the
+4. Forge / production note (README + CHANGELOG): when use_queue is enabled, the
    operator MUST set up the queue worker as a Forge daemon:
 
      php /home/forge/<site>/artisan queue:work --queue=<name> --sleep=3 --tries=3
@@ -177,7 +179,7 @@ this toggle is straightforward additive work:
    explicitly so .env mistakes do not silently queue events that nobody is
    draining).
 
-6. Threat-model addition (gsd-secure-phase rerun on the implementing phase):
+5. Threat-model addition (gsd-secure-phase rerun on the implementing phase):
      T-XX-X-01 Information Disclosure -- queued payload is serialised to the
        jobs table including user_data (em, ph, fbp, fbc, client_ip_address,
        client_user_agent). Encrypt the queue connection or restrict DB read
@@ -190,9 +192,10 @@ this toggle is straightforward additive work:
        in-action-key so each retry has its own subject_id and would
        legitimately re-fire. Acceptable.
 
-Estimate: ~1 day work (migration + 2 fields.yaml entries + lang keys for 4
-locales + SendCapiEvent.dispatchForCurrentSettings helper + 5 call-site
-updates + 2 new test cases + README/CHANGELOG paragraphs).
+Estimate: ~half day work (2 fields.yaml entries + lang keys for 4 locales +
+SendCapiEvent.dispatchForCurrentSettings helper + 5 call-site updates + 2 new
+test cases + README/CHANGELOG paragraphs). No migration — CommonSettings JSON
+blob absorbs the new fields for free.
 
 Defer to: post-v2.0.0 marketplace launch is fine. The current sync mode is the
 v2.0.0 ship-state. Add this in v2.1 alongside the deferred extension hooks
