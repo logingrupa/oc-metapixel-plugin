@@ -2,6 +2,17 @@
     "name": "logingrupa/oc-metapixel-plugin",
     "type": "october-plugin",
     "description": "Meta Pixel + Conversions API for OctoberCMS",
+    "keywords": [
+        "october-cms",
+        "october-plugin",
+        "meta-pixel",
+        "conversions-api",
+        "capi",
+        "facebook-pixel",
+        "shopaholic",
+        "tracking",
+        "analytics"
+    ],
     "license": "proprietary",
     "authors": [
         {
