@@ -135,4 +135,4 @@ See [`milestones/v1.1.1-ROADMAP.md`](milestones/v1.1.1-ROADMAP.md) and [`milesto
 
 ---
 
-*Last updated: 2026-05-15 — milestone v1.1.1 archived; pending `/gsd-new-milestone` for v2.0*
+*Last updated: 2026-05-28 — v2.0.0 Phase 6 (ViewContent funnel — Shopaholic PDP + offer-switch) complete; 11 VIEW-* requirements validated, PixelHead deferred-flush refactor + ShopaholicProductAdapter pair + ProductPageWatcher + ProductPixel + ThemeAjaxHandler hybrid branch shipped. Launch Milestone (05-08 smoke + 05-09 README DOCS-02 + repo flip + v2.0.0 tag) outstanding.*
