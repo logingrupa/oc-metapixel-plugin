@@ -4,6 +4,7 @@ namespace Logingrupa\Metapixel\Classes\Adapter;
 
 use Illuminate\Support\Facades\App;
 use InvalidArgumentException;
+use Logingrupa\Metapixel\Classes\Exception\UnknownSubjectTypeException;
 
 /**
  * Adapter registry — service-container singleton mapping subject classes to
@@ -25,11 +26,17 @@ use InvalidArgumentException;
  * ancestor, the foreach insertion order determines which wins. There is no
  * explicit priority API in v2.0; explicit priority is deferred until a real
  * sibling-collision use case surfaces.
+ *
+ * Adapters MUST have parameterless constructors so the register-time
+ * alias-index population (App::make($sAdapterClass)) cannot fail.
  */
 final class AdapterRegistry
 {
     /** @var array<string, class-string<EventSubjectAdapter>> */
     private array $arAdapterMap = [];
+
+    /** @var array<string, class-string<EventSubjectAdapter>> */
+    private array $arAliasMap = [];
 
     /**
      * Register $sAdapterClass for $sSubjectClass. Idempotent — re-registering
@@ -46,6 +53,17 @@ final class AdapterRegistry
             );
         }
         $this->arAdapterMap[$sSubjectClass] = $sAdapterClass;
+
+        // Build the alias index at register-time. Per A3 (RESEARCH §5), every
+        // shipping adapter's getSubjectType() returns a constant string and
+        // ignores its argument — passing new \stdClass is safe. Third-party
+        // adapters that conditional-dispatch on $obSubject inside
+        // getSubjectType violate the alias-opacity contract documented on
+        // EventSubjectAdapter::getSubjectType.
+        /** @var EventSubjectAdapter $obAdapter */
+        $obAdapter = App::make($sAdapterClass);
+        $sAlias = $obAdapter->getSubjectType(new \stdClass);
+        $this->arAliasMap[$sAlias] = $sAdapterClass;
     }
 
     /**
@@ -94,5 +112,26 @@ final class AdapterRegistry
         $obAdapter = App::make($sAdapterClass);
 
         return $obAdapter;
+    }
+
+    /**
+     * Resolve adapter class FQN by opaque subject_type alias. Used by the
+     * hybrid AJAX path to translate an untrusted JS-supplied alias string
+     * into a registered adapter class FQN — guards against FQN-injection
+     * because the alias map is byte-for-byte the operator-registered set.
+     *
+     * @return class-string<EventSubjectAdapter>
+     *
+     * @throws UnknownSubjectTypeException
+     */
+    public function resolveByAlias(string $sAlias): string
+    {
+        if (! isset($this->arAliasMap[$sAlias])) {
+            throw new UnknownSubjectTypeException(
+                "No adapter registered for subject_type alias '{$sAlias}'",
+            );
+        }
+
+        return $this->arAliasMap[$sAlias];
     }
 }
