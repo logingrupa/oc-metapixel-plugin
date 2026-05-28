@@ -3,15 +3,13 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Phase 6 context gathered — D-7..D-10 locked; ready for /gsd-plan-phase 6
-last_updated: "2026-05-28T00:00:00Z"
-last_activity: 2026-05-28 -- Phase 6 discuss-phase complete; CONTEXT + DISCUSSION-LOG committed (d3dece4)
+last_updated: "2026-05-28T10:43:38.303Z"
 progress:
   total_phases: 6
-  completed_phases: 4
-  total_plans: 39
-  completed_plans: 28
-  percent: 60
+  completed_phases: 3
+  total_plans: 46
+  completed_plans: 36
+  percent: 50
 ---
 
 # Project State
@@ -29,19 +27,22 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 Phase: 6 (viewcontent-funnel-shopaholic-pdp) — context gathered 2026-05-28; ready for /gsd-plan-phase 6.
 Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
 Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
-Status: Phase 6 D-7..D-10 locked; planner can proceed.
+Status: Ready to execute
 
 **UAT closure 2026-05-27:**
+
 - `05-04-UAT-GATE-2.md` PASS — PageView browser+server dedup confirmed across 5 pages.
 - `05-UAT-CUTOVER.md` PASS — AddToCart + Purchase browser+server dedup, FailedEvents admin UI Replay, Multisite per-site pixel_id, Cookie kill switch + TrustedHosts allowlist, Translations en/lv.
 
 **Outside UAT scope:**
+
 - Debug sessions: `pixelhead-no-base-pageview` (resolved by commit 0658788 — close on next pass), `settings-save-host-resolver-di` (OPcache root cause, FPM reload fix applied — close on next pass).
 - Pending todo `2026-05-27-enable-optional-queue-for-capi-server-events` deferred to next release (post-v2.0.0).
 
 **Phase 2 re-verification 2026-05-27:** `02-VERIFICATION.md` flipped human_needed → verified. composer qa green (pint ✓ phpstan L10 ✓ phpmd ✓ pest 455/466). 11 pest failures are Phase 5 scope (README + screenshots + CHANGELOG, owned by plans 05-09/05-08/05-12 — TDD tests written ahead of artifact).
 
 **Next action:**
+
 1. `/gsd-plan-phase 6` — author PLAN.md for ViewContent funnel from `.planning/briefs/2026-05-27-viewcontent-funnel-shopaholic.md`. D-1..D-6 locked.
 2. Execute Phase 6 waves (PixelHead deferred-flush → ShopaholicProductAdapter+Watcher → JS offer-switch+AJAX → docs).
 3. Return to Phase 5: ship 05-08 (smoke + screenshots) + 05-09 (README) with ViewContent in scope.

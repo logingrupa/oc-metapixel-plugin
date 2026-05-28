@@ -163,6 +163,7 @@ class Plugin extends PluginBase {
 **Requirements:** TOOL-01, TOOL-02, TOOL-03, TOOL-04, TOOL-05, TOOL-06, TOOL-07, TOOL-08, TOOL-09, TOOL-10, TOOL-11
 
 **Success Criteria** (what must be TRUE):
+
   1. `composer install` on a fresh clone of the renamed `plugins/logingrupa/metapixel/` directory succeeds; `composer qa` exits 0 on the empty post-rename scaffold (pint-test → analyse → phpmd → test-cov chain).
   2. CI matrix on GitHub Actions runs `php: [8.3, 8.4]` × `install: [full-lovata, minimal]`; all four cells green on the rename PR. Full-Lovata enforces coverage gate ≥90%; minimal runs MetapixelTestCase subsets with no coverage gate.
   3. PHPStan (level 10, `phpVersion: 80300`) + Rector (`LevelSetList::UP_TO_PHP_83`) + Pint (`nullable_type_declaration_for_default_null_value`) collectively reject PHP 8.4-only syntax — operator-authored snippet using property hooks / asymmetric visibility / `array_find` / `#[\Deprecated]` fails CI with a clear error. (Prevents **P-06**.)
@@ -184,6 +185,7 @@ class Plugin extends PluginBase {
 **Requirements:** ADAP-01, ADAP-02, ADAP-03, ADAP-04, ADAP-05, ADAP-06, ADAP-07, ADAP-08, ADAP-09, ADAP-10, ADAP-11
 
 **Success Criteria** (what must be TRUE):
+
   1. A developer writing a new adapter implements two interfaces (`EventSubjectAdapter` + `ValueResolver`) and calls `AdapterRegistry::register($sSubjectClass, $sAdapterClass)` from their plugin's `boot()`; no plugin core change required. The contract test `FakeAdapter` round-trips through `PayloadBuilder::buildEventPayload()` and produces the same envelope shape v1.x produced for Order.
   2. `EventSubjectAdapter::getSiteId(object $obSubject): ?int` is enforced as the only authoritative source of `site_id` — PHPStan disallowed-calls rules in `Classes\Queue\`, `Classes\Event\`, `Classes\Adapter\` ban `SiteManager::*`, `request()`, `Request::*`, and an integration contract test asserts `getSiteId()` returns the same value regardless of `Site::setSite($i)` active context. (Prevents **P-01**, anchored in the Phase 3.1-07 production bug on orders 29802/29803.)
   3. Three `Event::fire` extension points (`metapixel.event.before_dispatch`, `metapixel.event.after_dispatch`, `metapixel.event.dead_letter`) fire at documented decision boundaries; a throwing third-party listener is caught + `Log::warning`'d + dispatch continues (test: simulate throwing listener, assert core dispatch succeeds and dead-letter records only the listener exception).
@@ -201,6 +203,7 @@ class Plugin extends PluginBase {
 **Requirements:** SHOP-01, SHOP-02, SHOP-03, SHOP-04, SHOP-05, THEM-01, THEM-02, THEM-03, THEM-04, THEM-05, THEM-06, THEM-07
 
 **Success Criteria** (what must be TRUE):
+
   1. Pest integration test on a generic Order fixture (host `example.test`, hermetic SQLite): status flip to `new-payment-received` → ShopaholicAdapter dispatch → `EventLogWriter::record` race-fence (channel=capi) → Guzzle MockHandler asserts Meta payload shape + event_id presence. Same event_id round-trips to browser PixelHead/EventPixel render. EventLog row uses `subject_type = 'shopaholic.order'` alias — NOT FQN (**P-05** prevention). Second admin-flip on same Order does NOT re-fire (EventLog row blocks).
   2. `Plugin::boot()` conditionally registers ShopaholicOrderAdapter + subscribes OrderStatusWatcher only when `PluginManager::instance()->exists('Lovata.OrdersShopaholic')` is true. CI Run B (minimal install, no Lovata) boots the plugin without errors; ShopaholicAdapter is absent from the registry; no `Lovata\*` import is loaded outside `Classes\Adapter\Shopaholic\`.
   3. An operator on a Lovata-free OctoberCMS theme wires a `ViewContent` event from a Twig product page by calling `{% do this.metapixel.pushEvent({name: 'ViewContent', action_key: 'product-view:' ~ product.id, content_ids: [...], value: 12.50, currency: 'EUR'}) %}`; `PixelHead` emits the corresponding `fbq('track', ...)` script block on the next render, optionally mirroring to CAPI when `also_dispatch_capi: true`.
@@ -229,6 +232,7 @@ class Plugin extends PluginBase {
 **Requirements:** MULT-01, MULT-02, MULT-03, MULT-04, MULT-05, MULT-06, HOST-01, HOST-02, HOST-03, HOST-04, HOST-05, HOST-06, COOK-01, COOK-02, COOK-03, FAIL-01, FAIL-02, FAIL-03, LANG-01
 
 **Success Criteria** (what must be TRUE):
+
   1. An operator running two OctoberCMS sites (Site A + Site B) configures `pixel_id_A` + `token_A` on Site A and `pixel_id_B` + `token_B` on Site B; a Site-A Order fires CAPI + Pixel to `pixel_id_A` and a Site-B Order fires to `pixel_id_B`; cross-site EventLog rows independent under UNIQUE NULL-distinct semantics (8-path matrix test: 2 sites × 2 adapters × 2 channels). `$propagatable = []` lock prevents cross-site token leak. (Prevents **P-10**.)
   2. An operator on `shop.example.co.uk`, `acme.com.br`, or an IDN host (`xn--bcher-kva.example`) saves their domain to `trusted_hosts` Settings; the middleware derives the correct subdomain index via PSL (e.g. 1 for apex, 2 for `www.` subdomain); `_fbp` / `_fbc` cookies write to the correct scope. A host not in `trusted_hosts` causes the middleware to NO-OP — no exception, no cookies set (fail-safe). (Prevents **P-15**.)
   3. `EnsureFbpFbcCookies` honors `Settings::get('ensure_fbp_fbc_server_side', true)` as a kill switch; CR-03 fbclid validation (`[A-Za-z0-9_-]` charset, ≤255 chars) skips `_fbc` on invalid input. PSL data ships at `resources/data/public_suffix_list.dat`; `metapixel:refresh-psl` artisan command refreshes from upstream; parsed `Rules` cache lives at `storage/app/metapixel/psl/` (Forge-writable, not in read-only release dir — prevents **P-18**).
@@ -252,6 +256,7 @@ class Plugin extends PluginBase {
 **Requirements:** DOCS-01, DOCS-02, DOCS-03, MKT-01, MKT-02, MKT-03, MKT-04, MKT-05
 
 **Success Criteria** (what must be TRUE):
+
   1. A timed dry-run on a fresh OctoberCMS 4.x install (no cart plugin) following only the README — `composer require` → Settings configuration → first CAPI event verified in Meta Test Events — completes in under 10 minutes. This dry-run is the launch acceptance gate.
   2. `docs/CUSTOM-ADAPTERS.md` contains a working ~50-LOC `AcmeCartAdapter` + `AcmeCartValueResolver` example documenting the `AdapterRegistry::register()` pattern, `$require` plugin dependency declaration, and the three `Event::fire` hooks. A developer copying the example, swapping cart-model names, and registering from their own `Plugin::boot()` ships a working third-party adapter without touching plugin core.
   3. `composer require logingrupa/oc-metapixel-plugin` succeeds on (a) clean OctoberCMS 4.x with no cart plugin, (b) clean OctoberCMS 4.x with Shopaholic + OrdersShopaholic + Buddies. `composer qa` exits 0 on both. CI matrix Run A + Run B remain green on the `v2.0.0` tag commit.
@@ -279,18 +284,27 @@ class Plugin extends PluginBase {
 
 **Source brief:** `.planning/briefs/2026-05-27-viewcontent-funnel-shopaholic.md` — D-1 through D-6 locked 2026-05-27.
 
-**Requirements:** New — to be enumerated in REQUIREMENTS.md as `VIEW-01..NN` during `/gsd-plan-phase 6`.
+**Requirements:** VIEW-01, VIEW-02, VIEW-03, VIEW-04, VIEW-05, VIEW-06, VIEW-07, VIEW-08, VIEW-09, VIEW-10, VIEW-11
 
 **Success Criteria** (what must be TRUE):
+
   1. `ViewContent` fires on every Shopaholic PDP render via `shopaholic.product.open` event subscriber. content_ids = `['SKU-{pid}-{oid}']` for multi-offer products; `['SKU-{pid}']` for single-offer. Browser fbq + Server CAPI share event_id.
   2. `ViewContent` re-fires with new event_id + new offer SKU on every `[name="offer_id"]` DOM change (select / radio / hidden input) via plugin-injected vanilla JS + ThemeAjaxHandler endpoint.
   3. `PixelHead` flushes at `cms.page.beforeRenderPage` (NOT `onRun()`) so page-tier components can push events to ThemeEventCollector before flush. Base PageView still emits; action_key shape `base:pageview:{site_id}:{event_id}` unchanged.
   4. `ShopaholicProductAdapter` + `ShopaholicProductValueResolver` ship with PHPStan level 10 + PHPMD + Pint clean. PHPStan disallowed-calls deny-list still bans `SiteManager::*`, `Request::*`, `request()` inside adapter dir — `getSiteId()` reads from `$obProduct->site_id`.
   5. `composer deps` boundary check confirms `ShopaholicProductAdapter` is the only new file importing `Lovata\Shopaholic\*`.
   6. Test matrix (11 ProductPageWatcher assertions + 4 PixelHeadDeferredFlush assertions) all GREEN; coverage stays ≥90 % on full-Lovata CI cell.
-  7. CHANGELOG.md gets a new `### Changed` subsection under `## [2.0.0] - YYYY-MM-DD` documenting PixelHead lifecycle change. README documents ViewContent + offer-switch behaviour.
+  7. CHANGELOG.md gets new entries under `### Added` (under `## [2.0.0] - YYYY-MM-DD`) documenting the ViewContent funnel artifacts. NO breaking-changes callout per CONTEXT.md D-discretion + Phase 5 D-22 fresh-v2.0.0 stance. PixelHead PHPDoc carries the lifecycle-contract docblock for future operators. README documents ViewContent + offer-switch behaviour.
 
-**Plans:** 0/0 — to be authored via `/gsd-plan-phase 6` against the brief.
+**Plans:** 7 plans (6 waves)
+
+- [ ] `06-01-PLAN.md` — Wave 1: REQUIREMENTS.md VIEW-XX rows + VALIDATION.md per-task map + 5 RED test stubs (autonomous)
+- [ ] `06-02-PLAN.md` — Wave 2: PixelHead deferred-flush refactor + PixelHeadDeferredFlushBuffer singleton + Plugin.boot listener (VIEW-01)
+- [ ] `06-03-PLAN.md` — Wave 3: AdapterRegistry::resolveByAlias + SupportsHybridAjax subinterface + UnknownSubjectTypeException (VIEW-07, VIEW-08)
+- [ ] `06-04-PLAN.md` — Wave 3: ShopaholicProductAdapter + ShopaholicProductValueResolver + phpstan.neon allowlist (VIEW-02, VIEW-03, VIEW-08)
+- [ ] `06-05-PLAN.md` — Wave 4: ProductPageWatcher + Plugin.boot wiring + 11-item brief matrix tests (VIEW-04, VIEW-10)
+- [ ] `06-06-PLAN.md` — Wave 5: ProductPixel component + offer-switch JS + ThemeAjaxHandler hybrid subject_type branch (VIEW-05, VIEW-06, VIEW-09)
+- [ ] `06-07-PLAN.md` — Wave 6: CHANGELOG.md + README.md ViewContent walkthrough + PixelHead PHPDoc verify (VIEW-11)
 
 ## Pitfall Coverage Map
 

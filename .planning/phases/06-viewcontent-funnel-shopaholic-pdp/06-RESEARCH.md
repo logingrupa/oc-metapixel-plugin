@@ -1071,7 +1071,7 @@ final class ProductPageWatcher
 | A6 | PHP 8.3 + 8.4 dual support — no 8.4-only syntax slipped | Pitfall 10 | Plugin breaks on PHP 8.3 cell. Mitigation: phpstan `phpVersion: 80300` + CI matrix includes 8.3 fresh cell. [VERIFIED via phpstan.neon] |
 | A7 | `cms.page.beforeRenderPage` fires once per page-load even with nested partials | Section 1 | Multiple fires → double flush → duplicate events. Mitigation: confirmed via `fireSystemEvent` in Controller.php line 421 — fires inside the runPage outer block, not inside renderPartial. [VERIFIED via grep — single fire site per render] |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **`window.__metapixelProduct` global vs DOM data-* attribute for product_id**
    - What we know: D-9 dropped the PDP scope gate; bonus-box cart selector exists (Pitfall 8).

@@ -41,7 +41,7 @@ CI matrix: full-Lovata cell runs `composer qa` with `--group=adapter` enabled. M
 > Populated by planner from final task list. One row per task. `File Exists` reflects RED/GREEN test-file presence at task end.
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
-|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
+|---------|------|------|-------------|------------|-----------------|-----------|-------------------|-----------|--------|
 | 6-01-XX | 01 | 1 | VIEW-XX | T-6-01 | PixelHead deferred flush no-ops on 404 redirect | unit | `./vendor/bin/pest tests/Feature/Component/PixelHeadDeferredFlushTest.php` | ❌ W0 | ⬜ pending |
 | 6-02-XX | 02 | 2 | VIEW-XX | T-6-02 | ShopaholicProductAdapter::getSiteId reads `$obProduct->site` pivot only — no SiteManager/Request | unit | `./vendor/bin/pest tests/Feature/Adapter/Shopaholic/ShopaholicProductValueResolverTest.php` | ❌ W0 | ⬜ pending |
 | 6-03-XX | 03 | 2 | VIEW-XX | T-6-03 | ProductPageWatcher.try/catch logs+skips on payload failure (no 500) | feature | `./vendor/bin/pest tests/Feature/Adapter/Shopaholic/ProductPageWatcherTest.php` | ❌ W0 | ⬜ pending |
@@ -61,6 +61,7 @@ Planner MUST replace placeholder rows above with concrete task IDs once `06-PLAN
 - [ ] `tests/Feature/Adapter/Shopaholic/ShopaholicProductValueResolverTest.php` — RED stubs (SKU single vs multi, price source, currency source)
 - [ ] `tests/Feature/Adapter/Theme/ThemeAjaxHandlerSubjectTypeTest.php` — RED stubs (unknown alias → 422, valid alias routes adapter, allowlist bypass blocked)
 - [ ] `tests/Feature/Component/ProductPixelTest.php` — RED stubs (script render shape, disabled-state, JS offer-switch markers)
+- [ ] `tests/Contract/Adapter/Shopaholic/ShopaholicProductAdapterContractTest.php` — RED stub (extends `EventSubjectAdapterContractTestCase`; supplies `makeAdapter()` + `makeSubject()` failing stubs; 10 inherited Phase 2 invariants run RED until ShopaholicProductAdapter ships in Plan 06-04 Task 4)
 - [ ] No new framework install required — Pest 4 + PHPUnit 12 already installed.
 
 ---

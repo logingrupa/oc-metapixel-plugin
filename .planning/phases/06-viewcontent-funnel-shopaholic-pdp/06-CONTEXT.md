@@ -36,7 +36,7 @@ Out of scope (deferred to v2.1): InitiateCheckout, Search, per-currency conversi
 - **D-1:** View grain = per-pageload AND per-offer-switch. Each switch = own ViewContent, own `event_id`, own offer SKU.
 - **D-2:** Pixel emit = PixelHead refactored to flush at `cms.page.beforeRenderPage`. Single emit point. Page-tier components push to `ThemeEventCollector` after `onRun`.
 - **D-3:** Trigger = `Event::fire('shopaholic.product.open', [$obElement])` at `plugins/lovata/shopaholic/components/ProductPage.php:71`. Native fail-safe for 404/inactive/site-mismatch.
-- **D-4:** Ship target = v2.0. Blocks Phase 5 wave 6 (plans 05-08, 05-09, 05-12, 05-13, 05-14).
+- **D-4:** [informational] Ship target = v2.0. Blocks Phase 5 wave 6 (plans 05-08, 05-09, 05-12, 05-13, 05-14). _Meta-timing decision — not directly implementable in code; ROADMAP-tracked, surfaces in Plan 06-07 docs._
 - **D-5:** `content_ids` on PDP = `['SKU-{product_id}-{offer_id}']`. Single-offer products = `['SKU-{product_id}']`. Matches catalog feed + CartPosition/Order resolver convention.
 - **D-6:** Universal offer selector = `[name="offer_id"]`. Shopaholic canonical form-field name. Confirmed PDP-only by Shopaholic convention.
 
