@@ -147,7 +147,7 @@ class Plugin extends PluginBase {
 - [x] **Phase 2: Adapter system core — contracts + registry + extension hooks** — `EventSubjectAdapter` + `ValueResolver` + `AdapterRegistry` + 3 `Event::fire` hooks; v1.x I/O backbone refactored behind adapter signatures; 177 tests adapted via FakeAdapter. (completed 2026-05-17)
 - [x] **Phase 3: ShopaholicAdapter + ThemeActionAdapter parallel wave** — Non-regression port of v1.x Order/Cart logic behind ShopaholicAdapter; generic theme-action tracking via Twig + Larajax for operators without a supported cart. (completed 2026-05-18)
 - [x] **Phase 4: Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations** — Per-site `pixel_id`/`capi_access_token`; operator-supplied `trusted_hosts` + PSL-aware index derivation; FailedEvents backend UI; en/lv translations. (completed 2026-05-20)
-- [ ] **Phase 5: Documentation + marketplace launch (partial)** — Cutover wave + CHANGELOG shipped 2026-05-27. README + smoke + screenshots deferred until Phase 6 ViewContent funnel ships. 05-13 + 05-14 split out to Launch Milestone.
+- [x] **Phase 5: Documentation + marketplace launch (partial)** — Cutover wave + CHANGELOG shipped 2026-05-27. README + smoke + screenshots deferred until Phase 6 ViewContent funnel ships. 05-13 + 05-14 split out to Launch Milestone. (completed 2026-05-28)
 - [ ] **Phase 6: ViewContent funnel — Shopaholic PDP + offer-switch** — Close conversion funnel at offer-level grain. ShopaholicProductAdapter + ProductPageWatcher + offer-switch JS. Refactor PixelHead to flush at `cms.page.beforeRenderPage` (breaking timing change — no callout, plugin is fresh, no operators on legacy timing yet). See brief `.planning/briefs/2026-05-27-viewcontent-funnel-shopaholic.md`.
 
 **Launch Milestone (deferred, separate from numbered phases)** — Pre-flip security sweep Step B + public repo flip + `v2.0.0` annotated tag. Triggered when operator decides to launch; not gated by phase progress.
@@ -296,7 +296,7 @@ class Plugin extends PluginBase {
   6. Test matrix (11 ProductPageWatcher assertions + 4 PixelHeadDeferredFlush assertions) all GREEN; coverage stays ≥90 % on full-Lovata CI cell.
   7. CHANGELOG.md gets new entries under `### Added` (under `## [2.0.0] - YYYY-MM-DD`) documenting the ViewContent funnel artifacts. NO breaking-changes callout per CONTEXT.md D-discretion + Phase 5 D-22 fresh-v2.0.0 stance. PixelHead PHPDoc carries the lifecycle-contract docblock for future operators. README documents ViewContent + offer-switch behaviour.
 
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans complete
 
 - [ ] `06-01-PLAN.md` — Wave 1: REQUIREMENTS.md VIEW-XX rows + VALIDATION.md per-task map + 5 RED test stubs (autonomous)
 - [ ] `06-02-PLAN.md` — Wave 2: PixelHead deferred-flush refactor + PixelHeadDeferredFlushBuffer singleton + Plugin.boot listener (VIEW-01)
@@ -349,7 +349,7 @@ Resume signal: `LAUNCH SCHEDULED` after operator decision.
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
 | 5. Documentation + marketplace launch | 8/10 | Partial — 05-08 + 05-09 block on Phase 6 |  |
-| 6. ViewContent funnel — Shopaholic PDP + offer-switch | 6/7 | In Progress|  |
+| 6. ViewContent funnel — Shopaholic PDP + offer-switch | 7/7 | Complete   | 2026-05-28 |
 | Launch Milestone | 0/2 | Deferred — awaits operator decision |  |
 
 ## Shipped Milestones
