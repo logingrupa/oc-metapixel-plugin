@@ -14,8 +14,7 @@ namespace Logingrupa\Metapixel\Classes\Adapter;
  * fails site-match.
  *
  * Keeping this contract on a subinterface (NOT the base EventSubjectAdapter)
- * preserves the 10 invariants enforced by Phase 2's
- * EventSubjectAdapterContractTestCase.
+ * preserves the 10 invariants enforced by EventSubjectAdapterContractTestCase.
  */
 interface SupportsHybridAjax extends EventSubjectAdapter
 {
