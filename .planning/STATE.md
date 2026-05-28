@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: Generic-event-tracking marketplace plugin
 status: executing
-stopped_at: Phase 5 cutover wave + 05-12 shipped; reorg 2026-05-27 — 05-13/05-14 split out to Launch Milestone; Phase 6 ViewContent funnel queued
-last_updated: "2026-05-27T00:00:00Z"
-last_activity: 2026-05-27 -- v2.0.0-rc.1 tagged (local); ROADMAP reorg = Phase 5 10 plans (8 closed), Phase 6 brief locked, Launch Milestone defined
+stopped_at: Phase 6 context gathered — D-7..D-10 locked; ready for /gsd-plan-phase 6
+last_updated: "2026-05-28T00:00:00Z"
+last_activity: 2026-05-28 -- Phase 6 discuss-phase complete; CONTEXT + DISCUSSION-LOG committed (d3dece4)
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 4
   total_plans: 39
   completed_plans: 28
-  percent: 72
+  percent: 60
 ---
 
 # Project State
@@ -26,10 +26,10 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 5 (documentation-marketplace-launch) — PARTIAL (8/10 plans closed). 05-13 + 05-14 split out to **Launch Milestone** 2026-05-27.
-Plans closed: 8 of 10 (05-00, 05-02, 05-03, 05-04, 05-06, 05-10, 05-11, 05-12)
-Open in Phase 5: 05-08 (smoke + screenshots), 05-09 (README) — both block on Phase 6 ViewContent funnel shipping.
-Status: cutover wave done; Phase 6 queued; Launch Milestone deferred.
+Phase: 6 (viewcontent-funnel-shopaholic-pdp) — context gathered 2026-05-28; ready for /gsd-plan-phase 6.
+Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
+Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
+Status: Phase 6 D-7..D-10 locked; planner can proceed.
 
 **UAT closure 2026-05-27:**
 - `05-04-UAT-GATE-2.md` PASS — PageView browser+server dedup confirmed across 5 pages.
