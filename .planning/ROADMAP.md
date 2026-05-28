@@ -296,7 +296,7 @@ class Plugin extends PluginBase {
   6. Test matrix (11 ProductPageWatcher assertions + 4 PixelHeadDeferredFlush assertions) all GREEN; coverage stays ≥90 % on full-Lovata CI cell.
   7. CHANGELOG.md gets new entries under `### Added` (under `## [2.0.0] - YYYY-MM-DD`) documenting the ViewContent funnel artifacts. NO breaking-changes callout per CONTEXT.md D-discretion + Phase 5 D-22 fresh-v2.0.0 stance. PixelHead PHPDoc carries the lifecycle-contract docblock for future operators. README documents ViewContent + offer-switch behaviour.
 
-**Plans:** 3/7 plans executed
+**Plans:** 4/7 plans executed
 
 - [ ] `06-01-PLAN.md` — Wave 1: REQUIREMENTS.md VIEW-XX rows + VALIDATION.md per-task map + 5 RED test stubs (autonomous)
 - [ ] `06-02-PLAN.md` — Wave 2: PixelHead deferred-flush refactor + PixelHeadDeferredFlushBuffer singleton + Plugin.boot listener (VIEW-01)
@@ -349,7 +349,7 @@ Resume signal: `LAUNCH SCHEDULED` after operator decision.
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
 | 5. Documentation + marketplace launch | 8/10 | Partial — 05-08 + 05-09 block on Phase 6 |  |
-| 6. ViewContent funnel — Shopaholic PDP + offer-switch | 3/7 | In Progress|  |
+| 6. ViewContent funnel — Shopaholic PDP + offer-switch | 4/7 | In Progress|  |
 | Launch Milestone | 0/2 | Deferred — awaits operator decision |  |
 
 ## Shipped Milestones
