@@ -56,6 +56,7 @@ parameters:
             message: 'metapixel: per-event attributes MUST come from the subject via adapter — request() banned in adapter/queue/event dirs'
             # D-16: classes/adapter/theme/* excluded — ThemeActionAdapter D-15 site fallback exception
             # 03-09 Gap 2: ShopaholicCartPositionAdapter.php excluded — D-15-style site fallback (Lovata Cart has no site_id col)
+            # 06-04: ShopaholicProductAdapter.php excluded — D-15-style site fallback (Lovata Product has no site_id col, MultisiteHelperTrait pivot only)
             disallowIn:
                 - 'classes/queue/*'
                 - 'classes/event/*'
@@ -63,6 +64,7 @@ parameters:
                 - 'classes/event/adapter/shopaholic/*'
             allowIn:
                 - 'classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php'
+                - 'classes/adapter/shopaholic/ShopaholicProductAdapter.php'
 
     disallowedMethodCalls:
         -
@@ -70,6 +72,7 @@ parameters:
             message: 'metapixel: site_id MUST come from subject via SiteResolver::forSubject — cross-context determinism'
             # D-16: classes/adapter/theme/* excluded — ThemeActionAdapter D-15 site fallback exception
             # 03-09 Gap 2: ShopaholicCartPositionAdapter.php excluded — D-15-style site fallback (Lovata Cart has no site_id col)
+            # 06-04: ShopaholicProductAdapter.php excluded — D-15-style site fallback (Lovata Product has no site_id col, MultisiteHelperTrait pivot only)
             disallowIn:
                 - 'classes/queue/*'
                 - 'classes/event/*'
@@ -77,11 +80,13 @@ parameters:
                 - 'classes/event/adapter/shopaholic/*'
             allowIn:
                 - 'classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php'
+                - 'classes/adapter/shopaholic/ShopaholicProductAdapter.php'
         -
             method: 'October\Rain\Support\Facades\Site::*'
             message: 'metapixel: site_id MUST come from subject via SiteResolver::forSubject — cross-context determinism'
             # D-16: classes/adapter/theme/* excluded — ThemeActionAdapter D-15 site fallback exception
             # 03-09 Gap 2: ShopaholicCartPositionAdapter.php excluded — D-15-style site fallback (Lovata Cart has no site_id col)
+            # 06-04: ShopaholicProductAdapter.php excluded — D-15-style site fallback (Lovata Product has no site_id col, MultisiteHelperTrait pivot only)
             disallowIn:
                 - 'classes/queue/*'
                 - 'classes/event/*'
@@ -89,11 +94,13 @@ parameters:
                 - 'classes/event/adapter/shopaholic/*'
             allowIn:
                 - 'classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php'
+                - 'classes/adapter/shopaholic/ShopaholicProductAdapter.php'
         -
             method: 'Illuminate\Http\Request::*'
             message: 'metapixel: per-event attributes MUST come from the subject via adapter'
             # D-16: classes/adapter/theme/* excluded — ThemeActionAdapter D-15 site fallback exception
             # 03-09 Gap 2: ShopaholicCartPositionAdapter.php excluded — D-15-style site fallback (Lovata Cart has no site_id col)
+            # 06-04: ShopaholicProductAdapter.php excluded — D-15-style site fallback (Lovata Product has no site_id col, MultisiteHelperTrait pivot only)
             disallowIn:
                 - 'classes/queue/*'
                 - 'classes/event/*'
@@ -101,6 +108,7 @@ parameters:
                 - 'classes/event/adapter/shopaholic/*'
             allowIn:
                 - 'classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php'
+                - 'classes/adapter/shopaholic/ShopaholicProductAdapter.php'
     disallowedStaticCalls:
         -
             # D-02 / MULT-02 lock — direct Settings::get('pixel_id'|'capi_access_token')

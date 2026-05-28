@@ -54,9 +54,9 @@ final class ShopaholicProductAdapter implements SupportsHybridAjax
 
         $mSiteList = $obProduct->site_list ?? null;
         if (is_array($mSiteList) && count($mSiteList) === 1) {
-            $iSiteId = (int) $mSiteList[0];
-            if ($iSiteId > 0) {
-                return $iSiteId;
+            $mFirst = reset($mSiteList);
+            if (is_numeric($mFirst) && (int) $mFirst > 0) {
+                return (int) $mFirst;
             }
         }
 
