@@ -148,7 +148,7 @@ class Plugin extends PluginBase {
 - [x] **Phase 3: ShopaholicAdapter + ThemeActionAdapter parallel wave** — Non-regression port of v1.x Order/Cart logic behind ShopaholicAdapter; generic theme-action tracking via Twig + Larajax for operators without a supported cart. (completed 2026-05-18)
 - [x] **Phase 4: Settings rework — Multisite + TrustedHosts + Cookie + FailedEvents + translations** — Per-site `pixel_id`/`capi_access_token`; operator-supplied `trusted_hosts` + PSL-aware index derivation; FailedEvents backend UI; en/lv translations. (completed 2026-05-20)
 - [x] **Phase 5: Documentation + marketplace launch (partial)** — Cutover wave + CHANGELOG shipped 2026-05-27. README + smoke + screenshots deferred until Phase 6 ViewContent funnel ships. 05-13 + 05-14 split out to Launch Milestone. (completed 2026-05-28)
-- [ ] **Phase 6: ViewContent funnel — Shopaholic PDP + offer-switch** — Close conversion funnel at offer-level grain. ShopaholicProductAdapter + ProductPageWatcher + offer-switch JS. Refactor PixelHead to flush at `cms.page.beforeRenderPage` (breaking timing change — no callout, plugin is fresh, no operators on legacy timing yet). See brief `.planning/briefs/2026-05-27-viewcontent-funnel-shopaholic.md`.
+- [x] **Phase 6: ViewContent funnel — Shopaholic PDP + offer-switch** — Close conversion funnel at offer-level grain. ShopaholicProductAdapter + ProductPageWatcher + offer-switch JS. Refactor PixelHead to flush at `cms.page.beforeRenderPage` (breaking timing change — no callout, plugin is fresh, no operators on legacy timing yet). See brief `.planning/briefs/2026-05-27-viewcontent-funnel-shopaholic.md`. (completed 2026-05-28)
 
 **Launch Milestone (deferred, separate from numbered phases)** — Pre-flip security sweep Step B + public repo flip + `v2.0.0` annotated tag. Triggered when operator decides to launch; not gated by phase progress.
 
@@ -349,7 +349,7 @@ Resume signal: `LAUNCH SCHEDULED` after operator decision.
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
 | 5. Documentation + marketplace launch | 8/10 | Partial — 05-08 + 05-09 block on Phase 6 |  |
-| 6. ViewContent funnel — Shopaholic PDP + offer-switch | 7/7 | Complete   | 2026-05-28 |
+| 6. ViewContent funnel — Shopaholic PDP + offer-switch | 7/7 | Complete    | 2026-05-28 |
 | Launch Milestone | 0/2 | Deferred — awaits operator decision |  |
 
 ## Shipped Milestones

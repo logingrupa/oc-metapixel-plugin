@@ -114,17 +114,17 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 
 ### ViewContent funnel (VIEW-XX)
 
-- [ ] **VIEW-01**: `PixelHead` flushes `ThemeEventCollector` at `cms.page.beforeRenderPage` (NOT `onRun`). Base PageView stays in `onRun`. `action_key` shape `base:pageview:{site_id}:{event_id}` unchanged.
-- [ ] **VIEW-02**: `Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter` implements `EventSubjectAdapter` + new `SupportsHybridAjax` subinterface for `Lovata\Shopaholic\Models\Product`. `getSubjectType()` returns alias `'shopaholic.product'`. `getSiteId()` reads `$obProduct->site_list` single-element when count==1, falls back to `Site::getSiteIdFromContext()` (D-15 exception) — never `Request::*` / `SiteManager::*`. Proven against the Phase 2 contract via `ShopaholicProductAdapterContractTest` (10 invariants inherited from `EventSubjectAdapterContractTestCase`).
-- [ ] **VIEW-03**: `Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductValueResolver` resolves `value` (default-offer `price_value`), `currency` (`CurrencyHelper::instance()->getActiveCurrencyCode()` → `Settings::get('default_currency_code', '')` fallback → throw), `content_ids` (`['SKU-{pid}-{oid}']` multi-offer, `['SKU-{pid}']` single/empty offer per D-5 + D-10).
-- [ ] **VIEW-04**: `Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher` subscribes `shopaholic.product.open`. Uses `CapturesRequestUserData`. Generates UUIDv4 `event_id`. Action key `viewcontent:{product_id}:{event_id}`. Pushes to `ThemeEventCollector` + dispatches `SendCapiEvent('ViewContent', $arPayload, $obProduct, ShopaholicProductAdapter::class)`. `Throwable` boundary catch logs + returns; page render MUST NOT 500.
-- [ ] **VIEW-05**: `Logingrupa\Metapixel\Components\ProductPixel` (`[productPixel]` alias) renders `window.__metapixelProduct={id:N}` global + inline offer-switch JS via `$this->page` Twig vars. `PluginGuard::isDisabled()` → both Twig vars null. Vendor-neutral name.
-- [ ] **VIEW-06**: Offer-switch JS (delegated `change` on `document` matching `[name="offer_id"]`) is idempotent (single attach via `window.__metapixelProductPixelInit` flag), soft-gated by `window.__metapixelProduct` (Pitfall 8 — cart-modal bonus-box ignored), posts to `Metapixel::onFireEvent` via `jax.ajax(...)` with `subject_type:'shopaholic.product'`.
-- [ ] **VIEW-07**: `AdapterRegistry::resolveByAlias(string $sAlias): string` (returns adapter FQN) added; internal `<alias, adapter-class>` index populated at `register()` time; unknown alias throws `Logingrupa\Metapixel\Classes\Exception\UnknownSubjectTypeException`.
-- [ ] **VIEW-08**: New marker subinterface `Logingrupa\Metapixel\Classes\Adapter\SupportsHybridAjax extends EventSubjectAdapter` defines `loadSubject(int $iSubjectId, array $arContext): ?object`. `ShopaholicProductAdapter::loadSubject` re-enforces `Product::active()->find($iId)` + site-relation match — returns null on miss. Soft-deleted excluded (Product has `SoftDelete` trait, RESEARCH Pitfall 6 confirmed).
-- [ ] **VIEW-09**: `ThemeAjaxHandler::onBeforeRun` detects optional `subject_type` field. Resolves via `AdapterRegistry::resolveByAlias` (catches `UnknownSubjectTypeException` → 422 `unknown subject_type`). Validates `$obAdapter instanceof SupportsHybridAjax` (else 422), `subject_id > 0` (else 422), `loadSubject(...) !== null` (else 404). Builds payload via resolved adapter + its `ValueResolver`. Returns `{event_id, script}` shape unchanged.
-- [ ] **VIEW-10**: `Plugin::boot()` registers `ProductPageWatcher` + `AdapterRegistry::register(Product::class, ShopaholicProductAdapter::class)` ONLY when `PluginManager::exists('Lovata.OrdersShopaholic')` — per the one-guard pattern (RESEARCH §10 recommendation a), `OrdersShopaholic` transitively requires `Lovata.Shopaholic`, so this single check covers both the `shopaholic.product.open` event source (`Lovata.Shopaholic`) and the existing OrdersShopaholic-gated watchers. Component alias `productPixel` registered unconditionally. Plugin.php `cms.page.beforeRenderPage` gains a SECOND listener invoking `PixelHead::flushDeferredFromController($obController)`.
-- [ ] **VIEW-11**: All Phase 6 tests carry class-level `#[\PHPUnit\Framework\Attributes\Group('adapter')]`. `composer qa` exits 0 with full-Lovata coverage ≥ 90 %. Minimal-install cell (`pest --exclude-group=adapter`) drops all Phase 6 tests cleanly.
+- [x] **VIEW-01**: `PixelHead` flushes `ThemeEventCollector` at `cms.page.beforeRenderPage` (NOT `onRun`). Base PageView stays in `onRun`. `action_key` shape `base:pageview:{site_id}:{event_id}` unchanged.
+- [x] **VIEW-02**: `Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter` implements `EventSubjectAdapter` + new `SupportsHybridAjax` subinterface for `Lovata\Shopaholic\Models\Product`. `getSubjectType()` returns alias `'shopaholic.product'`. `getSiteId()` reads `$obProduct->site_list` single-element when count==1, falls back to `Site::getSiteIdFromContext()` (D-15 exception) — never `Request::*` / `SiteManager::*`. Proven against the Phase 2 contract via `ShopaholicProductAdapterContractTest` (10 invariants inherited from `EventSubjectAdapterContractTestCase`).
+- [x] **VIEW-03**: `Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductValueResolver` resolves `value` (default-offer `price_value`), `currency` (`CurrencyHelper::instance()->getActiveCurrencyCode()` → `Settings::get('default_currency_code', '')` fallback → throw), `content_ids` (`['SKU-{pid}-{oid}']` multi-offer, `['SKU-{pid}']` single/empty offer per D-5 + D-10).
+- [x] **VIEW-04**: `Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher` subscribes `shopaholic.product.open`. Uses `CapturesRequestUserData`. Generates UUIDv4 `event_id`. Action key `viewcontent:{product_id}:{event_id}`. Pushes to `ThemeEventCollector` + dispatches `SendCapiEvent('ViewContent', $arPayload, $obProduct, ShopaholicProductAdapter::class)`. `Throwable` boundary catch logs + returns; page render MUST NOT 500.
+- [x] **VIEW-05**: `Logingrupa\Metapixel\Components\ProductPixel` (`[productPixel]` alias) renders `window.__metapixelProduct={id:N}` global + inline offer-switch JS via `$this->page` Twig vars. `PluginGuard::isDisabled()` → both Twig vars null. Vendor-neutral name.
+- [x] **VIEW-06**: Offer-switch JS (delegated `change` on `document` matching `[name="offer_id"]`) is idempotent (single attach via `window.__metapixelProductPixelInit` flag), soft-gated by `window.__metapixelProduct` (Pitfall 8 — cart-modal bonus-box ignored), posts to `Metapixel::onFireEvent` via `jax.ajax(...)` with `subject_type:'shopaholic.product'`.
+- [x] **VIEW-07**: `AdapterRegistry::resolveByAlias(string $sAlias): string` (returns adapter FQN) added; internal `<alias, adapter-class>` index populated at `register()` time; unknown alias throws `Logingrupa\Metapixel\Classes\Exception\UnknownSubjectTypeException`.
+- [x] **VIEW-08**: New marker subinterface `Logingrupa\Metapixel\Classes\Adapter\SupportsHybridAjax extends EventSubjectAdapter` defines `loadSubject(int $iSubjectId, array $arContext): ?object`. `ShopaholicProductAdapter::loadSubject` re-enforces `Product::active()->find($iId)` + site-relation match — returns null on miss. Soft-deleted excluded (Product has `SoftDelete` trait, RESEARCH Pitfall 6 confirmed).
+- [x] **VIEW-09**: `ThemeAjaxHandler::onBeforeRun` detects optional `subject_type` field. Resolves via `AdapterRegistry::resolveByAlias` (catches `UnknownSubjectTypeException` → 422 `unknown subject_type`). Validates `$obAdapter instanceof SupportsHybridAjax` (else 422), `subject_id > 0` (else 422), `loadSubject(...) !== null` (else 404). Builds payload via resolved adapter + its `ValueResolver`. Returns `{event_id, script}` shape unchanged.
+- [x] **VIEW-10**: `Plugin::boot()` registers `ProductPageWatcher` + `AdapterRegistry::register(Product::class, ShopaholicProductAdapter::class)` ONLY when `PluginManager::exists('Lovata.OrdersShopaholic')` — per the one-guard pattern (RESEARCH §10 recommendation a), `OrdersShopaholic` transitively requires `Lovata.Shopaholic`, so this single check covers both the `shopaholic.product.open` event source (`Lovata.Shopaholic`) and the existing OrdersShopaholic-gated watchers. Component alias `productPixel` registered unconditionally. Plugin.php `cms.page.beforeRenderPage` gains a SECOND listener invoking `PixelHead::flushDeferredFromController($obController)`.
+- [x] **VIEW-11**: All Phase 6 tests carry class-level `#[\PHPUnit\Framework\Attributes\Group('adapter')]`. `composer qa` exits 0 with full-Lovata coverage ≥ 90 %. Minimal-install cell (`pest --exclude-group=adapter`) drops all Phase 6 tests cleanly.
 
 ## Future Requirements (v2.1+, deferred)
 
@@ -257,17 +257,17 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | MKT-03 | Phase 5 | Pending |
 | MKT-04 | Phase 5 | Pending |
 | MKT-05 | Phase 5 | Pending |
-| VIEW-01 | Phase 6 | Pending |
-| VIEW-02 | Phase 6 | Pending |
-| VIEW-03 | Phase 6 | Pending |
-| VIEW-04 | Phase 6 | Pending |
-| VIEW-05 | Phase 6 | Pending |
-| VIEW-06 | Phase 6 | Pending |
-| VIEW-07 | Phase 6 | Pending |
-| VIEW-08 | Phase 6 | Pending |
-| VIEW-09 | Phase 6 | Pending |
-| VIEW-10 | Phase 6 | Pending |
-| VIEW-11 | Phase 6 | Pending |
+| VIEW-01 | Phase 6 | Complete |
+| VIEW-02 | Phase 6 | Complete |
+| VIEW-03 | Phase 6 | Complete |
+| VIEW-04 | Phase 6 | Complete |
+| VIEW-05 | Phase 6 | Complete |
+| VIEW-06 | Phase 6 | Complete |
+| VIEW-07 | Phase 6 | Complete |
+| VIEW-08 | Phase 6 | Complete |
+| VIEW-09 | Phase 6 | Complete |
+| VIEW-10 | Phase 6 | Complete |
+| VIEW-11 | Phase 6 | Complete |
 
 ### Per-Phase Requirement Counts (verification)
 
