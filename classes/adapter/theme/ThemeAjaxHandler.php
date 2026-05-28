@@ -11,6 +11,11 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
 use InvalidArgumentException;
+use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
+use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\SupportsHybridAjax;
+use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
+use Logingrupa\Metapixel\Classes\Exception\UnknownSubjectTypeException;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
@@ -77,6 +82,12 @@ final class ThemeAjaxHandler
             if ($this->isRateLimited()) {
                 return new JsonResponse(['error' => 'rate limit exceeded'], 429);
             }
+
+            $mSubjectType = $arData['subject_type'] ?? null;
+            if (is_string($mSubjectType) && $mSubjectType !== '') {
+                return $this->dispatchViaAdapter($arData, $mSubjectType);
+            }
+
             try {
                 $obEvent = ThemeActionEvent::fromArray($arData);
             } catch (InvalidArgumentException $obException) {
@@ -114,6 +125,126 @@ final class ThemeAjaxHandler
 
             return new JsonResponse(['error' => 'internal'], 500);
         }
+    }
+
+    /**
+     * Hybrid AJAX path — routes a subject_type alias through AdapterRegistry to
+     * the registered adapter's loadSubject + getValueResolver. The alias is the
+     * ONLY untrusted string accepted from JS; it is bounded to the register-time
+     * alias index, so no FQN injection is possible (T-6-04 mitigation). Adapters
+     * MUST implement SupportsHybridAjax to opt in. Adapters MUST re-enforce
+     * subject's domain guards inside loadSubject (active/site/SoftDelete) per
+     * T-6-05 mitigation.
+     *
+     * For the shopaholic.product alias the handler delegates to
+     * ProductPageWatcher::dispatchForOfferSwitch which owns the canonical
+     * viewcontent:{pid}:{oid}:{eid} action_key shape. For generic hybrid
+     * aliases the handler appends the server-generated event_id to the
+     * wire-format action_key BEFORE dispatch per CONTEXT.md Claude's
+     * Discretion (JS sends viewcontent:{pid}:{oid}, server stores
+     * viewcontent:{pid}:{oid}:{eid}).
+     *
+     * @param  array<string, mixed>  $arData
+     */
+    private function dispatchViaAdapter(array $arData, string $sSubjectType): JsonResponse
+    {
+        try {
+            $sAdapterClass = App::make(AdapterRegistry::class)->resolveByAlias($sSubjectType);
+        } catch (UnknownSubjectTypeException $obException) {
+            return new JsonResponse(['error' => 'unknown subject_type'], 422);
+        }
+
+        $obAdapter = App::make($sAdapterClass);
+        if (! $obAdapter instanceof SupportsHybridAjax) {
+            return new JsonResponse(['error' => 'subject_type does not support hybrid AJAX'], 422);
+        }
+
+        $mSubjectId = $arData['subject_id'] ?? 0;
+        $iSubjectId = is_numeric($mSubjectId) ? (int) $mSubjectId : 0;
+        if ($iSubjectId <= 0) {
+            return new JsonResponse(['error' => 'invalid subject_id'], 422);
+        }
+
+        $arContext = $this->buildHybridContext($arData);
+
+        $obSubject = $obAdapter->loadSubject($iSubjectId, $arContext);
+        if ($obSubject === null) {
+            return new JsonResponse(['error' => 'subject not found'], 404);
+        }
+
+        $mName = $arData['name'] ?? '';
+        if (! is_string($mName) || $mName === '' || ! $this->isAllowedEventName($mName)) {
+            return new JsonResponse(['error' => 'event_name not allowed'], 422);
+        }
+
+        if ($sAdapterClass === ShopaholicProductAdapter::class) {
+            $mOfferId = $arData['offer_id'] ?? 0;
+            $iOfferId = is_numeric($mOfferId) ? (int) $mOfferId : 0;
+            if ($iOfferId <= 0) {
+                return new JsonResponse(['error' => 'invalid offer_id'], 422);
+            }
+            $sEventId = App::make(ProductPageWatcher::class)->dispatchForOfferSwitch($iSubjectId, $iOfferId);
+        } else {
+            $sEventId = Uuid::uuid4()->toString();
+            $iEventTime = time();
+            $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+                $mName,
+                $obAdapter,
+                $obSubject,
+                $obAdapter->getValueResolver($obSubject),
+                $sEventId,
+                $iEventTime,
+                [],
+            );
+            // Server-side append: convert wire-format action_key to canonical
+            // four-segment shape (CONTEXT.md Claude's Discretion). The append
+            // is observability-only here; payload-side dedup is anchored by
+            // event_id within ±10s of event_time. Generic-alias path retained
+            // for future adapters (e.g. mall.product).
+            $mWireActionKey = $arData['action_key'] ?? null;
+            $sWireActionKey = is_string($mWireActionKey) ? $mWireActionKey : '';
+            if ($sWireActionKey !== '') {
+                $arPayload['action_key'] = $sWireActionKey.':'.$sEventId;
+            }
+            SendCapiEvent::dispatch($mName, $arPayload, $obSubject, $sAdapterClass);
+        }
+
+        $iJsonFlags = JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_APOS;
+        $sScript = sprintf(
+            '<script>fbq("track", %s, {}, {eventID: %s});</script>',
+            (string) json_encode($mName, $iJsonFlags),
+            (string) json_encode($sEventId, $iJsonFlags),
+        );
+
+        return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
+    }
+
+    /**
+     * Narrow $arData['context'] to a string-keyed array (phpstan level 10
+     * requires explicit string-key narrowing on the SupportsHybridAjax
+     * loadSubject contract) + overlay top-level offer_id when present.
+     *
+     * @param  array<string, mixed>  $arData
+     * @return array<string, mixed>
+     */
+    private function buildHybridContext(array $arData): array
+    {
+        $arContext = [];
+        $mContext = $arData['context'] ?? null;
+        if (is_array($mContext)) {
+            foreach ($mContext as $mKey => $mValue) {
+                if (is_string($mKey)) {
+                    $arContext[$mKey] = $mValue;
+                }
+            }
+        }
+        foreach (['offer_id'] as $sExtra) {
+            if (isset($arData[$sExtra])) {
+                $arContext[$sExtra] = $arData[$sExtra];
+            }
+        }
+
+        return $arContext;
     }
 
     private function isAllowedEventName(mixed $mName): bool

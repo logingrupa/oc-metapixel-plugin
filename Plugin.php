@@ -24,6 +24,7 @@ use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Components\EventPixel;
 use Logingrupa\Metapixel\Components\PixelHead;
+use Logingrupa\Metapixel\Components\ProductPixel;
 use Logingrupa\Metapixel\Console\PurgeEventLog;
 use Logingrupa\Metapixel\Console\RefreshPsl;
 use Logingrupa\Metapixel\Middleware\EnsureFbpFbcCookies;
@@ -126,6 +127,7 @@ class Plugin extends PluginBase
         return [
             EventPixel::class => 'eventPixel',
             PixelHead::class => 'pixelHead',
+            ProductPixel::class => 'productPixel',
         ];
     }
 
