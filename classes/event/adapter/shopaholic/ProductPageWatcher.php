@@ -29,7 +29,7 @@ use Throwable;
  * offer-switch path (ThemeAjaxHandler::dispatchViaAdapter delegates here
  * so the ViewContent payload contract has a single owner).
  */
-final class ProductPageWatcher
+class ProductPageWatcher
 {
     use CapturesRequestUserData;
 
