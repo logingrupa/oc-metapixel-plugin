@@ -90,6 +90,14 @@ class Plugin extends PluginBase
             $mThis->config['metapixel'] = App::make(ThemeEventCollector::class);
         });
 
+        // Second cms.page.beforeRenderPage listener — drains ThemeEventCollector
+        // into the deferred-flush buffer. Pure observer; fires AFTER all
+        // page-tier component onRun() per Cms\Classes\Controller line 421
+        // lifecycle anchor.
+        Event::listen('cms.page.beforeRenderPage', function (CmsController $obController): void {
+            PixelHead::flushDeferredFromController($obController);
+        });
+
         // ThemeActionAdapter registers unconditionally — Theme path works on any
         // OctoberCMS install regardless of cart-plugin presence (D-13).
         App::make(AdapterRegistry::class)->register(

@@ -112,13 +112,14 @@ final class ThemeMarkupTagsTwigTest extends MetapixelTestCase
         );
     }
 
-    public function test_register_markup_tags_returns_empty_functions_and_filters_arrays(): void
+    public function test_register_markup_tags_exposes_renderDeferredBlocks_function(): void
     {
         $obPlugin = new \Logingrupa\Metapixel\Plugin($this->app);
 
         $arTags = $obPlugin->registerMarkupTags();
 
-        $this->assertSame([], $arTags['functions']);
+        $this->assertArrayHasKey('renderDeferredBlocks', $arTags['functions']);
+        $this->assertIsCallable($arTags['functions']['renderDeferredBlocks']);
         $this->assertSame([], $arTags['filters']);
     }
 
