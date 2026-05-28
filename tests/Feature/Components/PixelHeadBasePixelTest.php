@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
+use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Components\PixelHead;
@@ -33,12 +34,14 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         parent::setUp();
         (new CreateMetapixelEventLogTable)->up();
         App::singleton(ThemeEventCollector::class);
+        App::singleton(PixelHeadDeferredFlushBuffer::class);
         PluginGuard::reset();
     }
 
     protected function tearDown(): void
     {
         App::forgetInstance(ThemeEventCollector::class);
+        App::forgetInstance(PixelHeadDeferredFlushBuffer::class);
         PluginGuard::reset();
         (new CreateMetapixelEventLogTable)->down();
         parent::tearDown();
@@ -132,10 +135,12 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         App::make(ThemeEventCollector::class)->push(['name' => 'ViewContent', 'value' => 99.99]);
 
         $arPage = $this->runComponent(new PixelHead);
+        PixelHead::flushDeferredFromController(\Mockery::mock(\Cms\Classes\Controller::class));
 
         $this->assertNotNull($arPage['pixelHeadBase'], 'Base block emits');
-        $this->assertCount(1, $arPage['pixelHeadBlocks'], 'Collector flush still runs');
-        $this->assertStringContainsString('"ViewContent"', $arPage['pixelHeadBlocks'][0]);
+        $arBlocks = App::make(PixelHeadDeferredFlushBuffer::class)->getBlocks();
+        $this->assertCount(1, $arBlocks, 'Collector flush still runs at deferred phase');
+        $this->assertStringContainsString('"ViewContent"', $arBlocks[0]);
     }
 
     public function test_dispatch_failure_does_not_break_page_render(): void

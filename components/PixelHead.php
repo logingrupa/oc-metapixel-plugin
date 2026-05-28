@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixel\Components;
 
 use Cms\Classes\ComponentBase;
+use Cms\Classes\Controller as CmsController;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
@@ -11,6 +12,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionValueResolver;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
+use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
@@ -22,19 +24,22 @@ use Throwable;
 /**
  * Layout-level head-tag base pixel + ThemeEventCollector consumer.
  *
- * Two responsibilities, one component (D-04 lock — Phase 5 design):
- *  1. Base pixel — fbevents.js loader + fbq('init', pixel_id) + base
- *     fbq('track', 'PageView', {}, {eventID}) + <noscript> img + matching
- *     CAPI PageView dispatch. Fires once per page-load.
- *  2. Theme-event accumulator — flushes ThemeEventCollector and emits one
- *     fbq('track', ...) <script> block per pushed event. Optional
- *     also_dispatch_capi:true on a pushed event mirrors to CAPI via
- *     SendCapiEvent::dispatch. Mirror failures NEVER break page render
- *     (Tiger-Style: log + continue).
+ * LIFECYCLE TIMING CONTRACT (locked v2.0):
+ *  - onRun() runs during execPageCycle (cms.page.start → cms.page.end window).
+ *    Emits base PageView synchronously — same as Phase 5.
+ *  - flushDeferredFromController() drains ThemeEventCollector at
+ *    cms.page.beforeRenderPage, AFTER every page-tier component's onRun() has
+ *    completed. This permits page-tier components (e.g. Shopaholic ProductPage
+ *    firing shopaholic.product.open) to push to the collector during their own
+ *    onRun and still be flushed in time.
+ *  - The fbq() <script> blocks render via PixelHead::renderDeferredBlocks()
+ *    Twig markup helper, invoked from components/pixelhead/default.htm during
+ *    renderPageContents() — immediately after beforeRenderPage fires. The
+ *    PixelHeadDeferredFlushBuffer singleton bridges the two phases.
  *
- * Disabled-state contract: PluginGuard::isDisabled() true OR Settings
- * lookup returns empty pixel_id → no base block, no CAPI dispatch, no
- * collector flush leaking into Twig. Page renders cleanly.
+ * If you push to ThemeEventCollector AFTER cms.page.beforeRenderPage, the push
+ * is silently dropped — emit point has passed. Push during component onRun()
+ * or earlier.
  */
 class PixelHead extends ComponentBase
 {
@@ -57,7 +62,6 @@ class PixelHead extends ComponentBase
     public function onRun(): void
     {
         $this->emitBasePixel();
-        $this->emitCollectedEvents();
     }
 
     /**
@@ -178,50 +182,97 @@ class PixelHead extends ComponentBase
     }
 
     /**
-     * Flush ThemeEventCollector → render one fbq('track', ...) script per
-     * pushed event. Existing behavior unchanged (this is the original
-     * onRun body extracted into its own method).
+     * Drain ThemeEventCollector at cms.page.beforeRenderPage and persist the
+     * rendered fbq script blocks into the PixelHeadDeferredFlushBuffer
+     * singleton for the Twig partial to consume via renderDeferredBlocks().
+     *
+     * @param  \Cms\Classes\Controller  $obController  unused; reserved for future per-controller metadata reads (theme name, page var) without re-resolving the controller singleton from the container.
      */
-    protected function emitCollectedEvents(): void
+    public static function flushDeferredFromController(CmsController $obController): void
     {
-        /** @var ThemeEventCollector $obCollector */
-        $obCollector = App::make(ThemeEventCollector::class);
-        $arEvents = $obCollector->flush();
-        $arScriptBlocks = [];
-        foreach ($arEvents as $arEvent) {
-            $mNameRaw = $arEvent['name'] ?? null;
-            if (! is_string($mNameRaw) || $mNameRaw === '') {
-                continue;
-            }
-            $sName = $mNameRaw;
-            $arCustomData = isset($arEvent['custom_data']) && is_array($arEvent['custom_data'])
-                ? $arEvent['custom_data']
-                : array_diff_key($arEvent, ['name' => true, 'action_key' => true, 'also_dispatch_capi' => true, 'site_id' => true]);
-            $sNameJson = (string) json_encode($sName, self::JS);
-            $sDataJson = (string) json_encode($arCustomData, self::JS);
-            $arScriptBlocks[] = sprintf('<script>fbq("track", %s, %s);</script>', $sNameJson, $sDataJson);
-            if ((bool) ($arEvent['also_dispatch_capi'] ?? false)) {
-                try {
-                    $this->dispatchCapiMirror($sName, $arEvent);
-                } catch (Throwable $obException) {
-                    Log::warning('metapixel: PixelHead CAPI mirror failed', [
-                        'meta_pixel.event_name' => $sName,
-                        'meta_pixel.exception' => get_class($obException),
-                        'meta_pixel.message' => $obException->getMessage(),
+        try {
+            /** @var ThemeEventCollector $obCollector */
+            $obCollector = App::make(ThemeEventCollector::class);
+            $arEvents = $obCollector->flush();
+            $arScriptBlocks = [];
+            foreach ($arEvents as $arEvent) {
+                $mNameRaw = $arEvent['name'] ?? null;
+                if (! is_string($mNameRaw) || $mNameRaw === '') {
+                    continue;
+                }
+                $sName = $mNameRaw;
+                $arCustomData = isset($arEvent['custom_data']) && is_array($arEvent['custom_data'])
+                    ? $arEvent['custom_data']
+                    : array_diff_key($arEvent, [
+                        'name' => true,
+                        'action_key' => true,
+                        'also_dispatch_capi' => true,
+                        'site_id' => true,
+                        'event_id' => true,
+                        'product_id' => true,
                     ]);
+                $sNameJson = (string) json_encode($sName, self::JS);
+                $sDataJson = (string) json_encode($arCustomData, self::JS);
+                $mEventId = $arEvent['event_id'] ?? null;
+                if (is_string($mEventId) && $mEventId !== '') {
+                    $sEventIdJson = (string) json_encode($mEventId, self::JS);
+                    $arScriptBlocks[] = sprintf(
+                        '<script>fbq("track", %s, %s, {eventID: %s});</script>',
+                        $sNameJson,
+                        $sDataJson,
+                        $sEventIdJson,
+                    );
+                } else {
+                    $arScriptBlocks[] = sprintf(
+                        '<script>fbq("track", %s, %s);</script>',
+                        $sNameJson,
+                        $sDataJson,
+                    );
+                }
+                if ((bool) ($arEvent['also_dispatch_capi'] ?? false)) {
+                    try {
+                        self::dispatchCapiMirror($sName, $arEvent);
+                    } catch (Throwable $obException) {
+                        // Tiger-Style: mirror failure MUST NOT 500 the page
+                        // render; log + continue.
+                        Log::warning('metapixel: PixelHead CAPI mirror failed', [
+                            'meta_pixel.event_name' => $sName,
+                            'meta_pixel.exception' => get_class($obException),
+                            'meta_pixel.message' => $obException->getMessage(),
+                        ]);
+                    }
                 }
             }
+            App::make(PixelHeadDeferredFlushBuffer::class)->setBlocks($arScriptBlocks);
+        } catch (Throwable $obException) {
+            // Tiger-Style boundary: deferred flush failure MUST NOT break
+            // page render; the page CAN render without fbq scripts if the
+            // collector is malformed.
+            Log::warning('metapixel: PixelHead deferred flush failed', [
+                'meta_pixel.exception' => get_class($obException),
+                'meta_pixel.message' => $obException->getMessage(),
+            ]);
         }
-        $this->page['pixelHeadBlocks'] = $arScriptBlocks;
     }
 
     /**
-     * Mirror a pushed event to the CAPI queue. Caller (emitCollectedEvents)
+     * Twig markup helper. Concatenates the deferred-flush buffer contents
+     * with newlines for inline rendering in components/pixelhead/default.htm.
+     */
+    public static function renderDeferredBlocks(): string
+    {
+        $obBuffer = App::make(PixelHeadDeferredFlushBuffer::class);
+
+        return implode("\n", $obBuffer->getBlocks());
+    }
+
+    /**
+     * Mirror a pushed event to the CAPI queue. Caller (flushDeferredFromController)
      * catches any throwable so page render never breaks on mirror failure.
      *
      * @param  array<string, mixed>  $arEvent
      */
-    protected function dispatchCapiMirror(string $sName, array $arEvent): void
+    private static function dispatchCapiMirror(string $sName, array $arEvent): void
     {
         $arEventArgs = $arEvent;
         if (! isset($arEventArgs['action_key']) || ! is_string($arEventArgs['action_key']) || $arEventArgs['action_key'] === '') {

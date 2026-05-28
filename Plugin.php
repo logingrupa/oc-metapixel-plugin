@@ -127,7 +127,9 @@ class Plugin extends PluginBase
     public function registerMarkupTags(): array
     {
         return [
-            'functions' => [],
+            'functions' => [
+                'renderDeferredBlocks' => fn (): string => PixelHead::renderDeferredBlocks(),
+            ],
             'filters' => [],
         ];
     }
