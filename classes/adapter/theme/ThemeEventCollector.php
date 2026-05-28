@@ -48,6 +48,20 @@ final class ThemeEventCollector
         return $arResult;
     }
 
+    /**
+     * Return the current accumulated events WITHOUT consuming or resetting.
+     * Distinguishes "I want to look" (ProductPixel onRun reads product_id for
+     * window.__metapixelProduct global) from "I want to consume" (PixelHead
+     * deferred-flush drains). Multiple readers safe; no defensive copy because
+     * callers iterate read-only.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function peek(): array
+    {
+        return $this->arEvents;
+    }
+
     public function count(): int
     {
         return count($this->arEvents);
