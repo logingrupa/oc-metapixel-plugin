@@ -12,12 +12,14 @@ use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
+use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Components\EventPixel;
@@ -28,6 +30,7 @@ use Logingrupa\Metapixel\Middleware\EnsureFbpFbcCookies;
 use Logingrupa\Metapixel\Models\Settings;
 use Lovata\OrdersShopaholic\Models\CartPosition;
 use Lovata\OrdersShopaholic\Models\Order;
+use Lovata\Shopaholic\Models\Product;
 use System\Classes\PluginBase;
 use System\Classes\PluginManager;
 
@@ -75,11 +78,14 @@ class Plugin extends PluginBase
     public function boot(): void
     {
         if ($this->isShopaholicEnabled()) {
+            // One-guard pattern (RESEARCH §10): OrdersShopaholic transitively requires Shopaholic.
             $obRegistry = App::make(AdapterRegistry::class);
             $obRegistry->register(Order::class, ShopaholicOrderAdapter::class);
             $obRegistry->register(CartPosition::class, ShopaholicCartPositionAdapter::class);
+            $obRegistry->register(Product::class, ShopaholicProductAdapter::class);
             Event::subscribe(OrderStatusWatcher::class);
             Event::subscribe(CartPositionWatcher::class);
+            Event::subscribe(ProductPageWatcher::class);
         }
 
         Event::listen('cms.page.beforeRenderPage', function (CmsController $obController): void {
