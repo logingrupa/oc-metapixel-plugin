@@ -191,6 +191,10 @@ class PixelHead extends ComponentBase
     public static function flushDeferredFromController(CmsController $obController): void
     {
         try {
+            $mTestCode = Settings::get('test_event_code', '');
+            $sTestCode = is_string($mTestCode) ? $mTestCode : '';
+            $sTestCodeJson = $sTestCode !== '' ? (string) json_encode($sTestCode, self::JS) : null;
+
             /** @var ThemeEventCollector $obCollector */
             $obCollector = App::make(ThemeEventCollector::class);
             $arEvents = $obCollector->flush();
@@ -214,13 +218,13 @@ class PixelHead extends ComponentBase
                 $sNameJson = (string) json_encode($sName, self::JS);
                 $sDataJson = (string) json_encode($arCustomData, self::JS);
                 $mEventId = $arEvent['event_id'] ?? null;
-                if (is_string($mEventId) && $mEventId !== '') {
-                    $sEventIdJson = (string) json_encode($mEventId, self::JS);
+                $sObjFragment = self::buildFbqOptionsObject($mEventId, $sTestCodeJson);
+                if ($sObjFragment !== '') {
                     $arScriptBlocks[] = sprintf(
-                        '<script>fbq("track", %s, %s, {eventID: %s});</script>',
+                        '<script>fbq("track", %s, %s, %s);</script>',
                         $sNameJson,
                         $sDataJson,
-                        $sEventIdJson,
+                        $sObjFragment,
                     );
                 } else {
                     $arScriptBlocks[] = sprintf(
@@ -264,6 +268,26 @@ class PixelHead extends ComponentBase
         $obBuffer = App::make(PixelHeadDeferredFlushBuffer::class);
 
         return implode("\n", $obBuffer->getBlocks());
+    }
+
+    /**
+     * Build the fbq() 4th-argument options object from an optional event_id
+     * and an optional JS-encoded test_event_code. Returns '' when neither is
+     * present so the caller emits a 3-arg fbq() call.
+     *
+     * @param  mixed  $mEventId
+     */
+    private static function buildFbqOptionsObject($mEventId, ?string $sTestCodeJson): string
+    {
+        $arPairs = [];
+        if (is_string($mEventId) && $mEventId !== '') {
+            $arPairs[] = 'eventID: '.(string) json_encode($mEventId, self::JS);
+        }
+        if ($sTestCodeJson !== null) {
+            $arPairs[] = 'test_event_code: '.$sTestCodeJson;
+        }
+
+        return $arPairs === [] ? '' : '{'.implode(', ', $arPairs).'}';
     }
 
     /**

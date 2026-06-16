@@ -137,6 +137,75 @@ final class PixelHeadDeferredFlushTest extends MetapixelTestCase
         $this->assertSame('"TEST123"', $arPage['pixelHeadBase']['test_event_code_js']);
     }
 
+    public function test_deferred_blocks_inject_test_event_code_when_set(): void
+    {
+        Bus::fake();
+        Settings::clearInternalCache();
+        Settings::set([
+            'pixel_id' => 'PX',
+            'capi_access_token' => 'TOK',
+            'test_event_code' => 'TEST123',
+        ]);
+        Settings::clearInternalCache();
+        PluginGuard::reset();
+
+        $obCollector = App::make(ThemeEventCollector::class);
+        $obCollector->push([
+            'name' => 'ViewContent',
+            'event_id' => 'eid-001',
+            'site_id' => 1,
+            'content_ids' => ['SKU-42'],
+        ]);
+        $obCollector->push([
+            'name' => 'PageView',
+            'site_id' => 1,
+        ]);
+
+        PixelHead::flushDeferredFromController(Mockery::mock(CmsController::class));
+
+        $arBlocks = App::make(PixelHeadDeferredFlushBuffer::class)->getBlocks();
+        $this->assertCount(2, $arBlocks, 'two deferred blocks emitted');
+
+        // event_id branch carries BOTH eventID and test_event_code.
+        $this->assertStringContainsString('eventID: "eid-001"', $arBlocks[0]);
+        $this->assertStringContainsString('test_event_code: "TEST123"', $arBlocks[0]);
+
+        // no-event_id branch carries test_event_code in a 4th-arg object, no eventID.
+        $this->assertStringContainsString('test_event_code: "TEST123"', $arBlocks[1]);
+        $this->assertStringContainsString('fbq("track"', $arBlocks[1]);
+        $this->assertStringNotContainsString('eventID', $arBlocks[1]);
+    }
+
+    public function test_deferred_blocks_omit_test_event_code_when_unset(): void
+    {
+        Bus::fake();
+
+        $obCollector = App::make(ThemeEventCollector::class);
+        $obCollector->push([
+            'name' => 'ViewContent',
+            'event_id' => 'eid-002',
+            'site_id' => 1,
+            'content_ids' => ['SKU-7'],
+        ]);
+        $obCollector->push([
+            'name' => 'PageView',
+            'site_id' => 1,
+        ]);
+
+        PixelHead::flushDeferredFromController(Mockery::mock(CmsController::class));
+
+        $arBlocks = App::make(PixelHeadDeferredFlushBuffer::class)->getBlocks();
+        $this->assertCount(2, $arBlocks, 'two deferred blocks emitted');
+
+        // event_id branch unchanged: {eventID: X}, no test_event_code.
+        $this->assertStringContainsString('eventID: "eid-002"', $arBlocks[0]);
+        $this->assertStringNotContainsString('test_event_code', $arBlocks[0]);
+
+        // no-event_id branch unchanged: 3-arg call, no 4th-arg object, no test_event_code.
+        $this->assertStringNotContainsString('test_event_code', $arBlocks[1]);
+        $this->assertStringNotContainsString('eventID', $arBlocks[1]);
+    }
+
     /**
      * @return array{pixelHeadBase: ?array<string, mixed>, raw: array<string, mixed>}
      */
