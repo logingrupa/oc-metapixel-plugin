@@ -73,6 +73,46 @@ final class PayloadBuilderTest extends MetapixelTestCase
         $this->assertSame('EUR', $arCustom['currency'], 'currency from resolver still present');
     }
 
+    public function test_empty_content_ids_omits_content_type_and_content_ids(): void
+    {
+        $obAdapter = new FakeAdapter;
+        $obResolver = new FakeValueResolver(arContentIds: [], arContents: [], iNumItems: 0);
+        $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+            'PageView',
+            $obAdapter,
+            new stdClass,
+            $obResolver,
+            'uuid-pv',
+            1700000002,
+            [],
+        );
+
+        $arCustom = $arPayload['data'][0]['custom_data'];
+        $this->assertFalse(array_key_exists('content_type', $arCustom), 'contentless PageView omits content_type');
+        $this->assertFalse(array_key_exists('content_ids', $arCustom), 'contentless PageView omits content_ids');
+        $this->assertArrayHasKey('currency', $arCustom);
+        $this->assertArrayHasKey('value', $arCustom);
+    }
+
+    public function test_non_empty_content_ids_retains_product_shape(): void
+    {
+        $obAdapter = new FakeAdapter;
+        $obResolver = new FakeValueResolver;
+        $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+            'ViewContent',
+            $obAdapter,
+            new stdClass,
+            $obResolver,
+            'uuid-vc',
+            1700000003,
+            [],
+        );
+
+        $arCustom = $arPayload['data'][0]['custom_data'];
+        $this->assertSame('product', $arCustom['content_type']);
+        $this->assertSame(['SKU-1'], $arCustom['content_ids']);
+    }
+
     public function test_envelope_subject_agnostic_same_adapter_different_events(): void
     {
         $obAdapter = new FakeAdapter;

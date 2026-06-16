@@ -33,15 +33,19 @@ final class PayloadBuilder
         array $arEventExtras,
     ): array {
         $arUserData = $this->obHasher->forSubject($obAdapter, $obSubject);
+        $arContentIds = $obResolver->resolveContentIds($obSubject);
 
         $arCustomData = [
             'currency' => $obResolver->resolveCurrency($obSubject),
             'value' => $obResolver->resolveValue($obSubject),
             'num_items' => $obResolver->resolveNumItems($obSubject),
             'contents' => $obResolver->resolveContents($obSubject),
-            'content_ids' => $obResolver->resolveContentIds($obSubject),
-            'content_type' => 'product',
         ];
+
+        if ($arContentIds !== []) {
+            $arCustomData['content_ids'] = $arContentIds;
+            $arCustomData['content_type'] = 'product';
+        }
 
         if ($arEventExtras !== []) {
             $arCustomData = array_merge($arCustomData, $arEventExtras);
