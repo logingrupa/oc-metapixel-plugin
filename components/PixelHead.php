@@ -14,6 +14,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionValueResolver;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
@@ -192,8 +193,7 @@ class PixelHead extends ComponentBase
     {
         try {
             $mTestCode = Settings::get('test_event_code', '');
-            $sTestCode = is_string($mTestCode) ? $mTestCode : '';
-            $sTestCodeJson = $sTestCode !== '' ? (string) json_encode($sTestCode, self::JS) : null;
+            $sTestCode = is_string($mTestCode) && $mTestCode !== '' ? $mTestCode : null;
 
             /** @var ThemeEventCollector $obCollector */
             $obCollector = App::make(ThemeEventCollector::class);
@@ -205,34 +205,10 @@ class PixelHead extends ComponentBase
                     continue;
                 }
                 $sName = $mNameRaw;
-                $arCustomData = isset($arEvent['custom_data']) && is_array($arEvent['custom_data'])
-                    ? $arEvent['custom_data']
-                    : array_diff_key($arEvent, [
-                        'name' => true,
-                        'action_key' => true,
-                        'also_dispatch_capi' => true,
-                        'site_id' => true,
-                        'event_id' => true,
-                        'product_id' => true,
-                    ]);
-                $sNameJson = (string) json_encode($sName, self::JS);
-                $sDataJson = (string) json_encode($arCustomData, self::JS);
+                $arCustomData = self::extractCustomData($arEvent);
                 $mEventId = $arEvent['event_id'] ?? null;
-                $sObjFragment = self::buildFbqOptionsObject($mEventId, $sTestCodeJson);
-                if ($sObjFragment !== '') {
-                    $arScriptBlocks[] = sprintf(
-                        '<script>fbq("track", %s, %s, %s);</script>',
-                        $sNameJson,
-                        $sDataJson,
-                        $sObjFragment,
-                    );
-                } else {
-                    $arScriptBlocks[] = sprintf(
-                        '<script>fbq("track", %s, %s);</script>',
-                        $sNameJson,
-                        $sDataJson,
-                    );
-                }
+                $sEventId = is_string($mEventId) && $mEventId !== '' ? $mEventId : null;
+                $arScriptBlocks[] = FbqScriptBuilder::build($sName, $arCustomData, $sEventId, $sTestCode);
                 if ((bool) ($arEvent['also_dispatch_capi'] ?? false)) {
                     try {
                         self::dispatchCapiMirror($sName, $arEvent);
@@ -271,23 +247,33 @@ class PixelHead extends ComponentBase
     }
 
     /**
-     * Build the fbq() 4th-argument options object from an optional event_id
-     * and an optional JS-encoded test_event_code. Returns '' when neither is
-     * present so the caller emits a 3-arg fbq() call.
+     * Extract the fbq custom_data subset from a collector event: prefer an
+     * explicit `custom_data` array, else strip the routing/meta keys.
      *
-     * @param  mixed  $mEventId
+     * @param  array<string, mixed>  $arEvent
+     * @return array<string, mixed>
      */
-    private static function buildFbqOptionsObject($mEventId, ?string $sTestCodeJson): string
+    private static function extractCustomData(array $arEvent): array
     {
-        $arPairs = [];
-        if (is_string($mEventId) && $mEventId !== '') {
-            $arPairs[] = 'eventID: '.(string) json_encode($mEventId, self::JS);
-        }
-        if ($sTestCodeJson !== null) {
-            $arPairs[] = 'test_event_code: '.$sTestCodeJson;
+        if (isset($arEvent['custom_data']) && is_array($arEvent['custom_data'])) {
+            $arCustomData = [];
+            foreach ($arEvent['custom_data'] as $mKey => $mValue) {
+                if (is_string($mKey)) {
+                    $arCustomData[$mKey] = $mValue;
+                }
+            }
+
+            return $arCustomData;
         }
 
-        return $arPairs === [] ? '' : '{'.implode(', ', $arPairs).'}';
+        return array_diff_key($arEvent, [
+            'name' => true,
+            'action_key' => true,
+            'also_dispatch_capi' => true,
+            'site_id' => true,
+            'event_id' => true,
+            'product_id' => true,
+        ]);
     }
 
     /**
