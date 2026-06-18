@@ -15,8 +15,9 @@ use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
  *      server-injected global, sourced from ThemeEventCollector's most recent
  *      product_id push by ProductPageWatcher.
  *  (2) productPixelOfferSwitchJs — delegated change-listener on document for
- *      [name="offer_id"] that posts to Metapixel::onFireEvent (hybrid alias
- *      subject_type='shopaholic.product') and injects the returned script.
+ *      [name="offer_id"] that posts to Metapixel::onFireEvent via October's
+ *      native $.request (hybrid alias subject_type='shopaholic.product') and
+ *      injects the returned script as an executable fragment.
  *
  * Disabled-state contract: PluginGuard::isDisabled() OR no product_id in
  * collector → both Twig vars null, default.htm renders nothing.
@@ -87,7 +88,10 @@ final class ProductPixel extends ComponentBase
     }
 
     /**
-     * Build the inline offer-switch JS block. Verbatim per RESEARCH §7 Example 2.
+     * Build the inline offer-switch JS block. Posts via October's native
+     * $.request (the theme ships jQuery + the October AJAX framework, not
+     * Larajax) and injects the returned <script> via createContextualFragment
+     * so the fbq() call actually executes (innerHTML-parsed scripts do not).
      * Wire-format action_key is two-segment (viewcontent:{pid}:{oid}) — the
      * server appends the freshly-minted event_id to produce the canonical
      * four-segment viewcontent:{pid}:{oid}:{eid} shape before EventLog insert
@@ -107,17 +111,22 @@ final class ProductPixel extends ComponentBase
         var iProductId = parseInt(window.__metapixelProduct.id, 10);
         var iOfferId   = parseInt(el.value || '0', 10);
         if (!iProductId || !iOfferId) return;
-        jax.ajax('Metapixel::onFireEvent', { data: {
-            name: 'ViewContent',
-            subject_type: 'shopaholic.product',
-            subject_id: iProductId,
-            offer_id: iOfferId,
-            action_key: 'viewcontent:' + iProductId + ':' + iOfferId
-        }}).done(function (oResp) {
-            if (oResp && oResp.script) {
-                var oTmp = document.createElement('div');
-                oTmp.innerHTML = oResp.script;
-                if (oTmp.firstChild) document.body.appendChild(oTmp.firstChild);
+        if (typeof $ === 'undefined' || !$.request) return;
+        $.request('Metapixel::onFireEvent', {
+            data: {
+                name: 'ViewContent',
+                subject_type: 'shopaholic.product',
+                subject_id: iProductId,
+                offer_id: iOfferId,
+                action_key: 'viewcontent:' + iProductId + ':' + iOfferId
+            },
+            success: function (oResp) {
+                if (oResp && oResp.script) {
+                    var oRange = document.createRange();
+                    oRange.selectNode(document.body);
+                    var oFrag = oRange.createContextualFragment(oResp.script);
+                    document.body.appendChild(oFrag);
+                }
             }
         });
     }, false);

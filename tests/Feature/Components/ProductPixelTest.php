@@ -50,7 +50,10 @@ final class ProductPixelTest extends MetapixelTestCase
         $this->assertStringContainsString('!window.__metapixelProduct', $mJs, 'soft-gate missing (Pitfall 8 / T-6-06)');
         $this->assertStringContainsString("subject_type: 'shopaholic.product'", $mJs);
         $this->assertStringContainsString("document.addEventListener('change'", $mJs);
-        $this->assertStringContainsString("jax.ajax('Metapixel::onFireEvent'", $mJs);
+        $this->assertStringContainsString("el.name !== 'offer_id'", $mJs, 'offer_id filter missing');
+        $this->assertStringContainsString("\$.request('Metapixel::onFireEvent'", $mJs, 'must use October native $.request, not Larajax');
+        $this->assertStringNotContainsString('jax.ajax', $mJs, 'Larajax jax.ajax is undefined in this theme — must not be emitted');
+        $this->assertStringContainsString('createContextualFragment', $mJs, 'injected <script> must be executable (innerHTML scripts do not run)');
         $this->assertStringContainsString(
             "action_key: 'viewcontent:' + iProductId + ':' + iOfferId",
             $mJs,
