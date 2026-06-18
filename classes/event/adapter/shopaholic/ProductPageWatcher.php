@@ -10,6 +10,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductValueResolv
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
@@ -25,7 +26,7 @@ use Throwable;
  * deferred-flush listener emits the browser fbq script with matching
  * event_id; dispatches SendCapiEvent to mirror to CAPI. Tiger-Style
  * boundary: page render MUST NOT 500 on pixel failure. Exposes
- * dispatchForOfferSwitch(int, int): string entry point for the AJAX
+ * dispatchForOfferSwitch(int, int): OfferSwitchResult entry point for the AJAX
  * offer-switch path (ThemeAjaxHandler::dispatchViaAdapter delegates here
  * so the ViewContent payload contract has a single owner).
  */
@@ -97,10 +98,11 @@ class ProductPageWatcher
 
     /**
      * Offer-switch entry point. Re-fires ViewContent with a fresh UUIDv4
-     * event_id and content_ids containing SKU-{pid}-{oid_new}. Returns the
-     * server-generated event_id so the AJAX caller
-     * (ThemeAjaxHandler::dispatchViaAdapter) can echo it back in the JSON
-     * response (used by the browser fbq's 4th-arg eventID to dedup with the
+     * event_id and content_ids containing SKU-{pid}-{oid_new}. Returns an
+     * OfferSwitchResult carrying that event_id plus the browser-facing
+     * ViewContent custom_data so the AJAX caller
+     * (ThemeAjaxHandler::dispatchViaAdapter) can render the fbq script without
+     * re-deriving content (the browser fbq's 4th-arg eventID dedups with the
      * CAPI mirror).
      *
      * action_key shape: viewcontent:{pid}:{oid_new}:{event_id} — server
@@ -115,9 +117,9 @@ class ProductPageWatcher
      * throw into a 422/404/500 JsonResponse — page render is not involved
      * here so we surface failures to the JS soft-gate instead of swallowing.
      *
-     * @return string server-generated UUIDv4 event_id
+     * @return OfferSwitchResult server event_id + browser ViewContent custom_data
      */
-    public function dispatchForOfferSwitch(int $iProductId, int $iOfferId): string
+    public function dispatchForOfferSwitch(int $iProductId, int $iOfferId): OfferSwitchResult
     {
         if ($iProductId <= 0 || $iOfferId <= 0) {
             throw new \InvalidArgumentException(
@@ -168,24 +170,27 @@ class ProductPageWatcher
 
         $arPayload = $this->injectRequestUserData($arPayload);
 
-        /** @var ThemeEventCollector $obCollector */
-        $obCollector = App::make(ThemeEventCollector::class);
-        $obCollector->push([
-            'name' => 'ViewContent',
-            'action_key' => 'viewcontent:'.$iProductId.':'.$iOfferId.':'.$sEventId,
-            'event_id' => $sEventId,
+        $arCustomData = [
             'content_ids' => $arForcedContentIds,
             'content_name' => $this->stringAttr($obProduct, 'name'),
             'content_type' => 'product',
             'value' => $obResolver->resolveValue($obProduct),
             'currency' => $obResolver->resolveCurrency($obProduct),
+        ];
+
+        /** @var ThemeEventCollector $obCollector */
+        $obCollector = App::make(ThemeEventCollector::class);
+        $obCollector->push(array_merge($arCustomData, [
+            'name' => 'ViewContent',
+            'action_key' => 'viewcontent:'.$iProductId.':'.$iOfferId.':'.$sEventId,
+            'event_id' => $sEventId,
             'product_id' => $iProductId,
             'offer_id' => $iOfferId,
-        ]);
+        ]));
 
         SendCapiEvent::dispatch('ViewContent', $arPayload, $obProduct, ShopaholicProductAdapter::class);
 
-        return $sEventId;
+        return new OfferSwitchResult($sEventId, $arCustomData);
     }
 
     private function intAttr(Product $obProduct, string $sAttr): int

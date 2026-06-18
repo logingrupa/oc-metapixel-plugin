@@ -12,7 +12,7 @@ use Logingrupa\Metapixel\Tests\MetapixelTestCase;
  */
 final class FbqScriptBuilderTest extends MetapixelTestCase
 {
-    public function test_event_id_and_test_event_code_branch_orders_eventID_first(): void
+    public function test_event_id_and_test_event_code_branch_orders_event_i_d_first(): void
     {
         $sScript = FbqScriptBuilder::build('ViewContent', ['content_ids' => ['SKU-1']], 'eid-1', 'TEST123');
 
@@ -25,7 +25,7 @@ final class FbqScriptBuilderTest extends MetapixelTestCase
         );
     }
 
-    public function test_event_id_only_branch_emits_eventID_object(): void
+    public function test_event_id_only_branch_emits_event_i_d_object(): void
     {
         $sScript = FbqScriptBuilder::build('ViewContent', [], 'eid-2', null);
 
@@ -33,7 +33,7 @@ final class FbqScriptBuilderTest extends MetapixelTestCase
         $this->assertStringNotContainsString('test_event_code', $sScript);
     }
 
-    public function test_test_event_code_only_branch_emits_test_event_code_object_without_eventID(): void
+    public function test_test_event_code_only_branch_emits_test_event_code_object_without_event_id(): void
     {
         $sScript = FbqScriptBuilder::build('PageView', [], null, 'TEST123');
 

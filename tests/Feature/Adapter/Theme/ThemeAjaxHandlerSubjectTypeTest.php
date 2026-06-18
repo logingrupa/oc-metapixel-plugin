@@ -18,6 +18,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
 use Logingrupa\Metapixel\Classes\Adapter\ValueResolver;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
+use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Mockery;
@@ -196,8 +197,21 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         $obFakeWatcher->shouldReceive('dispatchForOfferSwitch')
             ->once()
             ->with(42, 100)
-            ->andReturn($sFakeEventId);
+            ->andReturn(new OfferSwitchResult($sFakeEventId, [
+                'content_ids' => ['SKU-42-100'],
+                'content_name' => 'Test Product',
+                'content_type' => 'product',
+                'value' => 9.99,
+                'currency' => 'EUR',
+            ]));
         $this->app->instance(ProductPageWatcher::class, $obFakeWatcher);
+
+        Settings::set([
+            'pixel_id' => 'PIXEL-1',
+            'capi_access_token' => 'TOKEN-1',
+            'test_event_code' => 'TEST123',
+        ]);
+        Settings::clearInternalCache();
 
         Request::shouldReceive('input')->with('data', [])->andReturn([
             'name' => 'ViewContent',
@@ -218,14 +232,49 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         $this->assertIsArray($arBody);
         $this->assertSame($sFakeEventId, $arBody['event_id'] ?? null);
         $this->assertIsString($arBody['script'] ?? null);
-        $this->assertStringContainsString('fbq("track", "ViewContent"', (string) $arBody['script']);
-        $this->assertStringContainsString($sFakeEventId, (string) $arBody['script']);
+        $sScript = (string) $arBody['script'];
+        $this->assertStringContainsString('fbq("track", "ViewContent"', $sScript);
+        $this->assertStringContainsString($sFakeEventId, $sScript);
+        $this->assertStringContainsString('SKU-42-100', $sScript);
+        $this->assertStringContainsString('9.99', $sScript);
+        $this->assertStringContainsString('test_event_code: "TEST123"', $sScript);
 
         // Mockery::close() in tearDown verifies dispatchForOfferSwitch was
         // called exactly once with (42, 100).
         // Adapter's loadSubject was called via the handler BEFORE delegation.
         $this->assertTrue($obFakeAdapter->bLoadCalled);
         $this->assertSame([42, ['offer_id' => 100]], $obFakeAdapter->arLoadArgs);
+    }
+
+    public function test_generic_theme_branch_carries_test_event_code_and_event_i_d_with_empty_custom_data(): void
+    {
+        Settings::set([
+            'pixel_id' => 'PIXEL-1',
+            'capi_access_token' => 'TOKEN-1',
+            'test_event_code' => 'TEST123',
+        ]);
+        Settings::clearInternalCache();
+
+        Request::shouldReceive('input')->with('data', [])->andReturn([
+            'name' => 'ViewContent',
+            'action_key' => 'theme:viewcontent',
+        ]);
+
+        $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
+            Mockery::mock(Controller::class),
+            'Metapixel::onFireEvent',
+        );
+
+        $this->assertInstanceOf(JsonResponse::class, $mResponse);
+        $this->assertSame(200, $mResponse->getStatusCode());
+        $arBody = json_decode((string) $mResponse->getContent(), true);
+        $this->assertIsArray($arBody);
+        $sScript = (string) ($arBody['script'] ?? '');
+        $sEventId = (string) ($arBody['event_id'] ?? '');
+        // Empty custom_data — no content invented (json_encode([]) == []).
+        $this->assertStringContainsString('fbq("track", "ViewContent", []', $sScript);
+        $this->assertStringContainsString('eventID: "'.$sEventId.'"', $sScript);
+        $this->assertStringContainsString('test_event_code: "TEST123"', $sScript);
     }
 
     public function test_adapter_lacking_supports_hybrid_ajax_returns_422(): void
@@ -371,7 +420,7 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         );
     }
 
-    public function test_loadSubject_returning_null_returns_404(): void
+    public function test_load_subject_returning_null_returns_404(): void
     {
         // Bind a fake adapter whose loadSubject returns null (subject missing /
         // inactive / cross-site — T-6-05 mitigation).

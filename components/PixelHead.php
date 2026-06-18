@@ -3,7 +3,7 @@
 namespace Logingrupa\Metapixel\Components;
 
 use Cms\Classes\ComponentBase;
-use Cms\Classes\Controller as CmsController;
+use Cms\Classes\Controller;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
@@ -187,9 +187,9 @@ class PixelHead extends ComponentBase
      * rendered fbq script blocks into the PixelHeadDeferredFlushBuffer
      * singleton for the Twig partial to consume via renderDeferredBlocks().
      *
-     * @param  \Cms\Classes\Controller  $obController  unused; reserved for future per-controller metadata reads (theme name, page var) without re-resolving the controller singleton from the container.
+     * @param  Controller  $obController  unused; reserved for future per-controller metadata reads (theme name, page var) without re-resolving the controller singleton from the container.
      */
-    public static function flushDeferredFromController(CmsController $obController): void
+    public static function flushDeferredFromController(Controller $obController): void
     {
         try {
             $mTestCode = Settings::get('test_event_code', '');

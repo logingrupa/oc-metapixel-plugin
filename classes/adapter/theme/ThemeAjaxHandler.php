@@ -16,6 +16,8 @@ use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\SupportsHybridAjax;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
 use Logingrupa\Metapixel\Classes\Exception\UnknownSubjectTypeException;
+use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
+use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
@@ -109,12 +111,7 @@ final class ThemeAjaxHandler
             );
             SendCapiEvent::dispatch($obEvent->sEventName, $arPayload, $obEvent, ThemeActionAdapter::class);
 
-            $iJsonFlags = JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_APOS;
-            $sScript = sprintf(
-                '<script>fbq("track", %s, {}, {eventID: %s});</script>',
-                (string) json_encode($obEvent->sEventName, $iJsonFlags),
-                (string) json_encode($sEventId, $iJsonFlags),
-            );
+            $sScript = FbqScriptBuilder::build($obEvent->sEventName, [], $sEventId, $this->resolveTestEventCode());
 
             return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
         } catch (Throwable $obException) {
@@ -177,13 +174,19 @@ final class ThemeAjaxHandler
             return new JsonResponse(['error' => 'event_name not allowed'], 422);
         }
 
+        $sTestCode = $this->resolveTestEventCode();
         if ($sAdapterClass === ShopaholicProductAdapter::class) {
             $mOfferId = $arData['offer_id'] ?? 0;
             $iOfferId = is_numeric($mOfferId) ? (int) $mOfferId : 0;
             if ($iOfferId <= 0) {
                 return new JsonResponse(['error' => 'invalid offer_id'], 422);
             }
-            $sEventId = App::make(ProductPageWatcher::class)->dispatchForOfferSwitch($iSubjectId, $iOfferId);
+            /** @var OfferSwitchResult $obResult */
+            $obResult = App::make(ProductPageWatcher::class)->dispatchForOfferSwitch($iSubjectId, $iOfferId);
+            $sEventId = $obResult->sEventId;
+            $sScript = FbqScriptBuilder::build($mName, $obResult->arCustomData, $sEventId, $sTestCode);
+
+            return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
         } else {
             $sEventId = Uuid::uuid4()->toString();
             $iEventTime = time();
@@ -209,14 +212,19 @@ final class ThemeAjaxHandler
             SendCapiEvent::dispatch($mName, $arPayload, $obSubject, $sAdapterClass);
         }
 
-        $iJsonFlags = JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_APOS;
-        $sScript = sprintf(
-            '<script>fbq("track", %s, {}, {eventID: %s});</script>',
-            (string) json_encode($mName, $iJsonFlags),
-            (string) json_encode($sEventId, $iJsonFlags),
-        );
+        // Generic-alias theme actions are contentless — empty {} custom_data
+        // (do NOT invent content); the builder still adds eventID + test code.
+        $sScript = FbqScriptBuilder::build($mName, [], $sEventId, $sTestCode);
 
         return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
+    }
+
+    /** Resolve Settings.test_event_code as a non-empty string, or null. */
+    private function resolveTestEventCode(): ?string
+    {
+        $mTestCode = Settings::get('test_event_code', '');
+
+        return is_string($mTestCode) && $mTestCode !== '' ? $mTestCode : null;
     }
 
     /**

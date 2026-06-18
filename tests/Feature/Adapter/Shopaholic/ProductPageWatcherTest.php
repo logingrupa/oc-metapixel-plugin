@@ -11,6 +11,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\ShopaholicAdapterTestCase;
@@ -290,8 +291,10 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
 
         // Now exercise the AJAX boundary entry point. iOfferId=101 is the
         // NON-default offer (default is 100 per sort_order 0).
-        $sNewEventId = $obWatcher->dispatchForOfferSwitch(42, 101);
+        $obResult = $obWatcher->dispatchForOfferSwitch(42, 101);
+        $sNewEventId = $obResult->sEventId;
 
+        $this->assertInstanceOf(OfferSwitchResult::class, $obResult);
         $this->assertNotSame(
             $sFirstEventId,
             $sNewEventId,
@@ -301,6 +304,10 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
             Uuid::isValid($sNewEventId),
             'returned event_id is a valid UUID',
         );
+        $this->assertSame(['SKU-42-101'], $obResult->arCustomData['content_ids']);
+        $this->assertSame('product', $obResult->arCustomData['content_type']);
+        $this->assertSame('EUR', $obResult->arCustomData['currency']);
+        $this->assertIsFloat($obResult->arCustomData['value']);
 
         Bus::assertDispatchedTimes(SendCapiEvent::class, 2);
         Bus::assertDispatched(
