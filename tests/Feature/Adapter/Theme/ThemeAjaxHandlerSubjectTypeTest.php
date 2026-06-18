@@ -271,8 +271,8 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         $this->assertIsArray($arBody);
         $sScript = (string) ($arBody['script'] ?? '');
         $sEventId = (string) ($arBody['event_id'] ?? '');
-        // Empty custom_data — no content invented (json_encode([]) == []).
-        $this->assertStringContainsString('fbq("track", "ViewContent", []', $sScript);
+        // Empty custom_data — no content invented; forced to `{}` for JS object semantics.
+        $this->assertStringContainsString('fbq("track", "ViewContent", {}', $sScript);
         $this->assertStringContainsString('eventID: "'.$sEventId.'"', $sScript);
         $this->assertStringContainsString('test_event_code: "TEST123"', $sScript);
     }

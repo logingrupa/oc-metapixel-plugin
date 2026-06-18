@@ -54,7 +54,7 @@ final class FbqScriptBuilderTest extends MetapixelTestCase
     {
         $sScript = FbqScriptBuilder::build('PageView', [], '', '');
 
-        $this->assertSame('<script>fbq("track", "PageView", []);</script>', $sScript);
+        $this->assertSame('<script>fbq("track", "PageView", {});</script>', $sScript);
     }
 
     public function test_js_encode_flags_hex_escape_unsafe_characters_in_name(): void

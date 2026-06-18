@@ -20,7 +20,10 @@ final class FbqScriptBuilder
     public static function build(string $sEventName, array $arCustomData, ?string $sEventId, ?string $sTestEventCode): string
     {
         $sNameJson = (string) json_encode($sEventName, self::JS);
-        $sDataJson = (string) json_encode($arCustomData, self::JS);
+        // fbq() custom_data must be a JS object; an empty PHP array encodes to
+        // `[]`, so force `{}` to keep object semantics and byte-parity with the
+        // pre-refactor contentless-event output.
+        $sDataJson = $arCustomData === [] ? '{}' : (string) json_encode($arCustomData, self::JS);
         $sObjFragment = self::buildOptionsObject($sEventId, $sTestEventCode);
 
         if ($sObjFragment !== '') {
