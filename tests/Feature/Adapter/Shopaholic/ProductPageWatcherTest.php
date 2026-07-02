@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
+use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
@@ -236,6 +237,23 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $arPushed = App::make(ThemeEventCollector::class)->flush();
         $this->assertArrayHasKey('event_id', $arPushed[0]);
         $this->assertSame('TEST123', Settings::get('test_event_code', ''), 'test_event_code is configured + readable');
+    }
+
+    public function test_load_subject_allows_active_product_when_site_pivot_is_unused(): void
+    {
+        DB::table('lovata_shopaholic_products')->insert([
+            'id' => 42,
+            'name' => 'Test Product',
+            'slug' => 'test-product',
+            'active' => 1,
+        ]);
+
+        $obAdapter = new ShopaholicProductAdapter;
+
+        $this->assertNotNull(
+            $obAdapter->loadSubject(42, []),
+            'empty site_list means the install has no per-site restrictions, not zero-site membership — loadSubject must return the active product',
+        );
     }
 
     public function test_ajax_postback_requests_do_not_dispatch_viewcontent(): void

@@ -121,11 +121,15 @@ final class ShopaholicProductAdapter implements SupportsHybridAjax
             return null;
         }
 
+        // Site membership is opt-in: an empty site_list means the install does
+        // not restrict products per site (the Lovata pivot table can be fully
+        // empty), NOT that the product belongs to zero sites.
         $mContextSiteId = Site::getSiteIdFromContext();
         $mSiteList = $obProduct->site_list ?? null;
         if (
             is_int($mContextSiteId)
             && is_array($mSiteList)
+            && $mSiteList !== []
             && ! in_array($mContextSiteId, $mSiteList, true)
         ) {
             return null;
