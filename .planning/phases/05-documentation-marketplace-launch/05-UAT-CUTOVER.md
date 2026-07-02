@@ -70,11 +70,11 @@ result: pass
 
 ## Summary
 
-total: 8
+total: 7
 passed: 7
 issues: 0
 pending: 0
-skipped: 1
+skipped: 0
 blocked: 0
 
 ## Items tracked separately
@@ -88,11 +88,9 @@ reason: |
     verified by cutover items 4+5 PASS.
   Status flips confirmed on disk 2026-07-02 — no open debug sessions remain.
 
-### 8. Queue toggle for CAPI server events — next release
-result: skipped
-reason: |
-  Pending todo `.planning/todos/pending/2026-05-27-enable-optional-queue-for-capi-server-events.md`
-  deferred to next release (post-v2.0.0) by operator decision. Not gating v2.0.0 marketplace launch.
+**Item 8 — Queue toggle for CAPI server events (not a UAT test; backlog todo).**
+Pending todo `.planning/todos/pending/2026-05-27-enable-optional-queue-for-capi-server-events.md`
+deferred to next release (post-v2.0.0) by operator decision. Not gating v2.0.0 marketplace launch.
 
 ## Remaining Phase 5 work
 
