@@ -142,7 +142,7 @@ final class ThemeAjaxHandler
     {
         try {
             $arData = $this->normalizeStringKeys(Request::input('data', [])) ?? [];
-            $mOfferId = $arData['offer_id'] ?? 0;
+            $mOfferId = $arData['offer_id'] ?? Request::input('offer_id', 0);
             $iOfferId = is_numeric($mOfferId) ? (int) $mOfferId : 0;
             if ($iOfferId <= 0) {
                 return new JsonResponse(['error' => 'invalid offer_id'], 422);

@@ -113,6 +113,7 @@ final class ThemeAjaxHandlerMarkAddToCartTest extends MetapixelTestCase
     public function test_missing_offer_id_returns_422(): void
     {
         Request::shouldReceive('input')->with('data', [])->andReturn([]);
+        Request::shouldReceive('input')->with('offer_id', 0)->andReturn(0);
 
         $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
             Mockery::mock(Controller::class),
@@ -121,6 +122,38 @@ final class ThemeAjaxHandlerMarkAddToCartTest extends MetapixelTestCase
 
         $this->assertInstanceOf(JsonResponse::class, $mResponse);
         $this->assertSame(422, $mResponse->getStatusCode());
+    }
+
+    public function test_top_level_offer_id_resolves_october_request_transport_shape(): void
+    {
+        $sEventId = 'aaaaaaaa-bbbb-4ccc-8ddd-eeeeffff0000';
+        $obWatcher = Mockery::mock(CartPositionWatcher::class);
+        $obWatcher->shouldReceive('resolveBrowserPixel')
+            ->once()
+            ->with(368)
+            ->andReturn(new AddToCartPixelResult($sEventId, [
+                'content_ids' => ['SKU-160-368'],
+                'contents' => [['id' => 'SKU-160-368', 'quantity' => 1, 'item_price' => 12.72]],
+                'num_items' => 1,
+                'value' => 12.72,
+                'currency' => 'EUR',
+            ]));
+        $this->app->instance(CartPositionWatcher::class, $obWatcher);
+
+        Request::shouldReceive('input')->with('data', [])->andReturn([]);
+        Request::shouldReceive('input')->with('offer_id', 0)->andReturn('368');
+
+        $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
+            Mockery::mock(Controller::class),
+            self::HANDLER,
+        );
+
+        $this->assertInstanceOf(JsonResponse::class, $mResponse);
+        $this->assertSame(200, $mResponse->getStatusCode());
+        $arBody = json_decode((string) $mResponse->getContent(), true);
+        $this->assertIsArray($arBody);
+        $this->assertSame($sEventId, $arBody['event_id'] ?? null);
+        $this->assertStringContainsString('eventID: "'.$sEventId.'"', (string) ($arBody['script'] ?? ''));
     }
 
     public function test_rate_limit_exceeded_returns_429(): void
