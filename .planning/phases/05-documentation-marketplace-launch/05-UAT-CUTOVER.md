@@ -70,14 +70,49 @@ result: pass
 
 ## Summary
 
-total: 7
+total: 8
 passed: 7
-issues: 0
+issues: 1
 pending: 0
 skipped: 0
 blocked: 0
 
+## Gaps
+
+- truth: "AddToCart browser pixel fires with server event_id + full custom_data (event_id dedup, not fbp fallback)"
+  status: failed
+  reason: "User reported 2026-07-02: browser AddToCart had no event_id, only value/currency/cs_est; server capi c6c2517d-1aa3-4d3b-be9e-8b368c22da83 carried full custom_data. Diagnosis: plugin emits NO browser AddToCart by design (D-07 deferred to post-launch); EventLog has zero channel=pixel AddToCart rows ever; observed browser event is Meta-generated (cs_est = client-side estimate) even though auto-events toggle is OFF; dedup currently relies on fragile fbp fallback. Operator pulled D-07 into scope: build browser AddToCart wire with server event_id for true event_id dedup (better ad pricing)."
+  severity: major
+  test: 9
+  artifacts:
+    - classes/event/adapter/shopaholic/CartPositionWatcher.php
+    - classes/adapter/theme/ThemeAjaxHandler.php
+    - classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php
+    - components/ProductPixel.php
+    - components/EventPixel.php
+    - themes/logingrupa-naisstore/partials/shared/controls/add-to-cart-control.js
+  missing:
+    - "Browser fbq AddToCart emitter reusing the CartPositionWatcher-generated event_id (offer-switch $.request + executable-script-injection pattern per ProductPixel::buildOfferSwitchJs)"
+    - "channel='pixel' EventLog twin row for cart_position AddToCart (race-fence pattern per EventPixel::onMarkFired)"
+    - "Guard against double CAPI dispatch — CartPositionWatcher already fires capi on eloquent.created; the browser wire must NOT trigger a second SendCapiEvent"
+    - "Post-fix re-test: confirm stray no-event_id browser AddToCart no longer appears; if it does, identify its emitter (Meta auto-events reported OFF)"
+
 ## Items tracked separately
+
+### 9. AddToCart browser pixel carries server event_id + full custom_data (D-07 wire)
+expected: |
+  Adding a product to cart fires a browser fbq AddToCart with eventID equal to the
+  server CAPI event_id and full custom_data (content_ids, contents, num_items,
+  value, currency). Test Events shows Browser + Server pair deduplicated BY EVENT ID,
+  not by fbp fallback.
+result: issue
+reported: |
+  2026-07-02 operator: browser AddToCart had NO event_id, params only value/currency/
+  cs_est, no content_ids. Server capi event c6c2517d-1aa3-4d3b-be9e-8b368c22da83 had
+  full custom_data. Dedup happened only via fbp fallback. Meta "Track events
+  automatically without code" is OFF, yet a browser AddToCart still appeared
+  (cs_est=true → Meta client-side estimate; stray source needs re-check after fix).
+severity: major
 
 ### 7. Open debug sessions — need fixes (not blocking UAT closure)
 result: pass
