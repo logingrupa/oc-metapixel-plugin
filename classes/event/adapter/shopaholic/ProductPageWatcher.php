@@ -17,6 +17,7 @@ use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
+use Lovata\Shopaholic\Models\Offer;
 use Lovata\Shopaholic\Models\Product;
 use Ramsey\Uuid\Uuid;
 use Throwable;
@@ -196,12 +197,27 @@ class ProductPageWatcher
 
         $arForcedContentIds = ['SKU-'.$iProductId.'-'.$iOfferId];
 
+        // The switched offer owns the variant name and price the visitor now
+        // sees; the product-level resolver values describe the FIRST offer.
+        // Fail-safe: unknown offer id keeps the product-level values.
+        $obOffer = $this->findOffer($obProduct, $iOfferId);
+        $sContentName = $obOffer !== null
+            ? $this->stringAttr($obOffer, 'name')
+            : $this->stringAttr($obProduct, 'name');
+        $mOfferPrice = $obOffer?->getAttribute('price_value');
+        $fOfferValue = is_numeric($mOfferPrice)
+            ? (float) $mOfferPrice
+            : $obResolver->resolveValue($obProduct);
+        $arOfferContents = [['id' => $arForcedContentIds[0], 'quantity' => 1, 'item_price' => $fOfferValue]];
+
         $mData = $arPayload['data'] ?? null;
         if (is_array($mData) && isset($mData[0]) && is_array($mData[0])) {
             $mEnvelope = $mData[0];
             $mCustomData = $mEnvelope['custom_data'] ?? null;
             $arCustomData = is_array($mCustomData) ? $mCustomData : [];
             $arCustomData['content_ids'] = $arForcedContentIds;
+            $arCustomData['value'] = $fOfferValue;
+            $arCustomData['contents'] = $arOfferContents;
             $mEnvelope['custom_data'] = $arCustomData;
             $mData[0] = $mEnvelope;
             $arPayload['data'] = $mData;
@@ -211,9 +227,9 @@ class ProductPageWatcher
 
         $arCustomData = [
             'content_ids' => $arForcedContentIds,
-            'content_name' => $this->stringAttr($obProduct, 'name'),
+            'content_name' => $sContentName,
             'content_type' => 'product',
-            'value' => $obResolver->resolveValue($obProduct),
+            'value' => $fOfferValue,
             'currency' => $obResolver->resolveCurrency($obProduct),
         ];
 
@@ -254,6 +270,14 @@ class ProductPageWatcher
         ]);
     }
 
+    /** Resolve one offer of the product by id from its loaded offer relation. */
+    private function findOffer(Product $obProduct, int $iOfferId): ?Offer
+    {
+        $mOffer = $obProduct->offer->firstWhere('id', $iOfferId);
+
+        return $mOffer instanceof Offer ? $mOffer : null;
+    }
+
     private function intAttr(Product $obProduct, string $sAttr): int
     {
         $mValue = $obProduct->getAttribute($sAttr);
@@ -261,9 +285,9 @@ class ProductPageWatcher
         return is_numeric($mValue) ? (int) $mValue : 0;
     }
 
-    private function stringAttr(Product $obProduct, string $sAttr): string
+    private function stringAttr(Product|Offer $obModel, string $sAttr): string
     {
-        $mValue = $obProduct->getAttribute($sAttr);
+        $mValue = $obModel->getAttribute($sAttr);
 
         return is_string($mValue) ? $mValue : '';
     }
