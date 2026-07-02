@@ -147,8 +147,10 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         $this->assertNull((new CartPositionWatcher)->resolveBrowserPixel(-5));
     }
 
-    public function test_returns_null_when_no_current_cart(): void
+    public function test_returns_null_when_cart_has_no_id(): void
     {
+        // getCartObject() always returns a Cart post-init (Lovata creates one),
+        // so the reachable no-cart fail-safe is a session cart with no id yet.
         $this->seedPosition();
         $this->seedCapiRow();
         $this->stubCartProcessor(null);
@@ -216,19 +218,19 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
     }
 
     /**
-     * Pin the CartProcessor singleton to return a Cart with the given id, or a
-     * processor whose getCartObject() returns null when $iCartId is null.
+     * Pin the CartProcessor singleton to return a Cart with the given id. A
+     * null $iCartId yields an id-less Cart (the reachable "no established cart"
+     * fail-safe — getCartObject() itself never returns null).
      */
     private function stubCartProcessor(?int $iCartId): void
     {
         $obReflectClass = new \ReflectionClass(CartProcessor::class);
         $obProcessor = $obReflectClass->newInstanceWithoutConstructor();
 
-        $obCart = null;
+        $obCart = new Cart;
+        $obCart->setAttribute('site_id', 1);
         if ($iCartId !== null) {
-            $obCart = new Cart;
             $obCart->setAttribute('id', $iCartId);
-            $obCart->setAttribute('site_id', 1);
         }
 
         $obCartProp = new ReflectionProperty(CartProcessor::class, 'obCart');
