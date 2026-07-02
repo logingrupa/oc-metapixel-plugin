@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixel\Tests\Feature\Components;
 
 use ArrayAccess;
+use Cms\Classes\Controller;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Log;
@@ -111,6 +112,28 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         Bus::assertNotDispatched(SendCapiEvent::class);
     }
 
+    public function test_skips_emission_on_october_ajax_postback(): void
+    {
+        Bus::fake();
+        Settings::clearInternalCache();
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::clearInternalCache();
+        PluginGuard::reset();
+
+        $this->app['request']->headers->set('X_OCTOBER_REQUEST_HANDLER', 'Cart::onAdd');
+        try {
+            $arPage = $this->runComponent(new PixelHead);
+
+            $this->assertNull(
+                $arPage['pixelHeadBase'],
+                'AJAX postback renders no page — the browser base pixel cannot re-fire, so no CAPI PageView may dispatch',
+            );
+            Bus::assertNotDispatched(SendCapiEvent::class);
+        } finally {
+            $this->app['request']->headers->remove('X_OCTOBER_REQUEST_HANDLER');
+        }
+    }
+
     public function test_skips_emission_when_settings_pixel_id_empty(): void
     {
         Bus::fake();
@@ -135,7 +158,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         App::make(ThemeEventCollector::class)->push(['name' => 'ViewContent', 'value' => 99.99]);
 
         $arPage = $this->runComponent(new PixelHead);
-        PixelHead::flushDeferredFromController(\Mockery::mock(\Cms\Classes\Controller::class));
+        PixelHead::flushDeferredFromController(\Mockery::mock(Controller::class));
 
         $this->assertNotNull($arPage['pixelHeadBase'], 'Base block emits');
         $arBlocks = App::make(PixelHeadDeferredFlushBuffer::class)->getBlocks();

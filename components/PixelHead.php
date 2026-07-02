@@ -80,6 +80,14 @@ class PixelHead extends ComponentBase
             return;
         }
 
+        // October AJAX postbacks run onRun without rendering the page — the
+        // browser base pixel never re-fires, so a CAPI PageView dispatched
+        // here would reach Meta permanently unpaired (one per Cart::onAdd
+        // click, observed live 2026-07-02). A PageView is a page render.
+        if (Request::header('X_OCTOBER_REQUEST_HANDLER') !== null) {
+            return;
+        }
+
         try {
             $obAdapter = App::make(ThemeActionAdapter::class);
             $obProbeEvent = ThemeActionEvent::fromArray([
