@@ -73,6 +73,17 @@ class ProductPageWatcher
                 return;
             }
 
+            // October AJAX postbacks re-run the page component lifecycle, so
+            // CustomProductPage/ProductPage re-fire shopaholic.product.open on a
+            // request that renders NO page — a dispatch here can never get a
+            // browser fbq twin and lands at Meta as a permanently-unpaired
+            // duplicate ViewContent (observed live 2026-07-02). A view is a
+            // page render; AJAX is not a view. Superglobal read, not
+            // Request::* — CapturesRequestUserData boundary precedent.
+            if (isset($_SERVER['HTTP_X_OCTOBER_REQUEST_HANDLER'])) {
+                return;
+            }
+
             $iGuardProductId = $this->intAttr($obProduct, 'id');
             if (isset(self::$arEmittedProductIds[$iGuardProductId])) {
                 return;

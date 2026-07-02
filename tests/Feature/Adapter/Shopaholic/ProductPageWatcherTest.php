@@ -238,6 +238,24 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $this->assertSame('TEST123', Settings::get('test_event_code', ''), 'test_event_code is configured + readable');
     }
 
+    public function test_ajax_postback_requests_do_not_dispatch_viewcontent(): void
+    {
+        $_SERVER['HTTP_X_OCTOBER_REQUEST_HANDLER'] = 'Cart::onAdd';
+        try {
+            $obProduct = $this->makeProduct(42, [[100, 9.99, 0, true]]);
+            (new ProductPageWatcher)->handle($obProduct);
+
+            Bus::assertNotDispatched(SendCapiEvent::class);
+            $this->assertSame(
+                [],
+                App::make(ThemeEventCollector::class)->flush(),
+                'AJAX postback re-fires product.open with no page render — no browser twin can exist, so nothing may dispatch',
+            );
+        } finally {
+            unset($_SERVER['HTTP_X_OCTOBER_REQUEST_HANDLER']);
+        }
+    }
+
     public function test_duplicate_emissions_dedupe_per_request_and_new_views_win_fence(): void
     {
         // Register the theme adapter so the queue-side EventLog fence can
