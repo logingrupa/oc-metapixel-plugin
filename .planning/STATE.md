@@ -1,16 +1,18 @@
 ---
 gsd_state_version: 1.0
 milestone: v2.0.0
-milestone_name: Generic-event-tracking marketplace plugin
-status: milestone_complete
-last_updated: 2026-05-28T14:29:53.561Z
+milestone_name: — Generic-event-tracking marketplace plugin
+current_phase: 05
+current_phase_name: documentation-marketplace-launch
+status: executing
+stopped_at: Milestone complete (Phase 06 was final phase)
+last_updated: "2026-07-02T13:52:18.760Z"
 progress:
   total_phases: 6
-  completed_phases: 3
-  total_plans: 46
-  completed_plans: 43
-  percent: 50
-stopped_at: Milestone complete (Phase 06 was final phase)
+  completed_phases: 4
+  total_plans: 48
+  completed_plans: 44
+  percent: 67
 ---
 
 # Project State
@@ -25,11 +27,11 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 06
-Plan: Not started
+Phase: 05 (documentation-marketplace-launch) — EXECUTING
+Plan: 2 of 10
 Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
 Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
-Status: Milestone complete
+Status: Ready to execute
 
 **UAT closure 2026-05-27:**
 
@@ -172,7 +174,7 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-05-21T07:58:39.820Z
+Last session: 2026-07-02T13:51:29.652Z
 
 Stopped at: Phase 5 context gathered
 
@@ -204,3 +206,8 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 | 2 | 02-06 | ~11 min | 4 tasks (1 feat + 1 Rule-1 MetaClient final-drop fix + 2 test + 1 QA-gate fix; 5 commits total) | 12 created, 1 modified | 2026-05-17 |
 | 2 | 02-07 | ~8 min | 5 tasks (Task 1 dropped per R2 YAGNI; 4 active across 1 contract base + 3 test files + 1 verification scaffold + phpstan/phpunit exclude; 1 atomic commit for Phase 2 close) | 5 created, 2 modified | 2026-05-17 |
 | Phase 03 P10 | 5min | 4 tasks | 3 files |
+| Phase 05 P15 | 16min | 3 tasks | 5 files |
+
+## Decisions
+
+- [Phase 05]: 05-15: browser AddToCart reuses server CAPI event_id via CartPositionWatcher::resolveBrowserPixel + Metapixel::onMarkAddToCart pixel-only branch (D-07 true event_id dedup, not fbp fallback)
