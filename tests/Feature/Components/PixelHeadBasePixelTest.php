@@ -120,7 +120,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         Settings::clearInternalCache();
         PluginGuard::reset();
 
-        $this->app['request']->headers->set('X_OCTOBER_REQUEST_HANDLER', 'Cart::onAdd');
+        $_SERVER['HTTP_X_OCTOBER_REQUEST_HANDLER'] = 'Cart::onAdd';
         try {
             $arPage = $this->runComponent(new PixelHead);
 
@@ -130,7 +130,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
             );
             Bus::assertNotDispatched(SendCapiEvent::class);
         } finally {
-            $this->app['request']->headers->remove('X_OCTOBER_REQUEST_HANDLER');
+            unset($_SERVER['HTTP_X_OCTOBER_REQUEST_HANDLER']);
         }
     }
 

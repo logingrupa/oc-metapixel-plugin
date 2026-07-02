@@ -12,6 +12,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Classes\Helper\RequestKind;
 use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
@@ -73,22 +74,9 @@ class ProductPageWatcher
                 return;
             }
 
-            // AJAX postbacks re-run the page component lifecycle, so
-            // CustomProductPage/ProductPage re-fire shopaholic.product.open on
-            // requests that render NO page — a dispatch there can never get a
-            // browser fbq twin and lands at Meta as a permanently-unpaired
-            // duplicate ViewContent. Both transports observed live 2026-07-02:
-            // October AJAX (X_OCTOBER_REQUEST_HANDLER header) AND Larajax
-            // (plain XHR POST, handler in payload, no October header). A view
-            // is a plain GET page render; anything else is not a view.
-            // Superglobal reads, not Request::* — CapturesRequestUserData
-            // boundary precedent.
-            $mRequestMethod = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-            $sRequestMethod = is_string($mRequestMethod) ? strtoupper($mRequestMethod) : 'GET';
-            if (isset($_SERVER['HTTP_X_OCTOBER_REQUEST_HANDLER'])
-                || ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest'
-                || $sRequestMethod !== 'GET'
-            ) {
+            // AJAX postbacks re-fire shopaholic.product.open without rendering
+            // a page — no browser fbq twin can exist there (see RequestKind).
+            if (! RequestKind::isPageRender()) {
                 return;
             }
 

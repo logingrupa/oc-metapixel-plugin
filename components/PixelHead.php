@@ -14,6 +14,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionValueResolver;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Classes\Helper\RequestKind;
 use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
@@ -81,15 +82,8 @@ class PixelHead extends ComponentBase
         }
 
         // AJAX postbacks run onRun without rendering the page — the browser
-        // base pixel never re-fires, so a CAPI PageView dispatched here would
-        // reach Meta permanently unpaired (one per Cart::onAdd click, observed
-        // live 2026-07-02). Covers October AJAX (handler header), Larajax
-        // (plain XHR, no October header), and any non-GET. A PageView is a
-        // plain GET page render.
-        if (Request::header('X_OCTOBER_REQUEST_HANDLER') !== null
-            || Request::ajax()
-            || ! Request::isMethod('get')
-        ) {
+        // base pixel never re-fires there (see RequestKind).
+        if (! RequestKind::isPageRender()) {
             return;
         }
 
