@@ -94,6 +94,40 @@ final class PayloadBuilderTest extends MetapixelTestCase
         $this->assertArrayHasKey('value', $arCustom);
     }
 
+    public function test_zero_value_contentless_event_drops_value_currency_num_items_contents(): void
+    {
+        // PageView (and any zero-value subject): resolver returns no content_ids,
+        // value 0.0, num_items 0, contents [] — the CAPI custom_data MUST carry
+        // no junk value:0 / num_items:0 / empty contents that Meta flags in the
+        // Test Events panel. currency is meaningless without value, so it drops
+        // with it.
+        $obAdapter = new FakeAdapter;
+        $obResolver = new FakeValueResolver(
+            arContentIds: [],
+            fValue: 0.0,
+            arContents: [],
+            iNumItems: 0,
+        );
+        $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+            'PageView',
+            $obAdapter,
+            new stdClass,
+            $obResolver,
+            'uuid-zero',
+            1700000004,
+            [],
+        );
+
+        $arCustom = $arPayload['data'][0]['custom_data'];
+        $this->assertFalse(array_key_exists('value', $arCustom), 'zero value dropped');
+        $this->assertFalse(array_key_exists('currency', $arCustom), 'currency dropped when value dropped');
+        $this->assertFalse(array_key_exists('num_items', $arCustom), 'zero num_items dropped');
+        $this->assertFalse(array_key_exists('contents', $arCustom), 'empty contents dropped');
+        $this->assertFalse(array_key_exists('content_ids', $arCustom), 'empty content_ids omitted');
+        $this->assertFalse(array_key_exists('content_type', $arCustom), 'content_type omitted');
+        $this->assertSame([], $arCustom, 'contentless zero-value custom_data is empty');
+    }
+
     public function test_non_empty_content_ids_retains_product_shape(): void
     {
         $obAdapter = new FakeAdapter;
