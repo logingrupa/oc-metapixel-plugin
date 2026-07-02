@@ -35,6 +35,7 @@ final class ThemeAjaxHandlerFuzzingTest extends MetapixelTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Request::shouldReceive('input')->andReturnNull()->byDefault();
         $this->app->singleton(AdapterRegistry::class);
         App::make(AdapterRegistry::class)->register(
             ThemeActionEvent::class,

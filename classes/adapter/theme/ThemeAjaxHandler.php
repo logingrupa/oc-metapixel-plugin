@@ -80,7 +80,7 @@ final class ThemeAjaxHandler
         }
 
         try {
-            $arData = $this->normalizeStringKeys(Request::input('data', []));
+            $arData = $this->readEventData();
             if ($arData === null) {
                 return new JsonResponse(['error' => 'invalid request shape'], 400);
             }
@@ -141,8 +141,8 @@ final class ThemeAjaxHandler
     private function markAddToCartPixel(): JsonResponse
     {
         try {
-            $arData = $this->normalizeStringKeys(Request::input('data', [])) ?? [];
-            $mOfferId = $arData['offer_id'] ?? Request::input('offer_id', 0);
+            $arData = $this->readEventData() ?? [];
+            $mOfferId = $arData['offer_id'] ?? 0;
             $iOfferId = is_numeric($mOfferId) ? (int) $mOfferId : 0;
             if ($iOfferId <= 0) {
                 return new JsonResponse(['error' => 'invalid offer_id'], 422);
@@ -275,6 +275,34 @@ final class ThemeAjaxHandler
         $mTestCode = Settings::get('test_event_code', '');
 
         return is_string($mTestCode) && $mTestCode !== '' ? $mTestCode : null;
+    }
+
+    /**
+     * Read the AJAX event payload from either supported transport shape.
+     * Larajax nests fields under data[]; October's native $.request posts
+     * options.data as top-level form fields. Nested values win; known
+     * top-level fields fill the gaps.
+     *
+     * @return array<string, mixed>|null null when the nested payload is not an array
+     */
+    private function readEventData(): ?array
+    {
+        $arData = $this->normalizeStringKeys(Request::input('data', []));
+        if ($arData === null) {
+            return null;
+        }
+
+        foreach (['name', 'subject_type', 'subject_id', 'offer_id', 'action_key'] as $sField) {
+            if (array_key_exists($sField, $arData)) {
+                continue;
+            }
+            $mTopLevelValue = Request::input($sField);
+            if ($mTopLevelValue !== null) {
+                $arData[$sField] = $mTopLevelValue;
+            }
+        }
+
+        return $arData;
     }
 
     /**

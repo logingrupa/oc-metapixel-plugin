@@ -34,6 +34,7 @@ final class ThemeAjaxHandlerMarkAddToCartTest extends MetapixelTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Request::shouldReceive('input')->andReturnNull()->byDefault();
         $this->app->singleton(AdapterRegistry::class);
         App::make(AdapterRegistry::class)->register(
             ThemeActionEvent::class,
@@ -113,7 +114,6 @@ final class ThemeAjaxHandlerMarkAddToCartTest extends MetapixelTestCase
     public function test_missing_offer_id_returns_422(): void
     {
         Request::shouldReceive('input')->with('data', [])->andReturn([]);
-        Request::shouldReceive('input')->with('offer_id', 0)->andReturn(0);
 
         $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
             Mockery::mock(Controller::class),
@@ -141,7 +141,7 @@ final class ThemeAjaxHandlerMarkAddToCartTest extends MetapixelTestCase
         $this->app->instance(CartPositionWatcher::class, $obWatcher);
 
         Request::shouldReceive('input')->with('data', [])->andReturn([]);
-        Request::shouldReceive('input')->with('offer_id', 0)->andReturn('368');
+        Request::shouldReceive('input')->with('offer_id')->andReturn('368');
 
         $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
             Mockery::mock(Controller::class),

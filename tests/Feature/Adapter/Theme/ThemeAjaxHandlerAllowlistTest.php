@@ -29,6 +29,7 @@ final class ThemeAjaxHandlerAllowlistTest extends MetapixelTestCase
     protected function setUp(): void
     {
         parent::setUp();
+        Request::shouldReceive('input')->andReturnNull()->byDefault();
         $this->app->singleton(AdapterRegistry::class);
         App::make(AdapterRegistry::class)->register(
             ThemeActionEvent::class,
@@ -77,6 +78,26 @@ final class ThemeAjaxHandlerAllowlistTest extends MetapixelTestCase
         $this->assertSame(422, $mResponse->getStatusCode());
         $arData = json_decode((string) $mResponse->getContent(), true);
         $this->assertSame(['error' => 'event_name not allowed'], $arData);
+    }
+
+    public function test_top_level_fields_resolve_october_request_transport_shape(): void
+    {
+        Bus::fake();
+        Request::shouldReceive('input')->with('data', [])->andReturn([]);
+        Request::shouldReceive('input')->with('name')->andReturn('AddToCart');
+        Request::shouldReceive('input')->with('action_key')->andReturn('cart-add:top-level:1');
+
+        $obController = Mockery::mock(Controller::class);
+        $obHandler = new ThemeAjaxHandler;
+        $mResponse = $obHandler->onBeforeRun($obController, 'Metapixel::onFireEvent');
+
+        $this->assertInstanceOf(JsonResponse::class, $mResponse);
+        $this->assertSame(
+            200,
+            $mResponse->getStatusCode(),
+            'October $.request posts fields top-level (no data[] nesting) — the handler must still resolve them',
+        );
+        Bus::assertDispatched(SendCapiEvent::class);
     }
 
     public function test_dispatches_when_event_name_in_meta_standard(): void
