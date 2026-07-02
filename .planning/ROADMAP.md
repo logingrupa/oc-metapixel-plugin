@@ -275,6 +275,8 @@ class Plugin extends PluginBase {
 - [x] `05-10-PLAN.md` — docs/CUSTOM-ADAPTERS.md with AcmeCart minimal register snippet + OFFLINE Mall full inline example + 3 hook patterns + Testing section (DOCS-03)
 - [x] `05-11-PLAN.md` — v1.x reference strip (13 docblock decorators + ROADMAP/REQUIREMENTS MKT-* wording) + NoV1xReferencesTest gate (release hygiene)
 - [x] `05-12-PLAN.md` — CHANGELOG.md fresh v2.0.0 + composer.json keywords + plugin.yaml verify (MKT-02, MKT-03) — closed 2026-05-27 4/5 AssetsExistTest GREEN (screenshots assertion owned by 05-08)
+- [ ] `05-15-PLAN.md` — Gap closure (UAT test 9 / D-07): browser AddToCart fbq reuses server CAPI event_id + full custom_data; pixel-only wire (CartPositionWatcher::resolveBrowserPixel + Metapixel::onMarkAddToCart + theme $.request) with no second CAPI dispatch
+- [ ] `05-16-PLAN.md` — Gap closure UAT re-test (D-07): rebuild theme assets + operator verifies event_id dedup + full custom_data + stray no-event_id AddToCart gone
 
 ### Phase 6: ViewContent funnel — Shopaholic PDP + offer-switch
 
