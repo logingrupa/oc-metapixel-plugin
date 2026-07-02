@@ -7,14 +7,18 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
-use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
+use Logingrupa\Metapixel\Classes\Helper\EventLogWriter;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\ShopaholicAdapterTestCase;
+use Logingrupa\Metapixel\Updates\AddPayloadToMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 use Lovata\Shopaholic\Classes\Helper\CurrencyHelper;
 use Lovata\Shopaholic\Models\Offer;
@@ -52,6 +56,7 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $this->bootSystemSiteDefinitionsTable();
         $this->bootPricesTable();
         (new CreateMetapixelEventLogTable)->up();
+        (new AddPayloadToMetapixelEventLogTable)->up();
 
         $this->app->singleton(ThemeEventCollector::class);
 
@@ -74,6 +79,7 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $this->app->forgetInstance(ThemeEventCollector::class);
         PluginGuard::reset();
         CurrencyHelper::forgetInstance();
+        (new AddPayloadToMetapixelEventLogTable)->down();
         (new CreateMetapixelEventLogTable)->down();
         Schema::dropIfExists('lovata_shopaholic_product_site_relation');
         Schema::dropIfExists('system_site_definitions');
@@ -97,9 +103,15 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
 
         (new ProductPageWatcher)->handle($obProduct);
 
+        // ViewContent now routes through ThemeActionAdapter with a per-view
+        // ThemeActionEvent subject (mirrors the proven PixelHead PageView idiom)
+        // so the EventLog UNIQUE race-fence keys on the per-view action_key
+        // rather than the product id (which fenced every view after the first).
         Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob): bool {
             return $obJob->sEventName === 'ViewContent'
-                && $obJob->sAdapterClass === ShopaholicProductAdapter::class;
+                && $obJob->sAdapterClass === ThemeActionAdapter::class
+                && $obJob->obSubject instanceof ThemeActionEvent
+                && str_starts_with($obJob->obSubject->sActionKey, 'viewcontent:42:');
         });
         $this->assertSame(1, App::make(ThemeEventCollector::class)->count(), 'collector has exactly 1 push');
     }
@@ -215,9 +227,9 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
 
         (new ProductPageWatcher)->handle($obProduct);
 
-        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob) use ($obProduct): bool {
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob): bool {
             return $obJob->sEventName === 'ViewContent'
-                && $obJob->obSubject === $obProduct;
+                && $obJob->obSubject instanceof ThemeActionEvent;
         });
 
         $arPushed = App::make(ThemeEventCollector::class)->flush();
@@ -227,6 +239,12 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
 
     public function test_event_log_race_fence_does_not_block_per_pageload_duplicates(): void
     {
+        // Register the theme adapter so the queue-side EventLog fence can
+        // resolve subject_type + subject_id for the per-view ThemeActionEvent
+        // subject each dispatch now carries.
+        $this->app->singleton(AdapterRegistry::class);
+        App::make(AdapterRegistry::class)->register(ThemeActionEvent::class, ThemeActionAdapter::class);
+
         $obProduct = $this->makeProduct(42, [[100, 9.99, 0, true]]);
 
         $obWatcher = new ProductPageWatcher;
@@ -234,11 +252,50 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $obWatcher->handle($obProduct);
 
         // Two distinct watcher emissions: 2 dispatches + 2 collector pushes.
-        // The EventLog UNIQUE race-fence runs inside SendCapiEvent::handle
-        // (queue-side); Bus::fake bypasses handle, so the watcher itself
-        // never short-circuits on per-pageload duplicates. Different event_id
-        // UUIDv4 per call.
+        // Each CAPI dispatch routes through ThemeActionAdapter with a per-view
+        // unique subject so the EventLog UNIQUE race-fence
+        // (subject_type, subject_id, event_name, channel, site_id) treats a
+        // repeat view of the SAME product as a distinct row instead of
+        // silently INSERT-IGNORE-ing every view after the first.
         Bus::assertDispatchedTimes(SendCapiEvent::class, 2);
+
+        $arJobs = array_values(Bus::dispatched(SendCapiEvent::class)->all());
+        $this->assertCount(2, $arJobs);
+
+        $obAdapter = new ThemeActionAdapter;
+        foreach ($arJobs as $obJob) {
+            $this->assertSame(ThemeActionAdapter::class, $obJob->sAdapterClass);
+            $this->assertInstanceOf(ThemeActionEvent::class, $obJob->obSubject);
+        }
+        $this->assertNotSame(
+            $obAdapter->getSubjectId($arJobs[0]->obSubject),
+            $obAdapter->getSubjectId($arJobs[1]->obSubject),
+            'each view resolves a distinct fence subject_id (per-view action_key crc32)',
+        );
+
+        // Exercise the REAL race-fence: feed both dispatched subjects through
+        // EventLogWriter::record with an identical non-null site_id. Only the
+        // subject_id differs between the two views, so both MUST win their
+        // insert — proving a NEW view of a previously-viewed product is never
+        // fenced. Today (product-subject dispatch) the second view is dropped.
+        foreach ($arJobs as $obJob) {
+            $bWon = EventLogWriter::record(
+                (string) ($obJob->arPayload['data'][0]['event_id'] ?? ''),
+                'ViewContent',
+                'capi',
+                $obJob->obSubject,
+                null,
+                (int) ($obJob->arPayload['data'][0]['event_time'] ?? 0),
+                1,
+                [],
+            );
+            $this->assertTrue($bWon, 'each PDP view MUST win the EventLog fence (no cross-view dedup)');
+        }
+        $this->assertSame(
+            2,
+            DB::table('logingrupa_metapixel_event_log')->count(),
+            'two views of the same product produce two CAPI EventLog rows',
+        );
 
         $arPushed = App::make(ThemeEventCollector::class)->flush();
         $this->assertCount(2, $arPushed);
@@ -314,7 +371,12 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
             SendCapiEvent::class,
             static function (SendCapiEvent $obJob) use ($sNewEventId): bool {
                 return ($obJob->arPayload['data'][0]['event_id'] ?? null) === $sNewEventId
-                    && ($obJob->arPayload['data'][0]['custom_data']['content_ids'] ?? null) === ['SKU-42-101'];
+                    && ($obJob->arPayload['data'][0]['custom_data']['content_ids'] ?? null) === ['SKU-42-101']
+                    // offer-switch CAPI also routes through the per-switch-unique
+                    // ThemeActionEvent subject so the fence is per-switch.
+                    && $obJob->sAdapterClass === ThemeActionAdapter::class
+                    && $obJob->obSubject instanceof ThemeActionEvent
+                    && $obJob->obSubject->sActionKey === 'viewcontent:42:101:'.$sNewEventId;
             },
         );
 
