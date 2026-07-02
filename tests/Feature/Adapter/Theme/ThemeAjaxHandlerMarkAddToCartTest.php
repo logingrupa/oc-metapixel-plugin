@@ -164,8 +164,9 @@ final class ThemeAjaxHandlerMarkAddToCartTest extends MetapixelTestCase
         $this->assertSame(200, $mResponse->getStatusCode());
         $arBody = json_decode((string) $mResponse->getContent(), true);
         $this->assertIsArray($arBody);
-        $this->assertNull($arBody['event_id'] ?? 'unset');
-        $this->assertSame('', $arBody['script'] ?? 'unset');
+        $this->assertArrayHasKey('event_id', $arBody);
+        $this->assertNull($arBody['event_id']);
+        $this->assertSame('', $arBody['script']);
     }
 
     public function test_on_fire_event_path_unchanged_for_unknown_handler(): void

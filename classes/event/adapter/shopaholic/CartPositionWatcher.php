@@ -25,7 +25,7 @@ use Throwable;
  * always, on update only when EventLog has no prior (cart_position, AddToCart,
  * capi, site_id) row — qty-bump dedup via UNIQUE race-fence.
  */
-final class CartPositionWatcher
+class CartPositionWatcher
 {
     use CapturesRequestUserData;
 

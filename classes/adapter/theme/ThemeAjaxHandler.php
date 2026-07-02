@@ -14,6 +14,7 @@ use InvalidArgumentException;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\SupportsHybridAjax;
+use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
 use Logingrupa\Metapixel\Classes\Exception\UnknownSubjectTypeException;
 use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
@@ -34,6 +35,8 @@ use Throwable;
 final class ThemeAjaxHandler
 {
     public const HANDLER_NAME = 'Metapixel::onFireEvent';
+
+    public const HANDLER_MARK_ADD_TO_CART = 'Metapixel::onMarkAddToCart';
 
     /** @var list<string> */
     public const META_STANDARD = [
@@ -69,6 +72,9 @@ final class ThemeAjaxHandler
     /** cms.ajax.beforeRunHandler listener; non-null return short-circuits AJAX. */
     public function onBeforeRun(Controller $obController, string $sHandler): mixed
     {
+        if ($sHandler === self::HANDLER_MARK_ADD_TO_CART) {
+            return $this->markAddToCartPixel();
+        }
         if ($sHandler !== self::HANDLER_NAME) {
             return null;
         }
@@ -116,6 +122,50 @@ final class ThemeAjaxHandler
             return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
         } catch (Throwable $obException) {
             Log::warning('metapixel: ThemeAjaxHandler failed', [
+                'meta_pixel.exception' => get_class($obException),
+                'meta_pixel.message' => $obException->getMessage(),
+            ]);
+
+            return new JsonResponse(['error' => 'internal'], 500);
+        }
+    }
+
+    /**
+     * PIXEL-ONLY AddToCart wire (D-07). Reads the server-generated capi
+     * event_id + custom_data for the current-session cart position via
+     * CartPositionWatcher::resolveBrowserPixel and returns an executable fbq
+     * AddToCart block carrying that eventID (true event_id dedup). Dispatches NO
+     * CAPI — the server AddToCart already fired on CartPosition eloquent.created.
+     * event_id is server-sourced only; the browser never supplies it (T-05G-03).
+     */
+    private function markAddToCartPixel(): JsonResponse
+    {
+        try {
+            $arData = $this->normalizeStringKeys(Request::input('data', [])) ?? [];
+            $mOfferId = $arData['offer_id'] ?? 0;
+            $iOfferId = is_numeric($mOfferId) ? (int) $mOfferId : 0;
+            if ($iOfferId <= 0) {
+                return new JsonResponse(['error' => 'invalid offer_id'], 422);
+            }
+            if ($this->isRateLimited()) {
+                return new JsonResponse(['error' => 'rate limit exceeded'], 429);
+            }
+
+            $obResult = App::make(CartPositionWatcher::class)->resolveBrowserPixel($iOfferId);
+            if ($obResult === null) {
+                return new JsonResponse(['event_id' => null, 'script' => '']);
+            }
+
+            $sScript = FbqScriptBuilder::build(
+                'AddToCart',
+                $obResult->arCustomData,
+                $obResult->sEventId,
+                $this->resolveTestEventCode(),
+            );
+
+            return new JsonResponse(['event_id' => $obResult->sEventId, 'script' => $sScript]);
+        } catch (Throwable $obException) {
+            Log::warning('metapixel: ThemeAjaxHandler onMarkAddToCart failed', [
                 'meta_pixel.exception' => get_class($obException),
                 'meta_pixel.message' => $obException->getMessage(),
             ]);
