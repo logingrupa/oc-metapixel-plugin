@@ -169,6 +169,30 @@ final class ThemeAjaxHandlerMarkAddToCartTest extends MetapixelTestCase
         $this->assertSame('', $arBody['script']);
     }
 
+    public function test_resolver_throwable_is_caught_and_returns_500(): void
+    {
+        $obWatcher = Mockery::mock(CartPositionWatcher::class);
+        $obWatcher->shouldReceive('resolveBrowserPixel')
+            ->once()
+            ->with(100)
+            ->andThrow(new \RuntimeException('boom'));
+        $this->app->instance(CartPositionWatcher::class, $obWatcher);
+
+        Request::shouldReceive('input')->with('data', [])->andReturn(['offer_id' => 100]);
+
+        $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
+            Mockery::mock(Controller::class),
+            self::HANDLER,
+        );
+
+        $this->assertInstanceOf(JsonResponse::class, $mResponse);
+        $this->assertSame(500, $mResponse->getStatusCode());
+        $this->assertSame(
+            ['error' => 'internal'],
+            json_decode((string) $mResponse->getContent(), true),
+        );
+    }
+
     public function test_on_fire_event_path_unchanged_for_unknown_handler(): void
     {
         // A handler name matching neither recognized name must short-circuit
