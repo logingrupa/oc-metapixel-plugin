@@ -104,6 +104,12 @@ final class ProductPixel extends ComponentBase
 (function () {
     if (window.__metapixelProductPixelInit) return;
     window.__metapixelProductPixelInit = true;
+    // The render-time ViewContent already covers the initially-selected offer.
+    // Theme controls (e.g. choices.js select init) emit a synthetic change
+    // event on pageload for that same offer — a no-op "switch" that must not
+    // re-fire ViewContent. Captured at script-exec time, before controls init.
+    var elInitialOffer = document.querySelector('input[name="offer_id"]:checked');
+    var iLastOfferId = elInitialOffer ? parseInt(elInitialOffer.value || '0', 10) : 0;
     document.addEventListener('change', function (ev) {
         if (!window.__metapixelProduct || !window.__metapixelProduct.id) return;
         var el = ev.target;
@@ -111,6 +117,8 @@ final class ProductPixel extends ComponentBase
         var iProductId = parseInt(window.__metapixelProduct.id, 10);
         var iOfferId   = parseInt(el.value || '0', 10);
         if (!iProductId || !iOfferId) return;
+        if (iOfferId === iLastOfferId) return;
+        iLastOfferId = iOfferId;
         if (typeof $ === 'undefined' || !$.request) return;
         $.request('Metapixel::onFireEvent', {
             data: {
