@@ -45,6 +45,20 @@ final class PayloadBuilder
         if ($arContentIds !== []) {
             $arCustomData['content_ids'] = $arContentIds;
             $arCustomData['content_type'] = 'product';
+        } else {
+            // Contentless subject (PageView / any zero-value event): drop the
+            // junk zero-value keys Meta flags in the Test Events panel. currency
+            // is meaningless to Meta without a value, so it drops with value.
+            if ($arCustomData['contents'] === []) {
+                unset($arCustomData['contents']);
+            }
+            if ($arCustomData['num_items'] === 0) {
+                unset($arCustomData['num_items']);
+            }
+            if ($arCustomData['value'] === 0.0) {
+                unset($arCustomData['value']);
+                unset($arCustomData['currency']);
+            }
         }
 
         if ($arEventExtras !== []) {
