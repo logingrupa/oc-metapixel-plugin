@@ -70,32 +70,29 @@ result: pass
 
 ## Summary
 
-total: 6
-passed: 6
+total: 8
+passed: 7
 issues: 0
 pending: 0
-skipped: 0
+skipped: 1
 blocked: 0
 
 ## Items tracked separately
 
 ### 7. Open debug sessions — need fixes (not blocking UAT closure)
-
-Two sessions in `.planning/debug/`:
-
-- `pixelhead-no-base-pageview.md` — likely already resolved by commit `0658788`
-  ("feat(pixelhead): restore base-pixel emission lost in Phase 3 re-derive"). Needs
-  status flip + close. PageView fires per Gate 2 + this UAT — symptom resolved.
-- `settings-save-host-resolver-di.md` — status: diagnosed. Root cause = stale
-  OPcache (per 05-UAT.md gap note). Operational fix already applied (FPM reload).
-  Needs status flip + close.
-
-Both sessions can close on next pass — no code change required, just status update.
+result: pass
+reason: |
+  Both sessions in `.planning/debug/` carry status: resolved (2026-05-27):
+  - `pixelhead-no-base-pageview.md` — resolved by commit 0658788, verified by Gate 2 PASS.
+  - `settings-save-host-resolver-di.md` — stale OPcache root cause, FPM reload applied,
+    verified by cutover items 4+5 PASS.
+  Status flips confirmed on disk 2026-07-02 — no open debug sessions remain.
 
 ### 8. Queue toggle for CAPI server events — next release
-
-Pending todo: `.planning/todos/pending/2026-05-27-enable-optional-queue-for-capi-server-events.md`.
-Deferred to next release (post-v2.0.0). Not gating v2.0.0 marketplace launch.
+result: skipped
+reason: |
+  Pending todo `.planning/todos/pending/2026-05-27-enable-optional-queue-for-capi-server-events.md`
+  deferred to next release (post-v2.0.0) by operator decision. Not gating v2.0.0 marketplace launch.
 
 ## Remaining Phase 5 work
 
