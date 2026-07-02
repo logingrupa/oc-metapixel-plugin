@@ -256,6 +256,25 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         }
     }
 
+    public function test_larajax_xhr_post_without_october_header_does_not_dispatch_viewcontent(): void
+    {
+        $_SERVER['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest';
+        $_SERVER['REQUEST_METHOD'] = 'POST';
+        try {
+            $obProduct = $this->makeProduct(42, [[100, 9.99, 0, true]]);
+            (new ProductPageWatcher)->handle($obProduct);
+
+            Bus::assertNotDispatched(SendCapiEvent::class);
+            $this->assertSame(
+                [],
+                App::make(ThemeEventCollector::class)->flush(),
+                'Larajax posts carry no October header — XHR/non-GET must still be treated as not-a-view',
+            );
+        } finally {
+            unset($_SERVER['HTTP_X_REQUESTED_WITH'], $_SERVER['REQUEST_METHOD']);
+        }
+    }
+
     public function test_duplicate_emissions_dedupe_per_request_and_new_views_win_fence(): void
     {
         // Register the theme adapter so the queue-side EventLog fence can

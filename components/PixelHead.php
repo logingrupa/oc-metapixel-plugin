@@ -80,11 +80,16 @@ class PixelHead extends ComponentBase
             return;
         }
 
-        // October AJAX postbacks run onRun without rendering the page — the
-        // browser base pixel never re-fires, so a CAPI PageView dispatched
-        // here would reach Meta permanently unpaired (one per Cart::onAdd
-        // click, observed live 2026-07-02). A PageView is a page render.
-        if (Request::header('X_OCTOBER_REQUEST_HANDLER') !== null) {
+        // AJAX postbacks run onRun without rendering the page — the browser
+        // base pixel never re-fires, so a CAPI PageView dispatched here would
+        // reach Meta permanently unpaired (one per Cart::onAdd click, observed
+        // live 2026-07-02). Covers October AJAX (handler header), Larajax
+        // (plain XHR, no October header), and any non-GET. A PageView is a
+        // plain GET page render.
+        if (Request::header('X_OCTOBER_REQUEST_HANDLER') !== null
+            || Request::ajax()
+            || ! Request::isMethod('get')
+        ) {
             return;
         }
 
