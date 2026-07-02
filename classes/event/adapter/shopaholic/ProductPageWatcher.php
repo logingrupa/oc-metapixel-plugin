@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductValueResolver;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
@@ -24,7 +26,9 @@ use Throwable;
  * ViewContent payload via PayloadBuilder + UserDataHasher; injects request
  * user_data; pushes the event onto ThemeEventCollector so PixelHead's
  * deferred-flush listener emits the browser fbq script with matching
- * event_id; dispatches SendCapiEvent to mirror to CAPI. Tiger-Style
+ * event_id; dispatches SendCapiEvent to mirror to CAPI via a per-view
+ * ThemeActionEvent subject (action_key viewcontent:{pid}[:{oid}]:{eid}) so the
+ * EventLog race-fence keys on the view, not the product. Tiger-Style
  * boundary: page render MUST NOT 500 on pixel failure. Exposes
  * dispatchForOfferSwitch(int, int): OfferSwitchResult entry point for the AJAX
  * offer-switch path (ThemeAjaxHandler::dispatchViaAdapter delegates here
@@ -69,12 +73,13 @@ class ProductPageWatcher
             $arPayload = $this->injectRequestUserData($arPayload);
 
             $iProductId = $this->intAttr($obProduct, 'id');
+            $sActionKey = 'viewcontent:'.$iProductId.':'.$sEventId;
 
             /** @var ThemeEventCollector $obCollector */
             $obCollector = App::make(ThemeEventCollector::class);
             $obCollector->push([
                 'name' => 'ViewContent',
-                'action_key' => 'viewcontent:'.$iProductId.':'.$sEventId,
+                'action_key' => $sActionKey,
                 'event_id' => $sEventId,
                 'content_ids' => $obResolver->resolveContentIds($obProduct),
                 'content_name' => $this->stringAttr($obProduct, 'name'),
@@ -84,7 +89,8 @@ class ProductPageWatcher
                 'product_id' => $iProductId,
             ]);
 
-            SendCapiEvent::dispatch('ViewContent', $arPayload, $obProduct, ShopaholicProductAdapter::class);
+            $obDispatchEvent = $this->makeDispatchEvent($sActionKey, $obAdapter->getSiteId($obProduct));
+            SendCapiEvent::dispatch('ViewContent', $arPayload, $obDispatchEvent, ThemeActionAdapter::class);
         } catch (Throwable $obException) {
             // Tiger-Style fail-safe (T-6-03 mitigation): page render MUST NOT 500
             // on pixel failure — log and skip.
@@ -107,10 +113,11 @@ class ProductPageWatcher
      *
      * action_key shape: viewcontent:{pid}:{oid_new}:{event_id} — server
      * appends the generated event_id to the wire-format action_key BEFORE
-     * collector push. The EventLog UNIQUE race-fence on (subject_type,
-     * subject_id, event_name, channel, site_id) collision-detects per-pageload
-     * duplicates inside SendCapiEvent::handle; the action_key string is
-     * informational only.
+     * collector push. The dispatch wraps that action_key in a ThemeActionEvent
+     * so the EventLog UNIQUE race-fence on (subject_type, subject_id,
+     * event_name, channel, site_id) keys on the per-switch action_key (via
+     * ThemeActionAdapter::getSubjectId crc32) — each offer switch is a distinct
+     * fence row.
      *
      * Tiger-Style: throws on disabled-state / invalid input / missing
      * subject. The AJAX boundary (dispatchViaAdapter) translates each
@@ -178,19 +185,41 @@ class ProductPageWatcher
             'currency' => $obResolver->resolveCurrency($obProduct),
         ];
 
+        $sActionKey = 'viewcontent:'.$iProductId.':'.$iOfferId.':'.$sEventId;
+
         /** @var ThemeEventCollector $obCollector */
         $obCollector = App::make(ThemeEventCollector::class);
         $obCollector->push(array_merge($arCustomData, [
             'name' => 'ViewContent',
-            'action_key' => 'viewcontent:'.$iProductId.':'.$iOfferId.':'.$sEventId,
+            'action_key' => $sActionKey,
             'event_id' => $sEventId,
             'product_id' => $iProductId,
             'offer_id' => $iOfferId,
         ]));
 
-        SendCapiEvent::dispatch('ViewContent', $arPayload, $obProduct, ShopaholicProductAdapter::class);
+        $obDispatchEvent = $this->makeDispatchEvent($sActionKey, $obAdapter->getSiteId($obProduct));
+        SendCapiEvent::dispatch('ViewContent', $arPayload, $obDispatchEvent, ThemeActionAdapter::class);
 
         return new OfferSwitchResult($sEventId, $arCustomData);
+    }
+
+    /**
+     * Wrap a per-view action_key in a ThemeActionEvent so the CAPI dispatch
+     * routes through ThemeActionAdapter — whose getSubjectId hashes the unique
+     * action_key. The EventLog UNIQUE race-fence then keys on the per-view
+     * subject instead of the product id, so a new view of a previously-viewed
+     * product is never silently fenced. The prebuilt $arPayload (from
+     * ShopaholicProductAdapter + resolver) is untouched; only the dispatch
+     * subject/adapter routing changes. site_id is baked from the product
+     * subject so queue-side resolution stays request-independent (P-01).
+     */
+    private function makeDispatchEvent(string $sActionKey, ?int $iSiteId): ThemeActionEvent
+    {
+        return ThemeActionEvent::fromArray([
+            'name' => 'ViewContent',
+            'action_key' => $sActionKey,
+            'site_id' => $iSiteId,
+        ]);
     }
 
     private function intAttr(Product $obProduct, string $sAttr): int
