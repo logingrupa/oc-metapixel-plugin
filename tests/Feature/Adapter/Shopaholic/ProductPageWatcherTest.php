@@ -61,6 +61,7 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $this->app->singleton(ThemeEventCollector::class);
 
         PluginGuard::reset();
+        ProductPageWatcher::resetViewGuard();
         Settings::clearInternalCache();
         Settings::set([
             'pixel_id' => 'TEST-PIXEL-1',
@@ -237,7 +238,7 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $this->assertSame('TEST123', Settings::get('test_event_code', ''), 'test_event_code is configured + readable');
     }
 
-    public function test_event_log_race_fence_does_not_block_per_pageload_duplicates(): void
+    public function test_duplicate_emissions_dedupe_per_request_and_new_views_win_fence(): void
     {
         // Register the theme adapter so the queue-side EventLog fence can
         // resolve subject_type + subject_id for the per-view ThemeActionEvent
@@ -248,15 +249,18 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $obProduct = $this->makeProduct(42, [[100, 9.99, 0, true]]);
 
         $obWatcher = new ProductPageWatcher;
-        $obWatcher->handle($obProduct);
-        $obWatcher->handle($obProduct);
 
-        // Two distinct watcher emissions: 2 dispatches + 2 collector pushes.
-        // Each CAPI dispatch routes through ThemeActionAdapter with a per-view
-        // unique subject so the EventLog UNIQUE race-fence
-        // (subject_type, subject_id, event_name, channel, site_id) treats a
-        // repeat view of the SAME product as a distinct row instead of
-        // silently INSERT-IGNORE-ing every view after the first.
+        // ONE pageload, duplicate component emissions (observed live: Lovata
+        // ProductPage + Logingrupa CustomProductPage both fire
+        // shopaholic.product.open) → exactly one dispatch + one collector push.
+        $obWatcher->handle($obProduct);
+        $obWatcher->handle($obProduct);
+        Bus::assertDispatchedTimes(SendCapiEvent::class, 1);
+
+        // A NEW request (fresh PHP-FPM static state) is a genuinely new view
+        // and MUST dispatch again with a distinct per-view fence subject.
+        ProductPageWatcher::resetViewGuard();
+        $obWatcher->handle($obProduct);
         Bus::assertDispatchedTimes(SendCapiEvent::class, 2);
 
         $arJobs = array_values(Bus::dispatched(SendCapiEvent::class)->all());

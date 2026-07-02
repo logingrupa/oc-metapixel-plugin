@@ -38,14 +38,33 @@ class ProductPageWatcher
 {
     use CapturesRequestUserData;
 
+    /**
+     * Product ids already emitted during the current request. Multiple page
+     * components can fire shopaholic.product.open for one render (observed
+     * live: Lovata ProductPage + Logingrupa CustomProductPage both fire it),
+     * and each emission would otherwise produce its own event_id + CAPI event.
+     * Static state resets per PHP-FPM request; long-running runtimes must call
+     * resetViewGuard() at request boundaries.
+     *
+     * @var array<int, true>
+     */
+    private static array $arEmittedProductIds = [];
+
     public function subscribe(Dispatcher $obDispatcher): void
     {
         $obDispatcher->listen('shopaholic.product.open', [$this, 'handle']);
     }
 
+    /** Clear the per-request duplicate-emission guard (request boundary / tests). */
+    public static function resetViewGuard(): void
+    {
+        self::$arEmittedProductIds = [];
+    }
+
     /**
      * Handle Lovata's shopaholic.product.open emission. Builds ViewContent
-     * payload, pushes to the theme collector, dispatches CAPI.
+     * payload, pushes to the theme collector, dispatches CAPI. Emits at most
+     * once per product per request — duplicate component emissions are dropped.
      */
     public function handle(Product $obProduct): void
     {
@@ -53,6 +72,12 @@ class ProductPageWatcher
             if (PluginGuard::isDisabled()) {
                 return;
             }
+
+            $iGuardProductId = $this->intAttr($obProduct, 'id');
+            if (isset(self::$arEmittedProductIds[$iGuardProductId])) {
+                return;
+            }
+            self::$arEmittedProductIds[$iGuardProductId] = true;
 
             $obAdapter = new ShopaholicProductAdapter;
             $obResolver = new ShopaholicProductValueResolver;
