@@ -20,11 +20,13 @@ use PHPUnit\Framework\Attributes\Group;
 use ReflectionProperty;
 
 /**
- * D-07 — CartPositionWatcher::resolveBrowserPixel reads the server-generated
- * capi AddToCart event_id + custom_data for the current-session cart position,
- * writes the channel='pixel' twin row (idempotent race-fence), dispatches NO
- * second SendCapiEvent, and null-returns on every fail-safe branch (disabled
- * guard, non-positive offer_id, no cart, no matching position, no capi row).
+ * D-07 — CartPositionWatcher::resolveBrowserPixel reads the channel='pixel'
+ * AddToCart reservation row that dispatchAddToCart wrote in-request for the
+ * current-session cart position (never the worker-written capi row — async
+ * queue drivers make that a race), dispatches NO second SendCapiEvent, is
+ * deterministic under repeat calls, and null-returns on every fail-safe
+ * branch (disabled guard, non-positive offer_id, no cart, no matching
+ * position, no pixel reservation row).
  */
 #[Group('adapter')]
 final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCase
@@ -76,10 +78,10 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         parent::tearDown();
     }
 
-    public function test_returns_capi_event_id_and_custom_data_on_happy_path(): void
+    public function test_returns_reserved_pixel_event_id_and_custom_data_on_happy_path(): void
     {
         $this->seedPosition();
-        $this->seedCapiRow();
+        $this->seedPixelRow();
         $this->stubCartProcessor(self::CART_ID);
 
         $obResult = (new CartPositionWatcher)->resolveBrowserPixel(self::OFFER_ID);
@@ -89,15 +91,20 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         $this->assertSame(self::CUSTOM_DATA, $obResult->arCustomData);
     }
 
-    public function test_writes_single_pixel_twin_row_idempotent_under_repeat(): void
+    public function test_repeat_calls_are_deterministic_and_write_nothing(): void
     {
         $this->seedPosition();
-        $this->seedCapiRow();
+        $this->seedPixelRow();
         $this->stubCartProcessor(self::CART_ID);
 
         $obWatcher = new CartPositionWatcher;
-        $obWatcher->resolveBrowserPixel(self::OFFER_ID);
-        $obWatcher->resolveBrowserPixel(self::OFFER_ID);
+        $obFirst = $obWatcher->resolveBrowserPixel(self::OFFER_ID);
+        $obSecond = $obWatcher->resolveBrowserPixel(self::OFFER_ID);
+
+        $this->assertNotNull($obFirst);
+        $this->assertNotNull($obSecond);
+        $this->assertSame(self::KNOWN_EVENT_ID, $obFirst->sEventId);
+        $this->assertSame($obFirst->sEventId, $obSecond->sEventId, 'repeat calls return the same reserved event_id');
 
         $iPixelRows = DB::table(self::TABLE)
             ->where('subject_type', 'shopaholic.cart_position')
@@ -105,21 +112,13 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
             ->where('event_name', 'AddToCart')
             ->where('channel', 'pixel')
             ->count();
-        $this->assertSame(1, $iPixelRows, 'exactly one idempotent pixel twin row');
-
-        $obPixelRow = DB::table(self::TABLE)
-            ->where('channel', 'pixel')
-            ->where('subject_id', self::POSITION_ID)
-            ->first();
-        $this->assertNotNull($obPixelRow);
-        $this->assertSame(self::KNOWN_EVENT_ID, $obPixelRow->event_id);
-        $this->assertSame(1, (int) $obPixelRow->site_id);
+        $this->assertSame(1, $iPixelRows, 'resolver is read-only — still exactly one reservation row');
     }
 
     public function test_dispatches_no_send_capi_event(): void
     {
         $this->seedPosition();
-        $this->seedCapiRow();
+        $this->seedPixelRow();
         $this->stubCartProcessor(self::CART_ID);
 
         (new CartPositionWatcher)->resolveBrowserPixel(self::OFFER_ID);
@@ -133,7 +132,7 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         Settings::clearInternalCache();
         PluginGuard::reset();
         $this->seedPosition();
-        $this->seedCapiRow();
+        $this->seedPixelRow();
         $this->stubCartProcessor(self::CART_ID);
 
         $this->assertNull((new CartPositionWatcher)->resolveBrowserPixel(self::OFFER_ID));
@@ -152,7 +151,7 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         // getCartObject() always returns a Cart post-init (Lovata creates one),
         // so the reachable no-cart fail-safe is a session cart with no id yet.
         $this->seedPosition();
-        $this->seedCapiRow();
+        $this->seedPixelRow();
         $this->stubCartProcessor(null);
 
         $this->assertNull((new CartPositionWatcher)->resolveBrowserPixel(self::OFFER_ID));
@@ -161,13 +160,13 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
     public function test_returns_null_when_no_matching_position(): void
     {
         // Cart present but no position for this offer.
-        $this->seedCapiRow();
+        $this->seedPixelRow();
         $this->stubCartProcessor(self::CART_ID);
 
         $this->assertNull((new CartPositionWatcher)->resolveBrowserPixel(self::OFFER_ID));
     }
 
-    public function test_returns_null_when_no_capi_row(): void
+    public function test_returns_null_when_no_pixel_reservation_row(): void
     {
         $this->seedPosition();
         $this->stubCartProcessor(self::CART_ID);
@@ -176,7 +175,7 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         $this->assertSame(
             0,
             DB::table(self::TABLE)->where('channel', 'pixel')->count(),
-            'no pixel twin written when no capi row exists',
+            'resolver never writes — no reservation row appears',
         );
     }
 
@@ -196,12 +195,12 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         ]);
     }
 
-    private function seedCapiRow(): void
+    private function seedPixelRow(): void
     {
         DB::table(self::TABLE)->insert([
             'event_id' => self::KNOWN_EVENT_ID,
             'event_name' => 'AddToCart',
-            'channel' => 'capi',
+            'channel' => 'pixel',
             'subject_type' => 'shopaholic.cart_position',
             'subject_id' => self::POSITION_ID,
             'secret_key' => null,

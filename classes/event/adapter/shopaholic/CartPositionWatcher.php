@@ -3,12 +3,12 @@
 namespace Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic;
 
 use Illuminate\Events\Dispatcher;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionValueResolver;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
+use Logingrupa\Metapixel\Classes\Helper\EventLogWriter;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\AddToCartPixelResult;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
@@ -23,7 +23,9 @@ use Throwable;
 /**
  * Watches CartPosition eloquent.created|updated; fires AddToCart on creation
  * always, on update only when EventLog has no prior (cart_position, AddToCart,
- * capi, site_id) row — qty-bump dedup via UNIQUE race-fence.
+ * pixel, site_id) row — qty-bump dedup keys on the request-time pixel
+ * reservation row written by dispatchAddToCart (visible immediately,
+ * independent of queue-worker latency).
  */
 class CartPositionWatcher
 {
@@ -52,7 +54,7 @@ class CartPositionWatcher
                 ->where('subject_type', 'shopaholic.cart_position')
                 ->where('subject_id', $obAdapter->getSubjectId($obCartPosition))
                 ->where('event_name', 'AddToCart')
-                ->where('channel', 'capi')
+                ->where('channel', 'pixel')
                 ->where('site_id', $obAdapter->getSiteId($obCartPosition))
                 ->exists();
             if (! $bAlreadyLogged) {
@@ -77,27 +79,50 @@ class CartPositionWatcher
         $obResolver = new ShopaholicCartPositionValueResolver;
         $obBuilder = new PayloadBuilder(new UserDataHasher);
 
+        $sEventId = Uuid::uuid4()->toString();
+        $iEventTime = time();
         $arPayload = $obBuilder->buildEventPayload(
             'AddToCart',
             $obAdapter,
             $obCartPosition,
             $obResolver,
-            Uuid::uuid4()->toString(),
-            time(),
+            $sEventId,
+            $iEventTime,
             [],
         );
         $arPayload = $this->injectRequestUserData($arPayload);
+
+        // Reserve the browser-pixel twin IN-REQUEST: the theme JS calls
+        // Metapixel::onMarkAddToCart milliseconds after Cart::onAdd, so the
+        // browser pixel must not depend on the queue worker having executed
+        // (on async drivers the worker-written capi row usually does not exist
+        // yet). Return value intentionally unchecked — on fence collision or
+        // DB failure the browser pixel is skipped (fail-safe) while the CAPI
+        // dispatch still proceeds.
+        EventLogWriter::record(
+            $sEventId,
+            'AddToCart',
+            'pixel',
+            $obCartPosition,
+            $obAdapter->getSecretKey($obCartPosition),
+            $iEventTime,
+            $obAdapter->getSiteId($obCartPosition),
+            $arPayload,
+        );
 
         SendCapiEvent::dispatch('AddToCart', $arPayload, $obCartPosition, ShopaholicCartPositionAdapter::class);
     }
 
     /**
-     * Browser-pixel resolver (D-07). Reads the already-generated capi AddToCart
-     * event_id + custom_data for the current-session cart position, writes the
-     * channel='pixel' twin row (idempotent race-fence), and returns the pair so
-     * the AJAX boundary can emit a byte-identical browser fbq. Dispatches NO
-     * SendCapiEvent — dispatchAddToCart on eloquent.created is the sole CAPI
-     * emitter. Fail-safe: returns null (never throws) on every miss.
+     * Browser-pixel resolver (D-07). Reads the channel='pixel' AddToCart
+     * EventLog row that dispatchAddToCart reserved IN-REQUEST for the
+     * current-session cart position and returns its event_id + custom_data so
+     * the AJAX boundary can emit a browser fbq that Meta dedups with the CAPI
+     * twin by event_id. Dispatches NO SendCapiEvent — dispatchAddToCart on
+     * eloquent.created is the sole CAPI emitter. Reading the request-time
+     * reservation (never the worker-written capi row) keeps this path correct
+     * on async queue drivers. Fail-safe: returns null on every resolution
+     * miss; infrastructure failures propagate to the AJAX boundary's catch.
      */
     public function resolveBrowserPixel(int $iOfferId): ?AddToCartPixelResult
     {
@@ -115,19 +140,22 @@ class CartPositionWatcher
             return null;
         }
 
-        $obCapiRow = $this->findCapiAddToCartRow($iPositionId);
-        if ($obCapiRow === null) {
+        $obPixelRow = $this->findPixelAddToCartRow($iPositionId);
+        if ($obPixelRow === null) {
+            Log::info('metapixel: resolveBrowserPixel — no pixel reservation row for position', [
+                'meta_pixel.cart_position_id' => $iPositionId,
+                'meta_pixel.offer_id' => $iOfferId,
+            ]);
+
             return null;
         }
 
-        $mEventId = $obCapiRow->event_id ?? null;
+        $mEventId = $obPixelRow->event_id ?? null;
         $sEventId = is_string($mEventId) ? $mEventId : '';
         if ($sEventId === '') {
             return null;
         }
-        $arCustomData = $this->extractCustomData($obCapiRow->payload ?? null);
-
-        $this->writePixelTwin($sEventId, $iPositionId, $obCapiRow);
+        $arCustomData = $this->extractCustomData($obPixelRow->payload ?? null);
 
         return new AddToCartPixelResult($sEventId, $arCustomData);
     }
@@ -163,14 +191,14 @@ class CartPositionWatcher
         return is_numeric($mPositionId) ? (int) $mPositionId : 0;
     }
 
-    /** Read the channel='capi' AddToCart EventLog row for this position, or null. */
-    private function findCapiAddToCartRow(int $iPositionId): ?object
+    /** Read the channel='pixel' AddToCart EventLog row for this position, or null. */
+    private function findPixelAddToCartRow(int $iPositionId): ?object
     {
         return DB::table('logingrupa_metapixel_event_log')
             ->where('subject_type', 'shopaholic.cart_position')
             ->where('subject_id', $iPositionId)
             ->where('event_name', 'AddToCart')
-            ->where('channel', 'capi')
+            ->where('channel', 'pixel')
             ->first(['event_id', 'event_time', 'secret_key', 'site_id', 'payload']);
     }
 
@@ -207,32 +235,6 @@ class CartPositionWatcher
         }
 
         return $arResult;
-    }
-
-    /**
-     * Write the channel='pixel' twin row via insertOrIgnore, copying event_id,
-     * site_id, secret_key, event_time, and payload from the capi row. The
-     * UNIQUE (subject_type, subject_id, event_name, channel, site_id) race-fence
-     * makes a second call idempotent — no duplicate row, fail-safe on collision.
-     */
-    private function writePixelTwin(string $sEventId, int $iPositionId, object $obCapiRow): void
-    {
-        $sNow = (string) Carbon::now();
-        $mEventTime = $obCapiRow->event_time ?? 0;
-        DB::table('logingrupa_metapixel_event_log')->insertOrIgnore([
-            'event_id' => $sEventId,
-            'event_name' => 'AddToCart',
-            'channel' => 'pixel',
-            'subject_type' => 'shopaholic.cart_position',
-            'subject_id' => $iPositionId,
-            'secret_key' => $obCapiRow->secret_key ?? null,
-            'site_id' => $obCapiRow->site_id ?? null,
-            'event_time' => is_numeric($mEventTime) ? (int) $mEventTime : 0,
-            'fired_at' => $sNow,
-            'created_at' => $sNow,
-            'updated_at' => $sNow,
-            'payload' => $obCapiRow->payload ?? null,
-        ]);
     }
 
     private function logFailure(string $sPhase, CartPosition $obCartPosition, Throwable $obException): void

@@ -99,6 +99,28 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
         });
     }
 
+    public function test_dispatch_reserves_pixel_row_in_request_with_matching_event_id(): void
+    {
+        Bus::fake();
+        $obPosition = $this->makePositionWithOffer();
+
+        (new CartPositionWatcher)->handleCreated($obPosition);
+
+        // The browser-pixel reservation is written synchronously in-request so
+        // resolveBrowserPixel never races the queue worker on async drivers.
+        $obPixelRow = DB::table('logingrupa_metapixel_event_log')
+            ->where('subject_type', 'shopaholic.cart_position')
+            ->where('subject_id', $obPosition->id)
+            ->where('event_name', 'AddToCart')
+            ->where('channel', 'pixel')
+            ->first();
+        $this->assertNotNull($obPixelRow, 'pixel reservation row written at dispatch time');
+
+        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob) use ($obPixelRow): bool {
+            return ($obJob->arPayload['data'][0]['event_id'] ?? null) === $obPixelRow->event_id;
+        });
+    }
+
     public function test_handle_updated_dispatches_when_event_log_row_absent(): void
     {
         Bus::fake();
@@ -113,12 +135,14 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
     {
         Bus::fake();
         $obPosition = $this->makePositionWithOffer();
-        // Seed the EventLog row matching the dedup tuple — handler should
-        // short-circuit on the DB::table exists() check.
+        // Seed the pixel reservation row matching the dedup tuple — handler
+        // should short-circuit on the DB::table exists() check (the pixel row
+        // is written in-request by dispatchAddToCart, so it is the reliable
+        // "already dispatched" marker independent of queue-worker latency).
         DB::table('logingrupa_metapixel_event_log')->insert([
             'event_id' => 'preexisting-uuid',
             'event_name' => 'AddToCart',
-            'channel' => 'capi',
+            'channel' => 'pixel',
             'subject_type' => 'shopaholic.cart_position',
             'subject_id' => $obPosition->id,
             'site_id' => 1,
