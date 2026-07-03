@@ -114,4 +114,57 @@ final class EventLogWriterRaceFenceTest extends MetapixelTestCase
         $bResult = EventLogWriter::record('uuid-1', 'Purchase', 'capi', new TestSubject, null, 1700000000, 1, []);
         $this->assertFalse($bResult, 'DB write failure returns false — fail-safe peer-wins');
     }
+
+    public function test_owns_row_true_only_for_matching_event_id(): void
+    {
+        $obSubject = new TestSubject;
+        EventLogWriter::record('uuid-MINE', 'Purchase', 'capi', $obSubject, null, 1700000000, 1, []);
+
+        $this->assertTrue(
+            EventLogWriter::ownsRow('uuid-MINE', 'Purchase', 'capi', $obSubject, 1),
+            'same event_id on the fence row → retry of self',
+        );
+        $this->assertFalse(
+            EventLogWriter::ownsRow('uuid-OTHER', 'Purchase', 'capi', $obSubject, 1),
+            'different event_id on the fence row → duplicate peer',
+        );
+        $this->assertFalse(
+            EventLogWriter::ownsRow('uuid-MINE', 'Purchase', 'capi', $obSubject, 2),
+            'different site partition → no owned row',
+        );
+        $this->assertFalse(
+            EventLogWriter::ownsRow('uuid-MINE', 'AddToCart', 'capi', $obSubject, 1),
+            'different event_name → no owned row',
+        );
+    }
+
+    public function test_owns_row_false_when_no_row_exists(): void
+    {
+        $this->assertFalse(EventLogWriter::ownsRow('uuid-1', 'Purchase', 'capi', new TestSubject, 1));
+    }
+
+    public function test_owns_row_false_for_empty_event_id(): void
+    {
+        $this->assertFalse(
+            EventLogWriter::ownsRow('', 'Purchase', 'capi', new TestSubject, 1),
+            'empty event_id (malformed payload) must never claim ownership',
+        );
+    }
+
+    public function test_owns_row_false_when_no_adapter_registered(): void
+    {
+        $this->assertFalse(EventLogWriter::ownsRow('uuid-1', 'Purchase', 'capi', new stdClass, 1));
+    }
+
+    public function test_owns_row_false_on_db_read_failure(): void
+    {
+        Schema::dropIfExists('logingrupa_metapixel_event_log');
+
+        Log::shouldReceive('warning')->atLeast()->once();
+
+        $this->assertFalse(
+            EventLogWriter::ownsRow('uuid-1', 'Purchase', 'capi', new TestSubject, 1),
+            'DB read failure returns false — fail-safe peer-wins',
+        );
+    }
 }
