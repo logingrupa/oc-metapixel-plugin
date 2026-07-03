@@ -223,6 +223,24 @@ Output: composer.json license set, GitHub repo public, v2.0.0 tag pushed, `05-14
     ```
     Verify `vendor/logingrupa/oc-metapixel-plugin/composer.json` exists in the scratch dir and matches the just-tagged v2.0.0 version (`composer show logingrupa/oc-metapixel-plugin` shows v2.0.0).
 
+    Step F.2 — README verbatim re-verify (closes UAT test 7 defect (1) — install command unresolvable on a tagless remote):
+    After `git push origin v2.0.0`, run the README's EXACT primary command inside a fresh clean-room October root — the same clean-room shape as UAT test 7 (`/home/forge/metapixel-test7`, October v4.3.1):
+    ```bash
+    cd /tmp && rm -rf test7-reverify && composer create-project october/october test7-reverify "^4.0" --no-interaction
+    cd test7-reverify
+    # add the VCS repositories block from the README Install section to composer.json, then:
+    composer require logingrupa/oc-metapixel-plugin -W --no-interaction
+    # expected: resolves the stable v2.0.0 tag with NO "Could not find a version ... matching your minimum-stability (stable)" error
+    composer show logingrupa/oc-metapixel-plugin   # expected: 2.0.0 (stable, not dev-master)
+    ```
+    Confirm the verbatim `-W` command (no `:dev-master`) resolves the stable tag on a fresh `minimum-stability=stable` root.
+
+    Step F.3 — Drop the README pre-release note (paired with F.2):
+    Once the verbatim `-W` command resolves the stable v2.0.0 tag, DELETE the README "Pre-release install" note (Install section) and the quick-start step 3 `:dev-master` fallback sentence — both are only correct while the remote is tagless. Commit:
+    ```
+    docs(05-14): drop README pre-release :dev-master note — stable v2.0.0 tag now resolves the verbatim -W command
+    ```
+
     Step G — Re-verify CI matrix on the v2.0.0 tag commit (MKT-05):
     Push of the tag triggers `.github/workflows/metapixel-qa.yml` on GitHub Actions. Wait for both Run A (full-Lovata) and Run B (minimal) cells to complete green:
     ```bash
@@ -299,6 +317,8 @@ Output: composer.json license set, GitHub repo public, v2.0.0 tag pushed, `05-14
 - GitHub repo visibility = public
 - git tag v2.0.0 annotated + pushed to origin
 - Composer VCS install from /tmp/test-install exits 0 without auth
+- README verbatim `composer require logingrupa/oc-metapixel-plugin -W` re-verified on a fresh clean-room October root post-tag — resolves stable v2.0.0 with no minimum-stability error (closes UAT test 7 defect (1))
+- README "Pre-release install" `:dev-master` note dropped once the verbatim `-W` command resolves the stable tag
 - CI matrix Run A + Run B both green on v2.0.0 tag commit
 - 05-14-LAUNCH-LOG.md committed
 - Resume signal `LAUNCH COMPLETE`
