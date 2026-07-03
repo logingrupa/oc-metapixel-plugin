@@ -130,20 +130,27 @@ jobs:
         if: matrix.install == 'full-lovata'
         working-directory: ${{ env.PLUGIN_DIR }}
         run: |
-          # The mounted plugin composer.json declares no allow-plugins; set it here
-          # so the standalone install permits October's installer plugins deterministically.
-          for P in composer/installers php-http/discovery pestphp/pest-plugin cweagans/composer-patches; do
-            composer config "allow-plugins.$P" true
-          done
+          # DISABLE October's composer/installers for the plugin-dir install so
+          # october/system + lovata/* stay under vendor/ (which pint/php-cs-fixer
+          # auto-excludes) instead of being relocated into plugins/ + modules/, where
+          # the qa tools would otherwise lint/analyse third-party October code.
+          # The functional October runtime for the pest bootstrap comes from the HOST
+          # app (installers enabled there); here vendor/ only needs to autoload.
+          composer config allow-plugins.composer/installers false
+          composer config allow-plugins.php-http/discovery true
+          composer config allow-plugins.pestphp/pest-plugin true
+          composer config allow-plugins.cweagans/composer-patches true
           composer install --no-interaction --no-progress --prefer-dist
 
       - name: Install plugin dev toolchain (minimal cell — strip cart plugins from require-dev)
         if: matrix.install == 'minimal'
         working-directory: ${{ env.PLUGIN_DIR }}
         run: |
-          for P in composer/installers php-http/discovery pestphp/pest-plugin cweagans/composer-patches; do
-            composer config "allow-plugins.$P" true
-          done
+          # Keep october/* + lovata/* under vendor/ (pint-excluded) — see full-lovata cell.
+          composer config allow-plugins.composer/installers false
+          composer config allow-plugins.php-http/discovery true
+          composer config allow-plugins.pestphp/pest-plugin true
+          composer config allow-plugins.cweagans/composer-patches true
           # Strip the Lovata cart packages from the plugin's require-dev so the
           # adapter-coupled dependencies are absent, mirroring the minimal operator.
           composer remove --dev --no-update --no-interaction \
