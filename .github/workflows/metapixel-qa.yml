@@ -217,11 +217,18 @@ jobs:
         working-directory: ${{ env.PLUGIN_DIR }}
         run: |
           # Host-vendor binaries invoked from the plugin dir — identical to local
-          # dev, where the qa chain runs the monorepo-root vendor/bin tools.
+          # dev, where the qa chain runs the monorepo-root vendor/bin tools. This
+          # mirrors the canonical `composer qa` chain: pint-test -> analyse ->
+          # phpmd -> test-cov. The `composer deps` gate (composer-dependency-
+          # analyser) is intentionally NOT run: it resolves symbols via composer
+          # classmaps, which skip October-convention lowercase-dir classes as
+          # PSR-4-noncompliant and cannot attribute Lovata symbols at all (Lovata
+          # packages declare no composer autoload) — its Lovata-boundary check is
+          # structurally inoperable here. Proper onboarding (custom classmap +
+          # October-aware ignore strategy) is a deferred follow-up.
           ../../../vendor/bin/pint --test
           ../../../vendor/bin/phpstan analyse --memory-limit=1G
           ../../../vendor/bin/phpmd Plugin.php,classes,models,console,components,middleware,controllers text phpmd.xml
-          ../../../vendor/bin/composer-dependency-analyser
           # Pest bootstraps through the host app (phpunit.xml ->
           # ../../../modules/system/tests/bootstrap.php). Coverage gate on this cell only.
           XDEBUG_MODE=coverage ../../../vendor/bin/pest --configuration phpunit.xml --coverage --min=90
@@ -231,8 +238,8 @@ jobs:
         working-directory: ${{ env.PLUGIN_DIR }}
         run: |
           # No plugin-dir composer install in this cell: pint/phpmd are pure static
-          # tools and pest runs on the HOST app runtime. phpstan + deps run in the
-          # full-lovata cell ONLY — both require the Lovata cart packages to resolve
+          # tools and pest runs on the HOST app runtime. phpstan runs in the
+          # full-lovata cell ONLY — it requires the Lovata cart packages to resolve
           # symbols (Lovata plugins ship no composer autoload; October's ClassLoader
           # maps them from the app's plugins/ tree, absent here BY DESIGN). The
           # analysed source is identical across cells, so static gates need one cell.
