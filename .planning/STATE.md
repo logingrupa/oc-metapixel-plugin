@@ -2,17 +2,19 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: — Generic-event-tracking marketplace plugin
-current_phase: 06
-current_phase_name: ViewContent funnel — Shopaholic PDP + offer-switch
-status: executing
-stopped_at: Completed 05-22-PLAN.md (UAT test 7 gap-closure)
-last_updated: "2026-07-03T20:43:55.449Z"
+current_phase: 0.0
+status: Awaiting next milestone
+stopped_at: v2.0.0 milestone closed 2026-07-04
+last_updated: "2026-07-03T21:45:20.925Z"
+last_activity: 2026-07-03
+last_activity_desc: Milestone v2.0.0 completed and archived
 progress:
   total_phases: 6
-  completed_phases: 5
-  total_plans: 54
-  completed_plans: 53
-  percent: 83
+  completed_phases: 6
+  total_plans: 52
+  completed_plans: 52
+  percent: 100
+current_phase_name: —
 ---
 
 # Project State
@@ -27,30 +29,10 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 06 — ViewContent funnel — Shopaholic PDP + offer-switch
-Plan: Not started
-Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
-Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
-Status: Ready to execute
-
-**UAT closure 2026-05-27:**
-
-- `05-04-UAT-GATE-2.md` PASS — PageView browser+server dedup confirmed across 5 pages.
-- `05-UAT-CUTOVER.md` PASS — AddToCart + Purchase browser+server dedup, FailedEvents admin UI Replay, Multisite per-site pixel_id, Cookie kill switch + TrustedHosts allowlist, Translations en/lv.
-
-**Outside UAT scope:**
-
-- Debug sessions: `pixelhead-no-base-pageview` (resolved by commit 0658788 — close on next pass), `settings-save-host-resolver-di` (OPcache root cause, FPM reload fix applied — close on next pass).
-- Pending todo `2026-05-27-enable-optional-queue-for-capi-server-events` deferred to next release (post-v2.0.0).
-
-**Phase 2 re-verification 2026-05-27:** `02-VERIFICATION.md` flipped human_needed → verified. composer qa green (pint ✓ phpstan L10 ✓ phpmd ✓ pest 455/466). 11 pest failures are Phase 5 scope (README + screenshots + CHANGELOG, owned by plans 05-09/05-08/05-12 — TDD tests written ahead of artifact).
-
-**Next action:**
-
-1. `/gsd-plan-phase 6` — author PLAN.md for ViewContent funnel from `.planning/briefs/2026-05-27-viewcontent-funnel-shopaholic.md`. D-1..D-6 locked.
-2. Execute Phase 6 waves (PixelHead deferred-flush → ShopaholicProductAdapter+Watcher → JS offer-switch+AJAX → docs).
-3. Return to Phase 5: ship 05-08 (smoke + screenshots) + 05-09 (README) with ViewContent in scope.
-4. When ready to launch: `LAUNCH SCHEDULED` resume signal → execute Launch Milestone (launch-01 redact + launch-02 public flip + v2.0.0 tag).
+Phase: Milestone v2.0.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-07-03 — Milestone v2.0.0 completed and archived
 
 ## Roadmap Snapshot
 
@@ -247,3 +229,7 @@ Items acknowledged and deferred at milestone close on 2026-07-04:
 | tech_debt | onReplay per-row UI trigger missing (batch-of-one works) | cosmetic |
 
 Resolved at close: 01-VERIFICATION.md gaps_found → passed (re-verification addendum 2026-07-04); REQUIREMENTS.md SHOP/THEM stale rows flipped Complete.
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

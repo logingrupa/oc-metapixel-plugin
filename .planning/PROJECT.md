@@ -2,15 +2,28 @@
 
 ## Current State
 
-**Shipped:** v1.1.1 (2026-05-14) — Shopaholic-coupled Meta Pixel + CAPI plugin. 5 phases delivered (Phase 1 Tooling, Phase 2 Skeleton+cookie, Phase 3.1 Event-log refactor, Phase 3.1-07 Multi-site symmetry, Phase 3.1-08 Cleanup). 16 of 21 plans (76%). 28 of 50 v1 requirements validated. composer qa green: 177/0 tests, 82.8% coverage. Git tag `v1.1.1` annotated local-only (operator push deferred). Legacy codebase frozen on branch `legacy/v1.1.1`.
+**Shipped:** v2.0.0 (2026-07-04) — Generic-event-tracking marketplace Meta Pixel + CAPI plugin. 6 phases, 52 plans, 147 tasks, 640 commits (2026-04-22 → 2026-07-04). Milestone audit PASSED: 61/61 requirements, 6/6 integration connections, 5/5 E2E flows. ~6.1k source LOC + ~15.5k test LOC, ≥90% coverage gate held, phpstan level 10, PHP 8.3/8.4 dual CI. Archives: [`milestones/v2.0.0-ROADMAP.md`](milestones/v2.0.0-ROADMAP.md), [`milestones/v2.0.0-REQUIREMENTS.md`](milestones/v2.0.0-REQUIREMENTS.md), [`milestones/v2.0.0-MILESTONE-AUDIT.md`](milestones/v2.0.0-MILESTONE-AUDIT.md).
 
-**Phase 4 (Funnel) + Phase 5 (Hardening + launch) DROPPED** at milestone close (2026-05-15). Architecture pivot to v2.0 generic-event-tracking marketplace plugin. See [`milestones/v1.1.1-ROADMAP.md`](milestones/v1.1.1-ROADMAP.md) for full v1.1.1 archive and [`milestones/v1.1.1-REQUIREMENTS.md`](milestones/v1.1.1-REQUIREMENTS.md) for requirement outcomes.
+**Delivered core:** adapter pattern (`EventSubjectAdapter` + `ValueResolver` + `AdapterRegistry` + 3 `Event::fire` hooks), Shopaholic decoupled behind `PluginManager::exists` guard (Order/CartPosition/Product adapters), ThemeActionAdapter (Twig + Larajax, no PHP needed), Multisite per-site credentials + TrustedHosts PSL allowlist + cookie writer, FailedEvents backend UI with Replay, ViewContent funnel at offer-level grain, marketplace README/docs/screenshots.
 
-## Current Milestone: v2.0.0 — Generic-event-tracking marketplace plugin
+**Outstanding (Launch Milestone):** launch-02 public repo flip + `v2.0.0` annotated git tag + README `:dev-master` re-verify — awaits operator `LAUNCH SCHEDULED` signal. launch-01 redact done.
 
-**Goal:** Decouple plugin from Shopaholic via Lovata-style extensible adapter pattern. Marketplace-grade Meta Pixel + Conversions API plugin sellable to any OctoberCMS operator regardless of cart-plugin. Third parties can register custom adapters without modifying plugin core. PHP 8.3 + 8.4 dual support.
+**Tech debt (tracked in ROADMAP Backlog):** FailedEvents Replay uses primary-site creds (multisite edge, `controllers/FailedEvents.php:28-35`); per-row Replay UI trigger; optional queue for CAPI server events.
 
-**Target features:**
+**Prior:** v1.1.1 (2026-05-14) — Shopaholic-coupled predecessor, frozen on branch `legacy/v1.1.1`, archived under [`milestones/v1.1.1-ROADMAP.md`](milestones/v1.1.1-ROADMAP.md).
+
+## Next Milestone Goals
+
+Candidates (Backlog, not yet committed — run `/gsd-new-milestone` to scope):
+- **Launch Milestone execution** — operator-triggered public flip + tag (not a dev milestone; awaits `LAUNCH SCHEDULED`)
+- **v2.1** — MallAdapter (MALL-01), MeloncartAdapter (MELON-01), 5 additional `Event::fire` hooks (EXT-01..05), Debug/Test-Events panel (DBG-01)
+- **v2.x** — dead-letter ops alerting (OPS-01..02), auto PSL refresh (PSL-01), multisite-aware FailedEvents Replay
+
+## Shipped Milestone: v2.0.0 — Generic-event-tracking marketplace plugin
+
+**Goal (achieved):** Decouple plugin from Shopaholic via Lovata-style extensible adapter pattern. Marketplace-grade Meta Pixel + Conversions API plugin sellable to any OctoberCMS operator regardless of cart-plugin. Third parties can register custom adapters without modifying plugin core. PHP 8.3 + 8.4 dual support.
+
+**Validated features (all shipped v2.0.0):**
 - **Generic core** — `MetaClient` + `PayloadBuilder` + `UserDataHasher` + `EventLogWriter` decoupled from `Order` model. Generic event envelope shape.
 - **Adapter contracts** — `EventSubjectAdapter` + `ValueResolver` interfaces. `AdapterRegistry::register()` callable from any plugin's `Plugin::boot()`. Boot-time auto-detection of shipped adapters.
 - **Lovata-style extensibility** — `Event::fire('metapixel.event.before_dispatch', ...)` decision-point hooks; `Component::extend(...)`, `addDynamicMethod()` patterns for third-party hookpoints; service-container bindings for HTTP client swap.
@@ -53,7 +66,7 @@
 
 **Out of scope for v2.0** (carried forward unchanged):
 - GDPR / cookie-consent banner integration — live theme has no banner
-- Custom Graph API endpoint version other than v20 — pinned
+- Custom Graph API endpoint version other than v23.0 — pinned (no operator override; v20 was the v1.x pin)
 - `declare(strict_types=1)` enforcement — optional per-file
 
 ---
@@ -135,4 +148,4 @@ See [`milestones/v1.1.1-ROADMAP.md`](milestones/v1.1.1-ROADMAP.md) and [`milesto
 
 ---
 
-*Last updated: 2026-05-28 — v2.0.0 Phase 6 (ViewContent funnel — Shopaholic PDP + offer-switch) complete; 11 VIEW-* requirements validated, PixelHead deferred-flush refactor + ShopaholicProductAdapter pair + ProductPageWatcher + ProductPixel + ThemeAjaxHandler hybrid branch shipped. Launch Milestone (05-08 smoke + 05-09 README DOCS-02 + repo flip + v2.0.0 tag) outstanding.*
+*Last updated: 2026-07-04 after v2.0.0 milestone close — audit passed 61/61, milestone archived, Launch Milestone (public flip + tag) outstanding on operator signal.*
