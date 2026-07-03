@@ -114,7 +114,12 @@ final class BackboneIntegrationTest extends MetapixelTestCase
         $obFirstJob = new SendCapiEvent('Purchase', $arPayload, new TestSubject, TestSubjectAdapter::class);
         $obFirstJob->handle(app(AdapterRegistry::class), $obClient);
 
-        $obSecondJob = new SendCapiEvent('Purchase', $arPayload, new TestSubject, TestSubjectAdapter::class);
+        // Peer job carries a DIFFERENT event_id under the same fence tuple —
+        // this is the genuine duplicate the fence exists to stop. (A second
+        // dispatch with the SAME event_id is a retry of self and now proceeds;
+        // Meta-side event_id dedup absorbs it — see SendCapiEventTransientRetryTest.)
+        $arPeerPayload = $this->buildPayload('uuid-dedup-2', 1700000002);
+        $obSecondJob = new SendCapiEvent('Purchase', $arPeerPayload, new TestSubject, TestSubjectAdapter::class);
         $obSecondJob->handle(app(AdapterRegistry::class), $obClient);
 
         $this->assertSame(1, DB::table('logingrupa_metapixel_event_log')->count(), 'EventLog has 1 row (second dispatch deduped)');
