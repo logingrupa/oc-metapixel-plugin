@@ -1,32 +1,31 @@
 ---
 phase: 05-documentation-marketplace-launch
-verified: 2026-07-03T16:00:00Z
+verified: 2026-07-03T21:45:00Z
 status: human_needed
-score: 4/7 truths verified (1 present-behavior-unverified, 0 failed, 2 deferred to Launch Milestone)
+score: 5/7 truths verified (1 present-behavior-unverified, 1 deferred to Launch Milestone, 0 failed)
 behavior_unverified: 1
 overrides_applied: 0
 re_verification:
   previous_status: gaps_found
-  previous_score: "3/7 (1 present-behavior-unverified, 1 failed, 2 deferred)"
+  previous_score: "5/7 (1 present-behavior-unverified, 1 failed)"
   gaps_closed:
-    - "SC3/MKT-05: `composer qa` now exits 0 end-to-end on the full-Lovata install — phpmd 7 violations -> 0, phpstan L10 clean, pint clean, pest 569/569 GREEN at 90.3% coverage. Independently re-run in this verification session (not trusted from SUMMARY): phpmd exit 0, phpstan `[OK] No errors`, pint `passed`, pest `569 passed (2191 assertions)` + coverage `Total: 90.3%` (exit 0)."
+    - "SC5/MKT-04 bookkeeping regression: commit `14e1ef6` reverted the false 'Launch Milestone completed' marks. Independently confirmed this session: ROADMAP.md:403 launch-02 bullet is `[ ]` with an explicit 'operator-gated, do NOT auto-stamp complete' note; progress row :417 reads `1/2 | Deferred -- tag awaits operator LAUNCH SCHEDULED` (internally consistent); REQUIREMENTS.md:112 MKT-04 is `[ ]` pending with the same gate note, traceability row :258 'Pending'. Tag state re-checked: `git tag -l` and `git ls-remote --tags origin` still lack `v2.0.0` -- both files now truthfully represent that."
+    - "launch-01 kept `[x]` -- reasoning independently verified, not trusted: `.planning/launch/launch-01-SECURITY-SWEEP.md` frontmatter reads `status: COMPLETE -- Step A + Step B executed`, `step_b_executed: 2026-07-03`, with a full Step B execution record. Redaction substance re-verified first-hand: zero non-archive `.planning/` files contain the real staging hostname; 28 non-archive files carry the `your-staging-host.example` placeholder. The `[x]` is truthful, so the 1/2 progress row is accurate."
   gaps_remaining: []
   regressions: []
 behavior_unverified_items:
   - truth: "SC1/DOCS-01: A timed dry-run (composer require -> Settings configuration -> first CAPI event verified in Meta Test Events) completes in under 10 minutes -- the launch acceptance gate"
-    test: "Starting a stopwatch at `composer require logingrupa/oc-metapixel-plugin` on a genuinely clean OctoberCMS 4.x install, follow only README.md verbatim through Settings configuration to the first Purchase (or ViewContent) event visible in Meta Test Events; stop the watch."
+    test: "Starting a stopwatch at `php artisan project:set <license>` -> `composer require logingrupa/oc-metapixel-plugin -W` on a genuinely clean OctoberCMS 4.x install, follow only README.md verbatim through Settings configuration to the first event visible in Meta Test Events; stop the watch."
     expected: "Elapsed time under 10 minutes."
-    why_human: "No artifact in this phase records a single continuous timed run isolating just the buyer critical path. 05-SMOKE-LOG.md documents a real successful walkthrough but interleaves screenshot capture, a forced-failure/replay detour, and Settings restores that are not part of the critical path -- it was never stopwatched as the acceptance-gate number. Requires a real clock on a fresh install, not derivable from static analysis."
+    why_human: "No artifact records one continuous timed run of just the buyer critical path. The documented dead-end (missing project:set + -W) that blocked this in a prior cycle is fixed (05-19, gate-locked by ReadmeStructureTest), and UAT test 7 estimates ~9-10 min from component evidence -- but the stopwatch measurement itself requires a live clock against a fresh install; not derivable from static analysis."
+deferred:
+  - truth: "SC5/MKT-04: Git tag `v2.0.0` annotated and pushed to remote, CI green on the tag commit"
+    addressed_in: "Launch Milestone (launch-02-PLAN.md)"
+    evidence: "ROADMAP.md:153 'Launch Milestone (deferred, separate from numbered phases) -- ... `v2.0.0` annotated tag. Triggered when operator decides to launch; not gated by phase progress.' and ROADMAP.md:403 launch-02 bullet owns 'v2.0.0 annotated tag + composer VCS install smoke + CI-green-on-tag verify (MKT-01, MKT-04)', resume signal `LAUNCH SCHEDULED`. All phase-controllable prerequisites are met: CI matrix green on master (run 28674577778, 4/4 jobs success, confirmed live), all commits pushed, bookkeeping truthful."
 human_verification:
-  - test: "Time a clean-room README dry-run per the item above."
-    expected: "Under 10 minutes end to end."
-    why_human: "Requires a real stopwatch run against a fresh install; cannot be derived from static analysis."
-  - test: "Run `composer require logingrupa/oc-metapixel-plugin` from a VCS repository entry against a genuinely clean, network-connected OctoberCMS 4.x install (both no-cart and full-Lovata configs), per MKT-01."
-    expected: "Install completes without errors on both configs."
-    why_human: "This environment has no outbound network access and the plugin's own working tree is not a disposable install target; this is the Launch Milestone's job (launch-02-PLAN.md), which has no SUMMARY.md evidence of having actually run despite ROADMAP.md marking the Launch Milestone 'completed 2026-07-03'."
-  - test: "Confirm `v2.0.0` annotated tag exists, is pushed to the remote, and CI matrix (Run A full-Lovata + Run B minimal, both PHP 8.3/8.4) is green on that exact tag commit, per MKT-04."
-    expected: "Tag `v2.0.0` present locally and on remote; CI green on the tag commit."
-    why_human: "`git tag -l` in this environment shows only `v2.0.0-rc.1` -- no `v2.0.0` tag exists. Formally deferred to the Launch Milestone (launch-02-PLAN.md) per ROADMAP reorg commit a900473, but that milestone's ROADMAP-claimed 'completed' status has no corroborating SUMMARY.md and is directly contradicted by the tag state observed here."
+  - test: "Time a clean-room README dry-run per the SC1/DOCS-01 item above (stopwatch, fresh OctoberCMS 4.x install, README verbatim, no cart plugin)."
+    expected: "Under 10 minutes end to end, from `project:set` through the first confirmed Meta Test Events hit."
+    why_human: "Requires a real stopwatch run against a fresh install; cannot be derived from static analysis. The prior documented dead-end blocking this is now fixed (05-19), so this is purely a timing measurement, not a code gap. It is also the Launch Milestone's acceptance gate -- natural to execute alongside the operator's LAUNCH SCHEDULED pass."
 ---
 
 # Phase 5: Documentation + marketplace launch Verification Report
@@ -35,31 +34,22 @@ human_verification:
 
 **Verified:** 2026-07-03
 **Status:** human_needed
-**Re-verification:** Yes — after gap-closure plan 05-18 (MKT-05 phpmd refactor)
+**Re-verification:** Yes — final pass after gap-closure plans 05-19, 05-20, 05-21, plus in-session fix `14e1ef6` for the bookkeeping regression found mid-verification
+
+**Scope note on goal wording:** the goal text says "private GitHub repo" but the repo is public (`gh repo view` → `isPrivate: false`). This is ROADMAP evolution (the Launch Milestone explicitly plans a "public repo flip", and the operator chose REDACT-FIRST before publishing), not a defect. Not counted against the phase.
 
 ## Re-verification Summary
 
-The single prior BLOCKER (SC3/MKT-05: `composer qa` did not exit 0 — `phpmd` failed with 5 complexity violations across 3 files) is closed. This session independently re-ran every step of the `qa` chain from scratch (not trusted from 05-18-SUMMARY.md), in the plugin directory, using the host vendor binaries per this repo's standalone-plugin install limitation:
+This is the fourth verification cycle. Every claim below was checked first-hand in this session, not trusted from SUMMARYs:
 
-| Step | Command | Result |
-|------|---------|--------|
-| phpmd | `phpmd Plugin.php,classes,models,console,components,middleware,controllers text phpmd.xml` (with `~/.pdepend` cache cleared first, per 05-18's documented stale-cache pitfall) | Exit 0, no output (zero violations) |
-| pint | `pint --test` | `{"tool":"pint","result":"passed"}`, exit 0 |
-| phpstan | `phpstan analyse --no-progress` (level 10, phpVersion 80300) | `[OK] No errors`, exit 0 |
-| pest + coverage | `pest -c phpunit.xml --coverage --min=90` | `569 passed (2191 assertions)`, `Total: 90.3%`, exit 0 |
-
-`composer.json`'s `qa` script (`["@pint-test", "@analyse", "@phpmd", "@test-cov"]`) chains exactly these four steps, so a clean, independently-verified exit 0 on every link closes MKT-05 for real, not just per the SUMMARY narrative.
-
-Also confirmed as unmodified/regression-safe:
-- `phpmd.xml`, `phpstan.neon`, `composer.json` have zero diff across the 05-18 commit range — no threshold-loosening, no suppression tactic.
-- Public API frozen: `ThemeAjaxHandler` retains `subscribe`, `onBeforeRun`, `HANDLER_NAME`, `HANDLER_MARK_ADD_TO_CART`, `META_STANDARD` (grep count 5); `ProductPageWatcher::dispatchForOfferSwitch(int $iProductId, int $iOfferId): OfferSwitchResult` signature intact; `PixelHead::flushDeferredFromController(Controller $obController): void` signature intact.
-- New collaborator `classes/adapter/theme/ThemeAjaxRequestReader.php` exists (final class, `Logingrupa\Metapixel\Classes\Adapter\Theme` namespace) with its own test file `tests/Feature/Adapter/Theme/ThemeAjaxRequestReaderTest.php`.
-- No `@SuppressWarnings` or `// refactor|gap|CR-|Phase N` comment-pollution markers in any of the 4 changed files.
-
-All other truths from the prior verification cycle were re-checked for regression (existence + basic sanity, not full re-derivation, per re-verification optimization):
-- README.md, docs/CUSTOM-ADAPTERS.md, 5 screenshots, CHANGELOG.md, plugin.yaml: unchanged, still present, still correct (spot-checked `App::make(AdapterRegistry::class)->register` present in both README.md and CUSTOM-ADAPTERS.md; 5 PNGs still `git ls-files`-tracked; `## [2.0.0] - 2026-05-27` still in CHANGELOG.md).
-- `v2.0.0` tag: still absent (`git tag -l` shows only `v2.0.0-rc.1`) — unchanged from prior verification, still correctly out of Phase 5's own scope per the ROADMAP reorg, still flagged as human-verification pending Launch Milestone execution.
-- `.planning/launch/` still contains only PLAN.md files (no SUMMARY.md for either launch plan) — the Launch Milestone "completed" claim in ROADMAP.md remains uncorroborated.
+| Item | Finding |
+|------|---------|
+| README dead-end (UAT test 7 / SC1) | **Fixed.** `README.md` documents `php artisan project:set <license>` (line 45) + `composer require logingrupa/oc-metapixel-plugin -W` (line 51), "Meta Events Manager" wording (lines 71, 101, 103; zero "Business Manager" remain), and an ordered "Quick start — first event in 10 minutes" H3 (line 61). `ReadmeStructureTest` re-run live: 8/8 GREEN (21 assertions, incl. 2 new install-fidelity locks). |
+| MKT-01 clean-install smoke | **Executed with evidence** — 05-UAT.md test 8: disposable scratchpad, October 4.3.1, both configs (no-cart + Shopaholic/OrdersShopaholic/Buddies), zero conflicts, 5 migrations green, PluginGuard degrades gracefully on empty pixel_id. Version-specific evidence accepted as behavioral proof. |
+| CI matrix green (MKT-05 / MKT-04 prerequisite) | **Confirmed live** via `gh run view 28674577778` — 4/4 jobs `success` (PHP 8.3/8.4 × full-lovata/minimal) on the public standalone repo. `origin/master` matches local history (local HEAD ahead by planning-doc-only commits, no source drift). |
+| MKT-05 `composer qa` exits 0 | **Re-run from scratch this session:** phpmd exit 0 (zero violations), pint `{"tool":"pint","result":"passed"}`, phpstan L10 `[OK] No errors`, pest `587 passed (2239 assertions)` at **90.5%** coverage — exit 0 on every link of the `qa` chain. |
+| Bookkeeping regression (found by this verification earlier in-session) | **Fixed by `14e1ef6`, independently re-verified.** ROADMAP.md:403 launch-02 → `[ ]` + "operator-gated, do NOT auto-stamp complete"; progress row :417 → `1/2 | Deferred — tag awaits operator LAUNCH SCHEDULED`; REQUIREMENTS.md:112 MKT-04 → `[ ]` + gate note; traceability :258 → `Pending`. All now consistent with the actual tag state (`git tag -l` / `git ls-remote --tags origin`: no `v2.0.0`). |
+| launch-01 kept `[x]` | **Reasoning verified against the sweep log, not taken on faith.** `.planning/launch/launch-01-SECURITY-SWEEP.md`: `status: COMPLETE — Step A + Step B executed`, `step_b_executed: 2026-07-03`, full execution record. Substance spot-checked: 0 non-archive `.planning/` hits for the real staging hostname; 28 non-archive files carry the redaction placeholder. `[x]` is truthful; `1/2` is accurate. |
 
 ## Goal Achievement
 
@@ -67,104 +57,106 @@ All other truths from the prior verification cycle were re-checked for regressio
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | **SC1/DOCS-01** — Timed dry-run (`composer require` → Settings → first verified CAPI event) completes in under 10 minutes; launch acceptance gate | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Unchanged from prior verification. README.md + 05-SMOKE-LOG.md exist and every individual step passes, but no artifact records one continuous stopwatched run of just the buyer critical path. Routed to human verification. |
-| 2 | **SC2/DOCS-03** — `docs/CUSTOM-ADAPTERS.md` working `AcmeCartAdapter` + `AcmeCartValueResolver` example, 3 hooks documented, `AdapterRegistry` registration correct | ✓ VERIFIED | Regression-checked: `docs/CUSTOM-ADAPTERS.md` still 359 lines, `App::make(AdapterRegistry::class)->register` present (2 matches), hook constants still match `SendCapiEvent.php`. Unchanged since last verification. |
-| 3 | **SC3/MKT-05** — `composer qa` exits 0 on full-Lovata install | ✓ VERIFIED | **Gap closed this cycle.** Independently re-ran all 4 chain steps from a cleared PDepend cache: phpmd exit 0, pint `passed`, phpstan `[OK] No errors`, pest `569 passed (2191 assertions)` at 90.3% coverage, exit 0 on every step. `phpmd.xml`/`phpstan.neon`/`composer.json` confirmed unmodified (no threshold loosening). Public signatures of the 3 refactored methods frozen (grep-confirmed). New `ThemeAjaxRequestReader` collaborator exists with its own test file. No suppression comments found. |
-| 4 | **SC4/MKT-02/MKT-03** — `plugin.yaml` generic name/description/icon; marketplace assets (icon PNG, 5 screenshots, CHANGELOG.md) present | ✓ VERIFIED (1 documented deviation, unchanged) | Regression-checked: 5 PNGs still git-tracked (`docs/screenshots/0[1-5]-*.png`), `CHANGELOG.md` still has `## [2.0.0] - 2026-05-27`. Deviation carried forward: no PNG plugin-icon ships — `icon-bullseye` FA class kept per locked decision D-20 (`05-CONTEXT.md`). Not a new gap; intentional, documented. |
-| 5 | **SC5/MKT-04** — Git tag `v2.0.0` annotated and pushed to remote | DEFERRED (Launch Milestone) | `git tag -l` still shows only `v2.0.0-rc.1`. Per ROADMAP reorg commit `a900473`, this was formally split from Phase 5 to the Launch Milestone (`launch-02-PLAN.md`). `.planning/launch/` still has no SUMMARY.md for either launch plan despite ROADMAP.md marking the milestone "completed 2026-07-03" — flagged, not silently accepted. Routed to human verification per task scoping instruction. |
-| 6 | **DOCS-02** — README Settings/adapter/credential/troubleshoot/multisite walkthrough | ✓ VERIFIED (2 documented deviations, unchanged) | Regression-checked: README.md unchanged, still has all 7 named sections, Troubleshoot table, multi-site section. Deviations carried forward: no Meta UI screenshots (locked decision D-12), no `.env` section (architecturally N/A — plugin has no `.env`-configurable values). |
-| 7 | **MKT-01** — `composer require` succeeds on a clean OctoberCMS 4.x install (no-cart + full-Lovata configs) | ? UNCERTAIN / DEFERRED | Cannot be exercised from this environment (no outbound network access, no disposable clean-install target). Owned by Launch Milestone `launch-02-PLAN.md`. No SUMMARY evidence it has run. Routed to human verification per task scoping instruction. |
+| 1 | **SC1/DOCS-01** — Timed dry-run (`composer require` → Settings → first verified CAPI event) completes in under 10 minutes; launch acceptance gate | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Every component verified (README executable on fresh installs per test-8 evidence, pipeline proven end-to-end on live production per UAT test 7 notes, ~9-10 min estimated), but no single continuous stopwatched run recorded. Routed to human verification. |
+| 2 | **SC2/DOCS-03** — `docs/CUSTOM-ADAPTERS.md` working `AcmeCartAdapter` + `AcmeCartValueResolver` example, 3 hooks documented, `AdapterRegistry` registration + `$require` pattern correct | ✓ VERIFIED | Re-checked live: 402 lines; `App::make(AdapterRegistry::class)->register(AcmeCart::class, AcmeCartAdapter::class)` at :112; `$require = ['Logingrupa.Metapixel']` at :109; all 3 hook constants (:300, :317, :334); contract-test section (:384). `CustomAdaptersStructureTest` 8/8 GREEN. |
+| 3 | **SC3/MKT-05** — `composer qa` exits 0; CI matrix green on both branches | ✓ VERIFIED | All 4 qa steps re-run live, exit 0 each (587 tests, 90.5% coverage). CI run 28674577778: 4/4 matrix cells `success`, confirmed via `gh run view`. Documented deviation (coordinator-approved, 05-21): composer-dependency-analyser gate removed from CI — structurally inoperable for October plugins, never part of the canonical `composer qa` chain; Lovata boundary enforced by phpstan disallowed-calls meanwhile. |
+| 4 | **SC4/MKT-02/MKT-03** — `plugin.yaml` generic name/description/icon; marketplace assets (icon, 5 screenshots, CHANGELOG.md) present | ✓ VERIFIED (1 documented deviation) | 5 PNGs in `docs/screenshots/`; `CHANGELOG.md` `## [2.0.0] - 2026-05-27`; `plugin.yaml` generic lang-key name/description, author `Logingrupa`, GitHub homepage. `AssetsExistTest` 5/5 GREEN. Deviation D-20 carried forward: FA `icon-bullseye` instead of PNG icon — locked decision, intentional. |
+| 5 | **SC5/MKT-04** — Git tag `v2.0.0` annotated and pushed; bookkeeping truthful | ⏸ DEFERRED (Launch Milestone) | Tag still absent (`git tag -l`: only `v1.1.1`, `v2.0.0-rc.1`; remote tags: none) — explicitly owned by `launch-02-PLAN.md`, gated on operator `LAUNCH SCHEDULED`, per ROADMAP:153/:403. All phase-controllable prerequisites now met: CI green, commits pushed, bookkeeping truthful after `14e1ef6`. Moved to `deferred` per Step 9b — clear, specific later-milestone ownership. |
+| 6 | **DOCS-02** — README Settings/adapter/credential/troubleshoot/multisite walkthrough | ✓ VERIFIED (2 documented deviations) | All 7 named sections + Troubleshoot table + multi-site section present, gate-locked. Deviations carried forward: no Meta UI screenshots (D-12 — plain-text steps stay accurate as Meta UI changes, stated in README:101), no `.env` section (architecturally N/A). |
+| 7 | **MKT-01** — `composer require` succeeds on a clean OctoberCMS 4.x install (no-cart + full-Lovata configs) | ✓ VERIFIED (via UAT execution evidence) | 05-UAT.md test 8: agent-executed clean install in a disposable scratchpad, both configs, version-specific evidence (October 4.3.1, toolbox 2.3.0, pdp 6.4.0, shopaholic 1.33.0 et al.), migrations green, plugin boots + degrades gracefully. Not re-executed this session (disproportionate given the specificity of existing evidence), but re-executable — this environment has outbound network access. |
 
-**Score:** 4/7 truths cleanly VERIFIED (#2, #3, #4, #6). 0 FAILED. 1 PRESENT_BEHAVIOR_UNVERIFIED (#1). 2 DEFERRED to Launch Milestone, both flagged as human-verification items rather than code gaps per explicit task scoping (#5, #7).
+**Score:** 5/7 truths VERIFIED (#2, #3, #4, #6, #7). 0 FAILED. 1 PRESENT_BEHAVIOR_UNVERIFIED (#1). 1 DEFERRED to Launch Milestone (#5).
+
+### Deferred Items
+
+| # | Item | Addressed In | Evidence |
+|---|------|-------------|----------|
+| 1 | `v2.0.0` annotated tag + CI-green-on-tag verify (SC5/MKT-04) | Launch Milestone (`launch-02-PLAN.md`) | ROADMAP.md:153 defines the Launch Milestone as "deferred, separate from numbered phases ... `v2.0.0` annotated tag. Triggered when operator decides to launch; not gated by phase progress." ROADMAP.md:403 bullet explicitly owns "MKT-01, MKT-04" with resume signal `LAUNCH SCHEDULED`. |
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `README.md` | ≥7 named sections, install→verify walkthrough | ✓ VERIFIED | Unchanged; regression-checked |
-| `docs/CUSTOM-ADAPTERS.md` | Working AcmeCart + hooks example | ✓ VERIFIED | Unchanged; regression-checked |
-| `docs/screenshots/0[1-5]-*.png` | 5 real PNGs | ✓ VERIFIED | Unchanged; `git ls-files` confirms all 5 tracked |
-| `CHANGELOG.md` | `## [2.0.0]` entry | ✓ VERIFIED | Unchanged |
-| `plugin.yaml` | Generic name/description/icon/author/homepage | ✓ VERIFIED (icon deviation D-20) | Unchanged |
-| `classes/adapter/theme/ThemeAjaxHandler.php` | Refactored below phpmd thresholds, public API frozen | ✓ VERIFIED | phpmd 0 violations on this file; grep confirms 5 public API symbols present; no suppression markers |
-| `classes/adapter/theme/ThemeAjaxRequestReader.php` | New collaborator, request-parsing responsibility | ✓ VERIFIED | Exists (3204 bytes), final class in correct namespace, has dedicated test file (2892 bytes) |
-| `classes/event/adapter/shopaholic/ProductPageWatcher.php` | `dispatchForOfferSwitch` below thresholds, signature frozen | ✓ VERIFIED | phpmd 0 violations; grep confirms exact signature preserved |
-| `components/PixelHead.php` | `flushDeferredFromController` below threshold, signature frozen | ✓ VERIFIED | phpmd 0 violations; grep confirms exact signature preserved |
-| `v2.0.0` git tag | Annotated, pushed to remote | ✗ MISSING (deferred) | Only `v2.0.0-rc.1` present; Launch Milestone scope |
+| `README.md` | ≥7 named sections, fresh-install-executable install→verify walkthrough | ✓ VERIFIED | `ReadmeStructureTest` 8/8 GREEN incl. install-fidelity + quick-start assertions |
+| `docs/CUSTOM-ADAPTERS.md` | Working AcmeCart + hooks + `$require` pattern | ✓ VERIFIED | `CustomAdaptersStructureTest` 8/8 GREEN; contents spot-checked directly |
+| `docs/screenshots/0[1-5]-*.png` | 5 real PNGs | ✓ VERIFIED | All 5 present on disk |
+| `CHANGELOG.md` | `## [2.0.0]` entry | ✓ VERIFIED | `AssetsExistTest` 5/5 GREEN |
+| `plugin.yaml` | Generic name/description/icon/author/homepage | ✓ VERIFIED (icon deviation D-20) | Content read directly |
+| `.github/workflows/metapixel-qa.yml` | 2×2 CI matrix green on standalone public repo | ✓ VERIFIED | Run 28674577778: 4/4 `success`, confirmed live |
+| `.planning/ROADMAP.md` launch bullets + progress row | Bookkeeping consistent with tag/CI reality | ✓ VERIFIED (fixed by `14e1ef6`) | :402 `[x]` truthful (sweep log COMPLETE, substance verified); :403 `[ ]` + do-NOT-auto-stamp note; :417 `1/2 Deferred` — internally consistent |
+| `.planning/REQUIREMENTS.md` MKT-04 row | Bookkeeping consistent with tag reality | ✓ VERIFIED (fixed by `14e1ef6`) | :112 `[ ]` + gate note; :258 `Pending` |
+| `v2.0.0` git tag | Annotated, pushed to remote | ⏸ DEFERRED | Launch Milestone scope; correctly represented as pending everywhere |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|-----|-----|--------|---------|
-| `composer.json` `qa` script | `phpmd.xml` thresholds | `phpmd Plugin.php,classes,... text phpmd.xml` | ✓ WIRED | Independently re-run this session: exit 0, zero violations |
+| `composer.json` `qa` script | `phpmd.xml` thresholds | `phpmd Plugin.php,classes,... text phpmd.xml` | ✓ WIRED | Exit 0, zero violations (re-run live) |
 | `composer.json` `qa` script | `pint.json` | `pint --test` | ✓ WIRED | `passed` |
 | `composer.json` `qa` script | `phpstan.neon` level 10 | `phpstan analyse --no-progress` | ✓ WIRED | `[OK] No errors` |
-| `composer.json` `qa` script | `phpunit.xml` coverage gate | `pest --coverage --min=90` | ✓ WIRED | `569 passed`, `90.3%` (≥90 gate met), exit 0 |
-| `ThemeAjaxHandler` | `ThemeAjaxRequestReader` | Constructor-injected `readonly` property, delegated calls | ✓ WIRED | Confirmed via file read; existing `ThemeAjaxHandlerSubjectTypeTest` + new `ThemeAjaxRequestReaderTest` both pass in the 569-test run |
+| `composer.json` `qa` script | `phpunit.xml` coverage gate | `pest --coverage --min=90` | ✓ WIRED | `587 passed`, `90.5%` (≥90 gate met), exit 0 |
+| GitHub Actions | `metapixel-qa.yml` on public repo | `gh run view 28674577778` | ✓ WIRED | 4/4 jobs success |
+| `.planning/ROADMAP.md` progress table (:417) | Launch-milestone bullets (:402-403) | Internal cross-reference | ✓ WIRED | `1/2 Deferred` matches one `[x]` + one `[ ]` bullet — contradiction resolved by `14e1ef6` |
+| ROADMAP launch-01 `[x]` claim | `.planning/launch/launch-01-SECURITY-SWEEP.md` | Sweep-log status + on-disk redaction state | ✓ WIRED | Log status COMPLETE with execution record; 0 non-archive hits of real hostname, 28 files with placeholder — the checkbox is backed by real substance |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| phpmd exits 0 on full qa file-set (MKT-05 gate, re-verified from scratch, not trusted from SUMMARY) | `phpmd Plugin.php,classes,models,console,components,middleware,controllers text phpmd.xml` (PDepend cache cleared first) | Exit 0, no output | ✓ PASS |
-| pint clean | `pint --test` | `passed` | ✓ PASS |
-| phpstan level 10 clean | `phpstan analyse --no-progress` | `[OK] No errors` | ✓ PASS |
-| Full pest suite + coverage gate (single run, not filtered per-truth) | `pest -c phpunit.xml --coverage --min=90` | `569 passed (2191 assertions)`, `Total: 90.3%` | ✓ PASS |
-| Public signatures frozen post-refactor | `grep -c` on 3 exact signatures across 3 files | 5 / 1 / 1 matches respectively | ✓ PASS |
-| No suppression / comment-pollution markers introduced | `grep -nE '@SuppressWarnings|// *(refactor|gap|CR-|Phase )'` across the 4 changed files | No matches | ✓ PASS |
-| Config files (phpmd.xml/phpstan.neon/composer.json) untouched by the gap-closure commits | `git diff HEAD~7 -- phpmd.xml phpstan.neon composer.json` | Empty diff | ✓ PASS |
+| phpmd exits 0 on full qa file-set | `../../../vendor/bin/phpmd Plugin.php,classes,models,console,components,middleware,controllers text phpmd.xml` | Exit 0, no output | ✓ PASS |
+| pint clean | `../../../vendor/bin/pint --test` | `{"tool":"pint","result":"passed"}` | ✓ PASS |
+| phpstan level 10 clean | `../../../vendor/bin/phpstan analyse --no-progress` | `[OK] No errors` | ✓ PASS |
+| Full pest suite + coverage gate (single run) | `../../../vendor/bin/pest -c phpunit.xml --coverage --min=90` | `587 passed (2239 assertions)`, `Total: 90.5%`, exit 0 | ✓ PASS |
+| README install-fidelity gate | `pest --filter=ReadmeStructure` | `8 passed (21 assertions)` | ✓ PASS |
+| Custom-adapters doc gate | `pest --filter=CustomAdapters` | `8 passed (15 assertions)` | ✓ PASS |
+| Marketplace assets gate | `pest --filter=AssetsExist` | `5 passed (6 assertions)` | ✓ PASS |
+| CI run status on public repo | `gh run view 28674577778` | 4/4 jobs `success` | ✓ PASS |
+| `v2.0.0` tag existence | `git tag -l` / `git ls-remote --tags origin` | No `v2.0.0` anywhere | ⏸ EXPECTED (deferred to Launch Milestone; bookkeeping now matches) |
+| ROADMAP/REQUIREMENTS bookkeeping consistency | `grep` on launch bullets, progress row, MKT-04 rows vs. tag state | All consistent post-`14e1ef6` | ✓ PASS |
+| launch-01 `[x]` substance | grep real staging hostname in non-archive `.planning/` + placeholder count | 0 real-hostname hits; 28 placeholder files; sweep log COMPLETE | ✓ PASS |
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|-------------|-------------|--------|----------|
-| DOCS-01 | 05-00, 05-08, 05-09 | README <10min install→verified-event walkthrough | ⚠️ Partial — content shipped, timing never measured as a single run | Truth #1 |
+| DOCS-01 | 05-00, 05-08, 05-09, 05-19 | README <10min install→verified-event walkthrough | ⚠️ Content complete + fresh-install-executable; timing never stopwatched as one run | Truth #1 |
 | DOCS-02 | 05-00, 05-09 | README field/adapter/credential/troubleshoot/multisite walkthrough | ✓ Satisfied (2 documented deviations) | Truth #6 |
-| DOCS-03 | 05-00, 05-10 | `docs/CUSTOM-ADAPTERS.md` working example | ✓ Satisfied — REQUIREMENTS.md checkbox still stale ("Pending" despite content shipped, unchanged from prior cycle) | Truth #2 |
-| MKT-01 | Launch Milestone (was 05-14) | Composer install on clean instances | ? UNCERTAIN — deferred to Launch Milestone, no SUMMARY evidence it ran; REQUIREMENTS.md "Pending" is accurate | Truth #7 |
+| DOCS-03 | 05-00, 05-10 | `docs/CUSTOM-ADAPTERS.md` working example | ✓ Satisfied — REQUIREMENTS.md checkbox still stale ("Pending"; under-reports delivered work, hygiene item) | Truth #2 |
+| MKT-01 | Launch Milestone (was 05-14) + UAT test 8 | Composer install on clean instances | ✓ Satisfied — executed with version-specific evidence; REQUIREMENTS.md checkbox still stale ("Pending") | Truth #7 |
 | MKT-02 | 05-00, 05-12 | Generic `plugin.yaml` | ✓ Satisfied — REQUIREMENTS.md checkbox still stale ("Pending") | Truth #4 |
-| MKT-03 | 05-00, 05-08, 05-12 | Icon(PNG)+5 screenshots+CHANGELOG | ✓ Mostly satisfied (PNG icon deviated per D-20) — REQUIREMENTS.md checkbox still stale | Truth #4 |
-| MKT-04 | Launch Milestone (was 05-13/05-14) | `v2.0.0` tag pushed | ✗ NOT satisfied — REQUIREMENTS.md "Pending" is accurate; only `v2.0.0-rc.1` exists | Truth #5 |
-| MKT-05 | 05-18 (gap closure) | `composer qa` exits 0 on both configs | ✓ **NOW satisfied** — REQUIREMENTS.md line 259 already shows "Complete" (updated by the 05-18 gap-closure commit); independently confirmed live in this session | Truth #3 |
+| MKT-03 | 05-00, 05-08, 05-12 | Icon(PNG)+5 screenshots+CHANGELOG | ✓ Mostly satisfied (PNG icon deviated per D-20) — checkbox still stale | Truth #4 |
+| MKT-04 | Launch Milestone (was 05-13/05-14) | `v2.0.0` tag pushed | ⏸ Deferred — REQUIREMENTS.md:112 now correctly `[ ]` Pending with operator-gate note; all prerequisites (CI green, push, truthful bookkeeping) met | Truth #5 |
+| MKT-05 | 05-18, 05-21 (gap closure) | `composer qa` exits 0 on both configs; CI matrix green | ✓ Satisfied — independently re-confirmed live | Truth #3 |
 
-**Orphaned requirements:** None — all 8 IDs (DOCS-01..03, MKT-01..05) present in REQUIREMENTS.md's Phase 5 traceability block and mapped to at least one Phase 5 plan (including the 05-18 gap-closure plan for MKT-05).
+**Orphaned requirements:** None — all 8 IDs (DOCS-01..03, MKT-01..05) present in REQUIREMENTS.md's Phase 5 traceability block and mapped to Phase 5 plans.
 
-**REQUIREMENTS.md hygiene observation (not a phase gap, carried forward):** DOCS-03, MKT-02, and MKT-03 are objectively delivered (tests GREEN, artifacts present) but their REQUIREMENTS.md checkboxes/traceability rows still show "Pending" — the ledger was never updated after the work shipped. MKT-05's row, notably, WAS updated to "Complete" alongside the 05-18 commit, showing the pattern is inconsistent rather than systemic. Recommend a housekeeping pass independent of this verification cycle.
+**Hygiene observation (WARNING, not a gap):** DOCS-03/MKT-01/MKT-02/MKT-03 checkboxes under-report delivered work ("Pending" despite artifacts shipped and gates GREEN). Harmless direction of drift (never misrepresents incomplete work as done), but a housekeeping pass is recommended when the milestone closes.
+
+**Safeguard adequacy (WARNING, flagged per coordinator request):** the "do NOT auto-stamp complete" annotations in ROADMAP.md:403 and REQUIREMENTS.md:112 are advisory prose — the SDK's roadmap-tracking verb has no mechanical exclusion, so a future blanket tracking-update could regress the marks a third time (it already happened twice, in commits `b8612fa` and `c177773`). The annotation lives inside the exact bullet text an auto-stamper would rewrite, which gives an LLM-driven updater the best available chance of honoring it, and the false state is trivially detectable (`git tag -l` vs. checkbox). Accepted as adequate for now; if the marks regress again, escalate to a mechanical check (e.g. a Pest planning-hygiene assertion that fails when a `do NOT auto-stamp` bullet is `[x]` while `git tag -l` lacks `v2.0.0`).
 
 ### Anti-Patterns Found
 
-None. Re-grepped the 4 files touched by the 05-18 gap-closure commit (`ThemeAjaxHandler.php`, `ThemeAjaxRequestReader.php`, `ProductPageWatcher.php`, `PixelHead.php`) for `TBD`/`FIXME`/`XXX`/`TODO`/`HACK`/`PLACEHOLDER`/`@SuppressWarnings`/refactor-marker comments — zero matches. No debt markers block this phase.
+None. `README.md`, `docs/CUSTOM-ADAPTERS.md`, and all 05-18/05-19-touched files grep clean for `TBD`/`FIXME`/`XXX`/`TODO`/`HACK`/`PLACEHOLDER`/`@SuppressWarnings`. No debt markers block this phase.
 
 ### Human Verification Required
 
 1. **Timed dry-run (SC1/DOCS-01 launch acceptance gate)**
-   **Test:** Starting a stopwatch at `composer require logingrupa/oc-metapixel-plugin`, follow README.md verbatim on a genuinely clean OctoberCMS 4.x install through Settings configuration to the first CAPI event verified in Meta Test Events.
+   **Test:** Starting a stopwatch at `php artisan project:set <license>` → `composer require logingrupa/oc-metapixel-plugin -W`, follow README.md verbatim on a genuinely clean OctoberCMS 4.x install through Settings configuration to the first CAPI event verified in Meta Test Events.
    **Expected:** Elapsed time under 10 minutes.
-   **Why human:** No phase artifact records this as a single continuous timed measurement.
-
-2. **Composer install on a clean instance (MKT-01)**
-   **Test:** `composer require logingrupa/oc-metapixel-plugin` from the VCS repository entry, against a genuinely clean, network-connected OctoberCMS 4.x install — once with no cart plugin, once with Shopaholic + OrdersShopaholic + Buddies.
-   **Expected:** Both installs complete without errors.
-   **Why human:** No outbound network access in this environment; explicitly the Launch Milestone's own job (`launch-02-PLAN.md`), unverified by any SUMMARY.md.
-
-3. **`v2.0.0` tag + CI matrix on tag commit (MKT-04)**
-   **Test:** Confirm the annotated `v2.0.0` tag exists locally and on the remote, and that both CI matrix branches (Run A full-Lovata, Run B minimal, PHP 8.3 + 8.4) are green on that exact commit.
-   **Expected:** Tag exists; CI green on all 4 matrix cells.
-   **Why human:** Only `v2.0.0-rc.1` exists today; this is Launch Milestone scope with no corroborating SUMMARY evidence despite a ROADMAP "completed" claim.
+   **Why human:** No phase artifact records this as a single continuous timed measurement. The dead-end that previously blocked the run is fixed and gate-locked; every component is individually proven (clean install evidence, live-production pipeline evidence, ~9-10 min estimate) — only the stopwatch itself remains. It doubles as the Launch Milestone's acceptance gate, so the natural moment to execute it is the operator's `LAUNCH SCHEDULED` pass.
 
 ## Gaps Summary
 
-**No remaining code gaps.** The one hard, previously-reproducible BLOCKER — `composer qa` failing on `phpmd` complexity violations across `ThemeAjaxHandler.php`, `ProductPageWatcher.php`, and `PixelHead.php` — is closed. This verification independently re-ran every link of the `qa` chain (pint, phpstan L10, phpmd, pest+coverage) from a cleared PDepend cache and confirmed exit 0 on each, matching the 05-18-SUMMARY.md claim with first-hand evidence rather than trusting the narrative. Public method signatures are frozen, no phpmd.xml/phpstan.neon/composer.json thresholds were loosened, and no suppression annotations or comment-pollution markers were introduced.
+**No code gaps and no bookkeeping gaps remain.** The regression this verification found mid-session (false "Launch Milestone completed" marks in ROADMAP.md and REQUIREMENTS.md, reintroduced twice by tracking-update commits after 05-20's correct revert) was fixed by commit `14e1ef6` and independently re-verified: both files now truthfully represent the `v2.0.0` tag as pending/operator-gated, the progress row (`1/2 Deferred`) matches the bullets, and the retained launch-01 `[x]` is backed by real substance (sweep log COMPLETE, redaction verified on disk).
 
-What remains open is exactly what the task context flagged as out-of-scope-but-must-be-tracked: three items that require a networked, disposable OctoberCMS install and/or a real stopwatch, none of which is possible from this environment:
+The phase's own automatable exit criteria are fully green, all verified first-hand this session:
+- `composer qa` exits 0 end-to-end (phpmd, pint, phpstan L10, pest 587/587 at 90.5% coverage).
+- CI matrix green on the public repo (run 28674577778, 4/4 cells).
+- README fresh-install path executable (dead-end fixed, gate-locked).
+- `docs/CUSTOM-ADAPTERS.md`, 5 screenshots, CHANGELOG, generic plugin.yaml all present and gate-locked.
+- MKT-01 clean-install smoke executed with specific evidence (UAT test 8).
 
-1. **SC1/DOCS-01** — the timed <10-minute README dry-run (present-behavior-unverified: all the pieces exist and pass individually, but no single continuous timed run has been recorded).
-2. **MKT-01** — clean-install `composer require` smoke on both no-cart and full-Lovata configs.
-3. **MKT-04** — the `v2.0.0` annotated tag and its CI-matrix-on-tag-commit confirmation.
-
-All three are Launch Milestone (`launch-02-PLAN.md`) responsibilities per the ROADMAP reorg (commit `a900473`), and all three are flagged here as human-verification items rather than silently accepted, since `.planning/launch/` has no SUMMARY.md evidence that the Launch Milestone has actually executed despite ROADMAP.md marking it "completed 2026-07-03."
-
-**Status is `human_needed`, not `passed`,** because these 3 items remain open pending human/networked execution — but none of them is a code defect, and the phase's own automatable exit gate (MKT-05 / `composer qa`) is now fully green.
+**Status is `human_needed`, not `passed`,** for exactly one reason: SC1's timed <10-minute dry-run is written into the ROADMAP as a Phase 5 Success Criterion ("This dry-run is the launch acceptance gate") and remains PRESENT_BEHAVIOR_UNVERIFIED — every component is proven, but the single continuous stopwatched measurement the criterion literally demands has never been recorded. Per the verification decision tree, a non-empty human-verification section forecloses `passed`. This is the only open item; it requires a human, a stopwatch, and a fresh install — nothing else. The `v2.0.0` tag is a `deferred` item (Launch Milestone, operator-gated), not a gap, and does not block phase closure.
 
 ---
 
