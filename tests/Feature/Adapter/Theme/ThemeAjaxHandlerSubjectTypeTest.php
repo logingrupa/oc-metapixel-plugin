@@ -19,6 +19,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
 use Logingrupa\Metapixel\Classes\Adapter\ValueResolver;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
 use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
+use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Mockery;
@@ -365,6 +366,13 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         $this->assertStringContainsString('fbq("track", "ViewContent", {}', $sScript);
         $this->assertStringContainsString('eventID: "'.$sEventId.'"', $sScript);
         $this->assertStringContainsString('test_event_code: "TEST123"', $sScript);
+
+        // The wire action_key (+ appended event_id) travels INSIDE custom_data;
+        // a top-level unknown Graph parameter would be rejected with (#100).
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob) use ($sEventId): bool {
+            return ! array_key_exists('action_key', $obJob->arPayload)
+                && ($obJob->arPayload['data'][0]['custom_data']['action_key'] ?? null) === 'viewcontent:7:'.$sEventId;
+        });
     }
 
     public function test_generic_theme_branch_carries_test_event_code_and_event_i_d_with_empty_custom_data(): void

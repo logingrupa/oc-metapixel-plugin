@@ -270,12 +270,16 @@ final class ThemeAjaxHandler
     }
 
     /**
-     * Terminal generic-alias dispatch. Appends the server-generated event_id to
-     * the wire-format action_key BEFORE dispatch (CONTEXT.md Claude's
-     * Discretion). The append is observability-only; payload-side dedup is
-     * anchored by event_id within ±10s of event_time. Generic-alias theme
-     * actions are contentless — empty {} custom_data (do NOT invent content);
-     * the builder still adds eventID + test code.
+     * Terminal generic-alias dispatch. Appends the server-generated event_id
+     * to the wire-format action_key and carries it inside custom_data via the
+     * builder's extras (JS sends viewcontent:{pid}:{oid}, server stores
+     * viewcontent:{pid}:{oid}:{eid}). It MUST NOT sit at the top level of the
+     * Graph envelope — Graph rejects unknown top-level POST parameters with
+     * (#100) and it would leak internal routing data. The append is
+     * observability-only; payload-side dedup is anchored by event_id within
+     * ±10s of event_time. Generic-alias theme actions are contentless — empty
+     * {} browser custom_data (do NOT invent content); the builder still adds
+     * eventID + test code.
      *
      * @param  array<string, mixed>  $arData
      */
@@ -283,6 +287,8 @@ final class ThemeAjaxHandler
     {
         $sEventId = Uuid::uuid4()->toString();
         $iEventTime = time();
+        $mWireActionKey = $arData['action_key'] ?? null;
+        $sWireActionKey = is_string($mWireActionKey) ? $mWireActionKey : '';
         $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
             $sName,
             $obAdapter,
@@ -290,13 +296,8 @@ final class ThemeAjaxHandler
             $obAdapter->getValueResolver($obSubject),
             $sEventId,
             $iEventTime,
-            [],
+            $sWireActionKey !== '' ? ['action_key' => $sWireActionKey.':'.$sEventId] : [],
         );
-        $mWireActionKey = $arData['action_key'] ?? null;
-        $sWireActionKey = is_string($mWireActionKey) ? $mWireActionKey : '';
-        if ($sWireActionKey !== '') {
-            $arPayload['action_key'] = $sWireActionKey.':'.$sEventId;
-        }
         SendCapiEvent::dispatch($sName, $arPayload, $obSubject, $sAdapterClass);
 
         $sScript = FbqScriptBuilder::build($sName, [], $sEventId, $sTestCode);
