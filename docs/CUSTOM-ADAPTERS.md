@@ -103,7 +103,7 @@ class Plugin extends PluginBase {
     public $require = ['Logingrupa.Metapixel'];
 
     public function boot(): void {
-        AdapterRegistry::instance()->register(AcmeCart::class, AcmeCartAdapter::class);
+        App::make(AdapterRegistry::class)->register(AcmeCart::class, AcmeCartAdapter::class);
 
         AcmeCart::extend(function ($obCart) {
             $obCart->bindEvent('model.afterSave', function () use ($obCart) {
@@ -121,9 +121,10 @@ Three things matter here:
 - `$require = ['Logingrupa.Metapixel']` tells October that your plugin loads
   after the Metapixel plugin — without it, `AdapterRegistry` is not yet
   bound when your `boot()` runs.
-- `AdapterRegistry::instance()->register(...)` maps your subject class to
-  your adapter class. The plugin core's queue worker calls
-  `AdapterRegistry::resolveByClass(AcmeCartAdapter::class)` on rehydrate.
+- `App::make(AdapterRegistry::class)->register(...)` maps your subject class
+  to your adapter class — the registry is a service-container singleton, so
+  resolve it through the container. The plugin core's queue worker calls
+  `resolveByClass(AcmeCartAdapter::class)` on the same instance on rehydrate.
 - `SendCapiEvent::dispatch(...)` is the only public entry point — see
   *Trigger dispatch* below.
 

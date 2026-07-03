@@ -100,11 +100,10 @@ final class CustomAdaptersStructureTest extends MetapixelTestCase
     public function test_doc_shows_register_pattern(): void
     {
         $sDoc = $this->loadCustomAdaptersDoc();
-        $bHasInstanceForm = str_contains($sDoc, 'AdapterRegistry::instance()->register');
-        $bHasStaticForm = str_contains($sDoc, 'AdapterRegistry::register');
-        $this->assertTrue(
-            $bHasInstanceForm || $bHasStaticForm,
-            'docs/CUSTOM-ADAPTERS.md must show the AdapterRegistry registration snippet (either AdapterRegistry::instance()->register or AdapterRegistry::register).',
+        $this->assertStringContainsString(
+            'App::make(AdapterRegistry::class)->register',
+            $sDoc,
+            'docs/CUSTOM-ADAPTERS.md must show the container-resolved registration snippet App::make(AdapterRegistry::class)->register(...) — AdapterRegistry has no instance() method and register() is not static.',
         );
     }
 

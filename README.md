@@ -174,7 +174,7 @@ The pipeline is subject-agnostic. To track a model the plugin does not know abou
    ```php
    use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 
-   AdapterRegistry::register(\Vendor\Plugin\Models\Booking::class, \Vendor\Plugin\Metapixel\BookingAdapter::class);
+   App::make(AdapterRegistry::class)->register(\Vendor\Plugin\Models\Booking::class, \Vendor\Plugin\Metapixel\BookingAdapter::class);
    ```
 
    Your adapter implements the `EventSubjectAdapter` contract (subject metadata + Meta dispatch routing) and returns a `ValueResolver` for value, contents, and currency. It reports its own opaque subject-type alias and reads the site from the subject itself.
