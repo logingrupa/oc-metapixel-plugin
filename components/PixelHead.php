@@ -207,27 +207,9 @@ class PixelHead extends ComponentBase
             $arEvents = $obCollector->flush();
             $arScriptBlocks = [];
             foreach ($arEvents as $arEvent) {
-                $mNameRaw = $arEvent['name'] ?? null;
-                if (! is_string($mNameRaw) || $mNameRaw === '') {
-                    continue;
-                }
-                $sName = $mNameRaw;
-                $arCustomData = self::extractCustomData($arEvent);
-                $mEventId = $arEvent['event_id'] ?? null;
-                $sEventId = is_string($mEventId) && $mEventId !== '' ? $mEventId : null;
-                $arScriptBlocks[] = FbqScriptBuilder::build($sName, $arCustomData, $sEventId, $sTestCode);
-                if ((bool) ($arEvent['also_dispatch_capi'] ?? false)) {
-                    try {
-                        self::dispatchCapiMirror($sName, $arEvent);
-                    } catch (Throwable $obException) {
-                        // Tiger-Style: mirror failure MUST NOT 500 the page
-                        // render; log + continue.
-                        Log::warning('metapixel: PixelHead CAPI mirror failed', [
-                            'meta_pixel.event_name' => $sName,
-                            'meta_pixel.exception' => get_class($obException),
-                            'meta_pixel.message' => $obException->getMessage(),
-                        ]);
-                    }
+                $sBlock = self::buildDeferredScriptBlock($arEvent, $sTestCode);
+                if ($sBlock !== null) {
+                    $arScriptBlocks[] = $sBlock;
                 }
             }
             App::make(PixelHeadDeferredFlushBuffer::class)->setBlocks($arScriptBlocks);
@@ -240,6 +222,40 @@ class PixelHead extends ComponentBase
                 'meta_pixel.message' => $obException->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Render one collector event into an fbq script block, mirroring to CAPI
+     * when flagged. Returns null when the event has no usable name.
+     *
+     * @param  array<string, mixed>  $arEvent
+     */
+    private static function buildDeferredScriptBlock(array $arEvent, ?string $sTestCode): ?string
+    {
+        $mNameRaw = $arEvent['name'] ?? null;
+        if (! is_string($mNameRaw) || $mNameRaw === '') {
+            return null;
+        }
+        $sName = $mNameRaw;
+        $arCustomData = self::extractCustomData($arEvent);
+        $mEventId = $arEvent['event_id'] ?? null;
+        $sEventId = is_string($mEventId) && $mEventId !== '' ? $mEventId : null;
+        $sBlock = FbqScriptBuilder::build($sName, $arCustomData, $sEventId, $sTestCode);
+        if ((bool) ($arEvent['also_dispatch_capi'] ?? false)) {
+            try {
+                self::dispatchCapiMirror($sName, $arEvent);
+            } catch (Throwable $obException) {
+                // Tiger-Style: mirror failure MUST NOT 500 the page
+                // render; log + continue.
+                Log::warning('metapixel: PixelHead CAPI mirror failed', [
+                    'meta_pixel.event_name' => $sName,
+                    'meta_pixel.exception' => get_class($obException),
+                    'meta_pixel.message' => $obException->getMessage(),
+                ]);
+            }
+        }
+
+        return $sBlock;
     }
 
     /**
