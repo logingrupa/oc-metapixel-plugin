@@ -1,15 +1,23 @@
 name: metapixel-qa
 
+# Root cause of the previous red CI: this workflow was copied from the private
+# monorepo, where the plugin lived under a nested plugin sub-path with a shared
+# vendor tree at the repo root. On the PUBLIC origin the plugin IS the repo root
+# (composer.json, phpstan.neon, phpunit.xml all at top level), so the old nested
+# working directory and repo-root-relative pest binary paths never existed and
+# every cell failed in ~21s.
+#
+# Fix: reconstruct a host OctoberCMS app in the runner and mount the checked-out
+# plugin under that app's plugins tree so the plugin phpunit.xml bootstrap and the
+# host modules + vendor resolve exactly as they do in a real operator install.
+
 on:
   push:
     branches: [master]
   pull_request:
-    paths:
-      - 'plugins/logingrupa/metapixel/**'
-      - '.github/workflows/metapixel-qa.yml'
 
-# Least-privilege: this is a read-only QA gate. Override the default
-# GITHUB_TOKEN scope so a compromised step cannot push refs or releases.
+# Least-privilege: this is a read-only QA gate. Override the default GITHUB_TOKEN
+# scope so a compromised step cannot push refs, create releases, or tags.
 permissions:
   contents: read
 
@@ -26,9 +34,15 @@ jobs:
         php: ['8.3', '8.4']
         install: [full-lovata, minimal]
 
+    env:
+      OCTOBER_APP_DIR: ${{ github.workspace }}/october-host
+      PLUGIN_DIR: ${{ github.workspace }}/october-host/plugins/logingrupa/metapixel
+
     steps:
-      - name: Checkout
+      - name: Checkout plugin (standalone repo — the plugin IS the repo root)
         uses: actions/checkout@v4
+        with:
+          path: plugin-src
 
       - name: Setup PHP ${{ matrix.php }}
         uses: shivammathur/setup-php@v2
@@ -36,67 +50,93 @@ jobs:
           php-version: ${{ matrix.php }}
           tools: composer
           coverage: xdebug
-          extensions: dom, json, libxml, mbstring, pdo, pdo_sqlite, sqlite3, intl, fileinfo
+          extensions: dom, json, libxml, mbstring, pdo, pdo_sqlite, sqlite3, intl, fileinfo, gd, zip, curl
 
-      - name: composer install (repo root, full Lovata)
-        if: matrix.install == 'full-lovata'
-        run: composer install --no-progress --prefer-dist --no-interaction
-
-      - name: composer install (repo root, minimal — Lovata cart plugins removed)
-        if: matrix.install == 'minimal'
+      - name: Authenticate to gateway.octobercms.com
+        env:
+          OCTOBER_AUTH_JSON: ${{ secrets.OCTOBER_AUTH_JSON }}
         run: |
-          # Remove Lovata cart plugins from the repo-root composer.json's require/require-dev
-          # so the install does not load them. This mirrors a marketplace install where the
-          # operator has NOT yet installed lovata/shopaholic / lovata/ordersshopaholic / lovata/buddies.
+          # october/system and every lovata/* backbone package resolve ONLY through
+          # the authenticated October gateway — there is no public Packagist path.
+          # Fail fast with an actionable message if the operator secret is absent.
+          if [ -z "$OCTOBER_AUTH_JSON" ]; then
+            echo "::error title=Missing OCTOBER_AUTH_JSON::october/system and lovata/* install only via authenticated gateway.octobercms.com. Add the OCTOBER_AUTH_JSON repository secret under Settings -> Secrets and variables -> Actions, containing your October auth.json contents."
+            exit 1
+          fi
+          mkdir -p "$HOME/.composer"
+          printf '%s' "$OCTOBER_AUTH_JSON" > "$HOME/.composer/auth.json"
+          chmod 600 "$HOME/.composer/auth.json"
+          # Validate it is well-formed JSON before any composer step consumes it.
+          php -r '$s = file_get_contents(getenv("HOME") . "/.composer/auth.json"); json_decode($s); if (json_last_error() !== JSON_ERROR_NONE) { fwrite(STDERR, "OCTOBER_AUTH_JSON is not valid JSON: " . json_last_error_msg() . PHP_EOL); exit(1); }'
+
+      - name: Create host OctoberCMS 4.x app
+        run: composer create-project october/october "$OCTOBER_APP_DIR" "^4.0" --no-interaction --no-progress --prefer-dist
+
+      - name: Mount the checked-out plugin into the host app
+        run: |
+          mkdir -p "$PLUGIN_DIR"
+          rsync -a --delete \
+            --exclude '.git' \
+            --exclude 'vendor' \
+            --exclude 'node_modules' \
+            plugin-src/ "$PLUGIN_DIR/"
+
+      - name: Require Lovata backbone + cart plugins (full-lovata cell)
+        if: matrix.install == 'full-lovata'
+        working-directory: ${{ env.OCTOBER_APP_DIR }}
+        run: |
+          composer require --no-interaction --no-progress --with-all-dependencies \
+            lovata/toolbox-plugin:^2.2 \
+            lovata/shopaholic-plugin:^1.32 \
+            lovata/ordersshopaholic-plugin:^1.33 \
+            lovata/buddies-plugin:^1.10
+
+      - name: Require Lovata backbone only (minimal cell — no cart plugins)
+        if: matrix.install == 'minimal'
+        working-directory: ${{ env.OCTOBER_APP_DIR }}
+        run: |
+          # Mirrors a marketplace install where the operator has NOT installed the
+          # Lovata cart plugins. Only the mandatory Toolbox backbone is present.
+          composer require --no-interaction --no-progress --with-all-dependencies \
+            lovata/toolbox-plugin:^2.2
+
+      - name: Install plugin dev toolchain (full-lovata cell)
+        if: matrix.install == 'full-lovata'
+        working-directory: ${{ env.PLUGIN_DIR }}
+        run: composer install --no-interaction --no-progress --prefer-dist
+
+      - name: Install plugin dev toolchain (minimal cell — strip cart plugins from require-dev)
+        if: matrix.install == 'minimal'
+        working-directory: ${{ env.PLUGIN_DIR }}
+        run: |
+          # Strip the Lovata cart packages from the plugin's require-dev so the
+          # adapter-coupled dependencies are absent, mirroring the minimal operator.
           composer remove --dev --no-update --no-interaction \
             lovata/shopaholic-plugin \
             lovata/ordersshopaholic-plugin \
             lovata/buddies-plugin || true
-          composer remove --no-update --no-interaction \
-            lovata/shopaholic-plugin \
-            lovata/ordersshopaholic-plugin \
-            lovata/buddies-plugin || true
-          composer install --no-progress --prefer-dist --no-interaction
+          composer install --no-interaction --no-progress --prefer-dist
 
-      - name: composer install (plugin, full Lovata)
+      - name: composer qa — full Lovata (Run A, coverage gate >= 90%)
         if: matrix.install == 'full-lovata'
-        working-directory: plugins/logingrupa/metapixel
-        run: composer install --no-progress --prefer-dist --no-interaction
-
-      - name: composer install (plugin, minimal)
-        if: matrix.install == 'minimal'
-        working-directory: plugins/logingrupa/metapixel
-        run: |
-          # Plugin composer.json keeps Lovata in require-dev for the test-suite-with-cart shape.
-          # For Run B, strip the cart packages from the plugin's require-dev so pest under the
-          # plugin scope does not load adapter tests that pull in Lovata classes.
-          composer remove --dev --no-update --no-interaction \
-            lovata/shopaholic-plugin \
-            lovata/ordersshopaholic-plugin \
-            lovata/buddies-plugin || true
-          composer install --no-progress --prefer-dist --no-interaction
-
-      - name: composer qa (full Lovata — Run A, coverage gate)
-        if: matrix.install == 'full-lovata'
-        working-directory: plugins/logingrupa/metapixel
+        working-directory: ${{ env.PLUGIN_DIR }}
         run: |
           composer run-script pint-test
           composer run-script analyse
           composer run-script phpmd
           composer run-script deps
-          # Run test-cov with coverage gate. Pest 4 honors --min on the line coverage threshold.
-          ../../../vendor/bin/pest --configuration phpunit.xml --coverage --min=90
+          # Pest bootstraps through the mounted host app (phpunit.xml ->
+          # ../../../modules/system/tests/bootstrap.php). Coverage gate on this cell only.
+          "$PLUGIN_DIR/vendor/bin/pest" --configuration phpunit.xml --coverage --min=90
 
-      - name: composer qa (minimal — Run B, no coverage gate, exclude adapter group)
+      - name: composer qa — minimal (Run B, exclude adapter group, no coverage gate)
         if: matrix.install == 'minimal'
-        working-directory: plugins/logingrupa/metapixel
+        working-directory: ${{ env.PLUGIN_DIR }}
         run: |
           composer run-script pint-test
           composer run-script analyse
           composer run-script phpmd
           composer run-script deps
-          # Minimal install excludes the Lovata-coupled adapter tests via PHPUnit group attribute.
-          # Phase 3 migrated adapter test classes to #[PHPUnit\Framework\Attributes\Group('adapter')];
-          # group-based exclusion is the canonical filter (the prior testsuite-based form referenced
-          # a directory layout that phpunit.xml no longer ships).
-          ../../../vendor/bin/pest --configuration phpunit.xml --exclude-group=adapter
+          # Adapter tests pull in Lovata cart classes absent from the minimal cell;
+          # exclude them via the Phase 3 #[Group('adapter')] attribute.
+          "$PLUGIN_DIR/vendor/bin/pest" --configuration phpunit.xml --exclude-group=adapter
