@@ -12,6 +12,7 @@ use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\ShopaholicAdapterTestCase;
+use Lovata\OrdersShopaholic\Models\Cart;
 use Lovata\OrdersShopaholic\Models\CartPosition;
 use Lovata\Shopaholic\Models\Offer;
 use Lovata\Shopaholic\Models\Product;
@@ -163,7 +164,7 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
         $obPosition->setAttribute('quantity', 1);
         $obPosition->setRelation('item', null);
         // Cart relation present so getSiteId doesn't itself throw.
-        $obCart = new \Lovata\OrdersShopaholic\Models\Cart;
+        $obCart = new Cart;
         $obCart->setAttribute('id', 1);
         $obCart->setAttribute('site_id', 1);
         $obPosition->setRelation('cart', $obCart);
@@ -218,7 +219,7 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
         $obOffer->setAttribute('product_id', 1);
         $obOffer->setRelation('product', $obProduct);
 
-        $obCart = new \Lovata\OrdersShopaholic\Models\Cart;
+        $obCart = new Cart;
         $obCart->setAttribute('id', 1);
         $obCart->setAttribute('site_id', 1);
 

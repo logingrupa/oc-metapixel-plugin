@@ -4,6 +4,7 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Handler\MockHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Psr7\Response;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Exception\MetaApiTransientException;
@@ -89,7 +90,7 @@ final class SendCapiEventTransientRetryTest extends MetapixelTestCase
 
         $this->assertTrue($bAfterDispatchFired, 'retry attempt must proceed past the fence and deliver to Meta');
         $this->assertSame(0, $obMock->count(), 'both mocked HTTP responses consumed — the retry actually sent');
-        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('logingrupa_metapixel_failed_events')->count());
+        $this->assertSame(0, DB::table('logingrupa_metapixel_failed_events')->count());
     }
 
     public function test_duplicate_peer_row_with_different_event_id_stays_fenced(): void
