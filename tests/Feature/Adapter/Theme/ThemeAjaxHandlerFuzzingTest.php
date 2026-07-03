@@ -13,6 +13,7 @@ use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Logingrupa\Metapixel\Updates\AddPayloadToMetapixelEventLogTable;
@@ -48,6 +49,7 @@ final class ThemeAjaxHandlerFuzzingTest extends MetapixelTestCase
             'pixel_id' => 'PIXEL-1',
             'capi_access_token' => 'TOKEN-1',
         ]);
+        PluginGuard::reset();
         $this->app->forgetInstance(RateLimiter::class);
         Request::shouldReceive('ip')->andReturn('127.0.0.1');
         Session::shouldReceive('getId')->andReturn('fuzz-session');

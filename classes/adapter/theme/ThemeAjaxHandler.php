@@ -18,6 +18,7 @@ use Logingrupa\Metapixel\Classes\Adapter\SupportsHybridAjax;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
 use Logingrupa\Metapixel\Classes\Exception\UnknownSubjectTypeException;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
 use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
@@ -90,6 +91,14 @@ final class ThemeAjaxHandler
     private function handleFireEvent(): JsonResponse
     {
         try {
+            // PluginGuard pattern: with an empty pixel_id every dispatch would
+            // dead-letter (MissingPixelConfigException → unbounded FailedEvent
+            // growth) and the returned fbq script would throw a ReferenceError
+            // on a page whose base pixel never rendered. Soft-empty response.
+            if (PluginGuard::isDisabled()) {
+                return new JsonResponse(['event_id' => null, 'script' => '']);
+            }
+
             $arData = $this->obRequestReader->readEventData();
             if ($arData === null) {
                 return new JsonResponse(['error' => 'invalid request shape'], 400);

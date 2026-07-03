@@ -13,6 +13,7 @@ use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
@@ -42,6 +43,7 @@ final class ThemeAjaxHandlerAllowlistTest extends MetapixelTestCase
             'pixel_id' => 'PIXEL-1',
             'capi_access_token' => 'TOKEN-1',
         ]);
+        PluginGuard::reset();
         // Fresh array-driver RateLimiter per test — array cache resets in setUp.
         $this->app->forgetInstance(RateLimiter::class);
         Session::shouldReceive('getId')->andReturn('test-session-allowlist');
@@ -51,8 +53,37 @@ final class ThemeAjaxHandlerAllowlistTest extends MetapixelTestCase
     protected function tearDown(): void
     {
         Mockery::close();
+        PluginGuard::reset();
         $this->app->forgetInstance(AdapterRegistry::class);
         parent::tearDown();
+    }
+
+    public function test_disabled_plugin_returns_empty_payload_and_dispatches_nothing(): void
+    {
+        Bus::fake();
+        Settings::set(['pixel_id' => '']);
+        Settings::clearInternalCache();
+        PluginGuard::reset();
+
+        Request::shouldReceive('input')->with('data', [])->andReturn([
+            'name' => 'PageView',
+            'action_key' => 'pv:disabled',
+        ]);
+
+        $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
+            Mockery::mock(Controller::class),
+            'Metapixel::onFireEvent',
+        );
+
+        // PluginGuard pattern: no queued dead-letter job, no fbq script that
+        // would ReferenceError on a page whose base pixel never rendered.
+        $this->assertInstanceOf(JsonResponse::class, $mResponse);
+        $this->assertSame(200, $mResponse->getStatusCode());
+        $this->assertSame(
+            ['event_id' => null, 'script' => ''],
+            json_decode((string) $mResponse->getContent(), true),
+        );
+        Bus::assertNotDispatched(SendCapiEvent::class);
     }
 
     public function test_returns_null_for_non_metapixel_handler(): void

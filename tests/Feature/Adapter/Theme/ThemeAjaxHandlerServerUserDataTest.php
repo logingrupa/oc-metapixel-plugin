@@ -13,6 +13,7 @@ use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
@@ -45,6 +46,7 @@ final class ThemeAjaxHandlerServerUserDataTest extends MetapixelTestCase
             'pixel_id' => 'PIXEL-1',
             'capi_access_token' => 'TOKEN-1',
         ]);
+        PluginGuard::reset();
         $this->app->forgetInstance(RateLimiter::class);
         Session::shouldReceive('getId')->andReturn('session-server-userdata');
         Request::shouldReceive('ip')->andReturn('203.0.113.9');
