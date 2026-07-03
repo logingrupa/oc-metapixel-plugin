@@ -191,19 +191,23 @@ final class ReadmeStructureTest extends MetapixelTestCase
     }
 
     /**
-     * DOCS-01 install fidelity — the README must document the `:dev-master`
-     * pre-release fallback for a fresh October root, where the default
-     * `minimum-stability=stable` filter blocks the plugin until a stable
-     * `v2.0.0` tag is pushed. Guards against silent removal of the escape
-     * hatch.
+     * DOCS-01 install fidelity — with the stable `v2.0.0` tag published, the
+     * README must ship the plain `-W` require command and must NOT carry the
+     * tagless-era `:dev-master` pre-release fallback (dropped at launch-02
+     * once the verbatim command resolved the stable tag on a clean-room root).
      */
-    public function test_readme_documents_dev_master_prerelease_fallback(): void
+    public function test_readme_ships_stable_install_without_dev_master_fallback(): void
     {
         $sReadme = $this->loadReadme();
         $this->assertStringContainsString(
+            'composer require logingrupa/oc-metapixel-plugin -W',
+            $sReadme,
+            'README must ship the verbatim stable install command — DOCS-01.',
+        );
+        $this->assertStringNotContainsString(
             ':dev-master',
             $sReadme,
-            'README must document the `:dev-master` pre-release install fallback for a fresh October root (minimum-stability=stable, no v2.0.0 stable tag yet) — DOCS-01.',
+            'README must not carry the tagless-era `:dev-master` pre-release fallback after the stable v2.0.0 tag is published — DOCS-01.',
         );
     }
 }

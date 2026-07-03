@@ -54,14 +54,6 @@ php artisan october:migrate
 
 The `-W` (with-all-dependencies) flag is required because a fresh October lockfile pins `composer/installers` at the ~1.0 line that `lovata/toolbox-plugin ^2.2` must move — without `-W` Composer refuses to update that shared constraint and the require fails.
 
-**Pre-release install.** Until the stable `v2.0.0` tag is published, a fresh October root — whose `composer.json` defaults to `minimum-stability=stable` — will refuse the plain require above because the remote has no stable tag yet. Pin the dev branch explicitly for this one package:
-
-```bash
-composer require logingrupa/oc-metapixel-plugin:dev-master -W
-```
-
-The explicit `:dev-master` constraint opts that single package past the fresh-root `minimum-stability=stable` filter without loosening the whole project. Once `v2.0.0` is tagged the plain `-W` command above works and this pre-release note can be ignored.
-
 If **Settings → Marketing → Meta Pixel + CAPI** is not visible after install, run `php artisan october:migrate` to apply the plugin migrations — the settings panel and the failed-events table are created by that step.
 
 Install the exact package name `logingrupa/oc-metapixel-plugin` from the VCS URL `https://github.com/logingrupa/oc-metapixel-plugin`. Do not install a similarly named package.
@@ -72,7 +64,7 @@ The shortest path from a fresh OctoberCMS 4.x app to a verified hit in the Meta 
 
 1. Add the VCS `repositories` entry above to your project's `composer.json`.
 2. Register the October gateway: `php artisan project:set <license>` (your own project license key).
-3. Require the plugin: `composer require logingrupa/oc-metapixel-plugin -W`. Until the stable `v2.0.0` tag exists, pin the dev branch on a fresh October root instead: `composer require logingrupa/oc-metapixel-plugin:dev-master -W` (the `:dev-master` constraint opts past the fresh-root `minimum-stability=stable` filter; once tagged, the plain `-W` command works).
+3. Require the plugin: `composer require logingrupa/oc-metapixel-plugin -W`.
 4. Run the migrations: `php artisan october:migrate`.
 5. Enter the four required fields under **Settings → Marketing → Meta Pixel + CAPI**: **Pixel ID**, **CAPI Access Token**, **Test Events Code**, and **Default currency code**. **Save**.
 6. Mount the head Pixel in your layout. Declare `[pixelHead]` in the layout's INI/config section **and** place `{% component 'pixelHead' %}` in the layout markup. The Twig tag alone renders nothing — without the `[pixelHead]` INI declaration October emits an empty string (HTTP 200, no `fbq()`, no log signature).
