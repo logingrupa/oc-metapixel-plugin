@@ -264,22 +264,9 @@ class Plugin extends PluginBase {
   5. Git tag `v2.0.0` annotated and pushed to remote. No BC shim; no upgrade migration in v2.0.
 
 **Plans:** 13/13 plans complete
-
-- [x] 05-17-PLAN.md
+**Wave 1**
 
 - [x] 05-00-PLAN.md
-- [x] 05-02-PLAN.md
-- [x] 05-03-PLAN.md
-- [x] 05-04-PLAN.md
-- [x] 05-06-PLAN.md
-- [x] 05-08-PLAN.md
-- [ ] 05-09-PLAN.md
-- [x] 05-10-PLAN.md
-- [x] 05-11-PLAN.md
-- [x] 05-12-PLAN.md
-- [x] 05-15-PLAN.md
-- [x] 05-16-PLAN.md
-
 - [x] `05-00-PLAN.md` — Wave 0 test scaffolding (ReadmeStructureTest + CustomAdaptersStructureTest + AssetsExistTest + PluginYamlSanityTest) (DOCS-01, DOCS-02, DOCS-03, MKT-02, MKT-03)
 - [x] `05-02-PLAN.md` — Legacy JS pixel inventory + strip: Task 0 inventory grep, Tasks 1-3 four deletes + eleven edits + bundle rebuild + dead-v1.x `purchasePixel` block strip (DOCS-01 cutover)
 - [x] `05-03-PLAN.md` — UAT Gate 1: zero-events verification on 5 pages via Pixel Helper + Test Events + EventLog DB (D-03 + D-05) — closed 2026-05-22 5/5 PASS (commit `933f194`)
@@ -292,6 +279,54 @@ class Plugin extends PluginBase {
 - [x] `05-12-PLAN.md` — CHANGELOG.md fresh v2.0.0 + composer.json keywords + plugin.yaml verify (MKT-02, MKT-03) — closed 2026-05-27 4/5 AssetsExistTest GREEN (screenshots assertion owned by 05-08)
 - [ ] `05-15-PLAN.md` — Gap closure (UAT test 9 / D-07): browser AddToCart fbq reuses server CAPI event_id + full custom_data; pixel-only wire (CartPositionWatcher::resolveBrowserPixel + Metapixel::onMarkAddToCart + theme $.request) with no second CAPI dispatch
 - [ ] `05-16-PLAN.md` — Gap closure UAT re-test (D-07): rebuild theme assets + operator verifies event_id dedup + full custom_data + stray no-event_id AddToCart gone
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [x] 05-02-PLAN.md
+- [x] 05-11-PLAN.md
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [x] 05-03-PLAN.md
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [x] 05-04-PLAN.md
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [x] 05-06-PLAN.md
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [x] 05-08-PLAN.md
+
+**Wave 7** *(blocked on Wave 6 completion)*
+
+- [ ] 05-09-PLAN.md
+- [x] 05-10-PLAN.md
+
+**Wave 8** *(blocked on Wave 7 completion)*
+
+- [x] 05-12-PLAN.md
+
+**Wave 11** *(blocked on Wave 8 completion)*
+
+- [x] 05-15-PLAN.md
+
+**Wave 12** *(blocked on Wave 11 completion)*
+
+- [x] 05-16-PLAN.md
+
+**Wave 13** *(blocked on Wave 12 completion)*
+
+- [x] 05-17-PLAN.md
+
+**Cross-cutting constraints:**
+
+- Cutover gate is operator-confirmed per D-03 — autonomous: false, resume signal required.
+- UAT verification combines D-05 three sources: Meta Pixel Helper, Meta Test Events live view, `logingrupa_metapixel_event_log` DB tail.
+- Screenshot paths follow D-19: `plugins/logingrupa/metapixel/docs/screenshots/{01-settings,02-failed-events,03-replay,04-check-dedup,05-twig-api}.png`. README references via plugin-relative `docs/screenshots/`.
 
 ### Phase 6: ViewContent funnel — Shopaholic PDP + offer-switch
 
