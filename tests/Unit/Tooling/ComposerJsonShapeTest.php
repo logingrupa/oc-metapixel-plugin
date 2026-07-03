@@ -69,8 +69,8 @@ final class ComposerJsonShapeTest extends MetapixelTestCase
         $this->assertArrayHasKey('lovata/buddies-plugin', $arDev, 'lovata/buddies-plugin must be in require-dev');
     }
 
-    public function test_license_is_proprietary(): void
+    public function test_license_is_mit(): void
     {
-        $this->assertSame('proprietary', self::$arShape['license'] ?? null);
+        $this->assertSame('MIT', self::$arShape['license'] ?? null);
     }
 }
