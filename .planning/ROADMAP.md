@@ -263,7 +263,9 @@ class Plugin extends PluginBase {
   4. Plugin manifest (`plugin.yaml`) ships generic name "Meta Pixel + Conversions API", generic description, generic icon. Marketplace assets present: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting the v2.0.0 initial public release.
   5. Git tag `v2.0.0` annotated and pushed to remote. No BC shim; no upgrade migration in v2.0.
 
-**Plans:** 10/12 plans executed
+**Plans:** 12/13 plans executed
+
+- [x] 05-17-PLAN.md
 
 - [x] 05-00-PLAN.md
 - [x] 05-02-PLAN.md
@@ -276,7 +278,7 @@ class Plugin extends PluginBase {
 - [x] 05-11-PLAN.md
 - [x] 05-12-PLAN.md
 - [x] 05-15-PLAN.md
-- [ ] 05-16-PLAN.md
+- [x] 05-16-PLAN.md
 
 - [x] `05-00-PLAN.md` — Wave 0 test scaffolding (ReadmeStructureTest + CustomAdaptersStructureTest + AssetsExistTest + PluginYamlSanityTest) (DOCS-01, DOCS-02, DOCS-03, MKT-02, MKT-03)
 - [x] `05-02-PLAN.md` — Legacy JS pixel inventory + strip: Task 0 inventory grep, Tasks 1-3 four deletes + eleven edits + bundle rebuild + dead-v1.x `purchasePixel` block strip (DOCS-01 cutover)
@@ -363,7 +365,7 @@ Resume signal: `LAUNCH SCHEDULED` after operator decision.
 | 2. Adapter system core | 9/9 | Complete   | 2026-05-20 |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
-| 5. Documentation + marketplace launch | 10/12 | In Progress|  |
+| 5. Documentation + marketplace launch | 12/13 | In Progress|  |
 | 6. ViewContent funnel — Shopaholic PDP + offer-switch | 7/7 | Complete    | 2026-05-28 |
 | Launch Milestone | 0/2 | Deferred — awaits operator decision |  |
 
