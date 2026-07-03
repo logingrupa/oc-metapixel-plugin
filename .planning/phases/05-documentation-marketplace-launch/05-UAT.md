@@ -1,5 +1,5 @@
 ---
-status: partial
+status: diagnosed
 phase: 05-documentation-marketplace-launch
 source:
   - 05-00-SUMMARY.md
@@ -9,12 +9,12 @@ source:
   - 05-11-SUMMARY.md
   - 05-VERIFICATION.md
 started: 2026-05-22T12:28:52Z
-updated: 2026-07-03T22:30:00Z
+updated: 2026-07-03T20:10:00Z
 ---
 
 ## Current Test
 
-[testing paused — 1 item outstanding: test 7 stopwatch dry-run (human-only, natural to run at LAUNCH SCHEDULED)]
+[testing complete]
 
 ## Tests
 
@@ -94,9 +94,9 @@ expected: |
   `composer require logingrupa/oc-metapixel-plugin` → Settings configuration →
   first CAPI event verified in Meta Test Events. Completes in under 10 minutes,
   stopwatched. This is the launch acceptance gate.
-result: blocked
-blocked_by: other
-reason: "Stopwatch measurement requires a human timed run against a fresh install + live Meta Test Events access — not derivable from static analysis. All previously reported README defects re-verified FIXED 2026-07-03 post-05-19: README:42-55 documents `php artisan project:set <license>` gateway prerequisite AND `composer require logingrupa/oc-metapixel-plugin -W` with one-line -W rationale; README:61-71 ordered 'Quick start — first event in 10 minutes' (7 steps: gateway → require -W → migrate → Settings 4 fields → pixelHead mount → load page → Meta Events Manager Test Events); 'Business Manager' wording gone (Events Manager throughout). CI green on HEAD 4a3b4a0 (run 28675470920) covers ReadmeStructure doc-gate. Natural to execute the stopwatch alongside operator's LAUNCH SCHEDULED pass — it is the Launch Milestone acceptance gate."
+result: issue
+reported: "Live clean-room dry-run executed 2026-07-03 19:41-20:00 UTC (user-directed, agent-driven) in /home/forge/metapixel-test7: fresh `composer create-project october/october` → v4.3.0/4.3.1, SQLite, demo theme, NO cart plugin, following README verbatim. Three README-verbatim failures found: (1) step 3 `composer require logingrupa/oc-metapixel-plugin -W` fails — 'Could not find a version ... matching your minimum-stability (stable)'; remote GitHub repo has ZERO tags (v1.1.1 + v2.0.0-rc.1 exist LOCAL-ONLY, never pushed), only dev-master discoverable, fresh October root defaults to minimum-stability stable. (2) step 4 `php artisan october:up` is a deprecated NO-OP on October v4.3.1 — prints 'Command october:up is deprecated, please use october:migrate instead' and did NOT apply plugin migrations; `php artisan october:migrate` applied all 5 (v1.0.0-v1.0.4) cleanly. (3) step 6 Twig-only mount `{% component 'pixelHead' %}` WITHOUT an `[pixelHead]` INI declaration in the layout/page is a SILENT no-op — HTTP 200, zero fbq() in output, no log signature. Everything downstream PASSES: project:set gateway OK; dev-master install resolves (toolbox 2.3.0, php-domain-parser 6.4.0); Settings save clean (HostIndexResolver DI resolves on fresh install); pixel renders fbq('init') + PageView with server UUID eventID; CAPI twin row written (channel=capi, event_id matches browser eventID byte-for-byte); failed_events EMPTY = Graph API accepted the event. Net buyer-step time ~9-10 min (raw 18m28s inflated by agent monitoring overhead + failed-attempt investigation) — under-10-min gate PLAUSIBLE but unmeasurable verbatim until stable v2.0.0 tag is pushed."
+severity: major
 
 ### 8. Clean-install composer require smoke (MKT-01)
 expected: |
@@ -143,11 +143,11 @@ verified_by: |
 
 total: 9
 passed: 8
-issues: 0
+issues: 1
 pending: 0
 skipped: 0
-blocked: 1
-note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = stale OPcache. Fixed via FPM reload. Re-verified pass after user successfully saved plugin Settings. Tests 7+9 re-verified 2026-07-03 post gap-closure 05-19..05-21: test 9 flipped to pass (all defects fixed, tag operator-gated by design); test 7 flipped to blocked (README fixes verified, stopwatch dry-run is the sole human-only remainder)."
+blocked: 0
+note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = stale OPcache. Fixed via FPM reload. Test 7 executed live 2026-07-03 (user-directed agent dry-run in /home/forge/metapixel-test7): full pipeline WORKS end-to-end (install → Settings → pixel render → CAPI accepted by Meta, dedup event_id contract verified), but three README-verbatim defects found — no installable tagged version on remote (blocks step 3), october:up deprecated no-op (step 4), pixelHead Twig-only mount silently renders nothing without INI declaration (step 6). Flipped blocked → issue."
 
 ## Gaps
 
@@ -205,3 +205,22 @@ note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = sta
     - "Revert ROADMAP.md:393-394 launch checkboxes to [ ] (deferred), matching :408"
     - "Push master (146 commits) and get metapixel-qa.yml CI matrix green on current HEAD — prerequisite for any future tag"
     - "Operator decisions: run security sweep Step B given repo is already public; give LAUNCH SCHEDULED signal when ready (tag creation stays gated on it)"
+
+- truth: "A buyer following only the README on a fresh October 4.x install reaches a Meta-accepted CAPI event in under 10 minutes, stopwatched (SC1/DOCS-01 launch acceptance gate)."
+  status: failed
+  reason: "Live agent dry-run 2026-07-03 (/home/forge/metapixel-test7, October v4.3.1, SQLite, no cart plugin): three README-verbatim steps fail — require resolves no installable version (remote repo has zero tags), october:up is a deprecated no-op that skips plugin migrations, and the documented Twig-only pixelHead mount silently renders nothing. Pipeline itself verified working end-to-end once workarounds applied: Settings save clean, fbq init + PageView rendered with server UUID eventID, CAPI twin logged, failed_events empty (Meta accepted)."
+  severity: major
+  test: 7
+  root_cause: "Three independent causes, all proven live: (1) README:51 `composer require logingrupa/oc-metapixel-plugin -W` presumes an installable stable version, but git remote has ZERO tags (v1.1.1 + v2.0.0-rc.1 are local-only, never pushed) and fresh October root composer.json defaults to minimum-stability=stable, so Composer sees only dev-master and refuses — error: 'Could not find a version of package logingrupa/oc-metapixel-plugin matching your minimum-stability (stable)'. (2) README:52+57 `php artisan october:up` deprecated on October v4.3.x — prints deprecation notice and does NOT apply pending plugin migrations; `october:migrate` applied all 5 cleanly. (3) README:70 quick-start step 6 + Theme walkthrough show only `{% component 'pixelHead' %}` — without the `[pixelHead]` INI component declaration October renders the tag as empty string: HTTP 200, zero fbq(), no log signature (verified via /pixeltest2 control page)."
+  artifacts:
+    - path: "README.md:51"
+      issue: "Install command unresolvable until a stable (or explicitly-constrained) tag exists on the public remote; rc-only or tagless remote dead-ends step 3"
+    - path: "README.md:52-57,68"
+      issue: "`php artisan october:up` deprecated no-op on October 4.3 — must be `php artisan october:migrate` (three occurrences: Install block, Settings-panel fallback note, quick-start step 4)"
+    - path: "README.md:61-73,128-133"
+      issue: "pixelHead mount instructions omit the required `[pixelHead]` INI declaration; Twig tag alone silently renders nothing"
+  missing:
+    - "Push v2.0.0 tag at LAUNCH SCHEDULED (launch-02, already gated) — OR interim: README documents `composer require logingrupa/oc-metapixel-plugin:dev-master -W` / explicit version constraint until tag exists"
+    - "README: replace all `october:up` occurrences with `october:migrate`"
+    - "README quick-start step 6 + Theme walkthrough step 1: add `[pixelHead]` INI declaration snippet alongside the Twig tag"
+  debug_session: "live dry-run /home/forge/metapixel-test7 (kept on disk for inspection; contains real CAPI token in storage/database.sqlite — wipe before discarding)"
