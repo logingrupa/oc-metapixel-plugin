@@ -3,7 +3,7 @@
 ## Milestones
 
 - ✅ **v2.0.0 Generic-event-tracking marketplace plugin** — Phases 1-6 (shipped 2026-07-04). Full details: `.planning/milestones/v2.0.0-ROADMAP.md`
-- 🚧 **Launch Milestone** — marketplace publication (launch-01 redact done; launch-02 public flip + v2.0.0 tag await operator `LAUNCH SCHEDULED` signal). See `.planning/launch/`
+- ✅ **Launch Milestone** — marketplace publication complete 2026-07-04: repo public, annotated v2.0.0 tag pushed, MIT license, CI 4/4 green at tag. Log: `.planning/phases/05-documentation-marketplace-launch/05-14-LAUNCH-LOG.md`
 - ✅ **v1.1.1 Shopaholic-coupled Meta Pixel + CAPI** — prior milestone (2026-04-22 → 2026-05-14), partial close 28/50 requirements, superseded by v2.0 architecture pivot. Archived: `.planning/milestones/v1.1.1-ROADMAP.md` + `.planning/archive/`
 
 ## Phases
@@ -22,12 +22,12 @@ Milestone audit: PASSED 2026-07-04 — 61/61 requirements, 6/6 integration conne
 
 </details>
 
-### 🚧 Launch Milestone (In Progress)
+### ✅ Launch Milestone (Complete 2026-07-04)
 
 Pre-flip security sweep + public repo flip + `v2.0.0` annotated tag. Triggered when operator decides to launch; not gated by phase progress.
 
 - [x] launch-01: Redact operator-specific values from public artifacts
-- [ ] launch-02: Public flip + v2.0.0 git tag + README `:dev-master` re-verify — awaits operator `LAUNCH SCHEDULED` signal
+- [x] launch-02: Public flip + v2.0.0 annotated tag + README `:dev-master` re-verify — completed 2026-07-04 (LAUNCH COMPLETE)
 
 ## Progress
 
@@ -39,7 +39,7 @@ Pre-flip security sweep + public repo flip + `v2.0.0` annotated tag. Triggered w
 | 4. Settings rework + Multisite + TrustedHosts | v2.0.0 | 5/5 | Complete | 2026-05-20 |
 | 5. Documentation + marketplace launch | v2.0.0 | 19 | Complete | 2026-07-03 |
 | 6. ViewContent funnel — PDP + offer-switch | v2.0.0 | 7/7 | Complete | 2026-05-28 |
-| Launch Milestone | launch | 1/2 | Deferred — tag awaits operator LAUNCH SCHEDULED | — |
+| Launch Milestone | launch | 2/2 | Complete | 2026-07-04 |
 
 ## Backlog
 

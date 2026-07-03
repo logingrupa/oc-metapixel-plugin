@@ -4,7 +4,7 @@ milestone: v2.0.0
 milestone_name: — Generic-event-tracking marketplace plugin
 current_phase: 0.0
 status: Awaiting next milestone
-stopped_at: v2.0.0 milestone closed 2026-07-04
+stopped_at: v2.0.0 LAUNCHED 2026-07-04 — public repo + annotated tag + CI green
 last_updated: "2026-07-03T21:45:20.925Z"
 last_activity: 2026-07-03
 last_activity_desc: Milestone v2.0.0 completed and archived
