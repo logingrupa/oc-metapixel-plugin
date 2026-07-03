@@ -56,6 +56,67 @@ final class SendCapiEventTransientRetryTest extends MetapixelTestCase
         $obJob->handle(app(AdapterRegistry::class), new MetaClient($obClient));
     }
 
+    public function test_retry_after_transient_failure_proceeds_past_fence_and_delivers(): void
+    {
+        // Non-null site_id so the UNIQUE fence actually engages (NULL site_id
+        // rows never collide under SQL NULL-inequality semantics).
+        $this->app->instance(TestSubjectAdapter::class, new TestSubjectAdapter(1));
+
+        $obMock = new MockHandler([
+            new Response(503, [], json_encode(['error' => ['message' => 'Service Unavailable']]) ?: ''),
+            new Response(200, [], json_encode(['events_received' => 1, 'fbtrace_id' => 'trace-retry']) ?: ''),
+        ]);
+        $obClient = new Client(['handler' => HandlerStack::create($obMock)]);
+        $obJob = new SendCapiEvent('Purchase', $this->makePayload(), new TestSubject, TestSubjectAdapter::class);
+
+        // Attempt 1: fence row is written, Meta 503s, job rethrows so Laravel
+        // schedules a retry.
+        try {
+            $obJob->handle(app(AdapterRegistry::class), new MetaClient($obClient));
+            $this->fail('attempt 1 must rethrow MetaApiTransientException');
+        } catch (MetaApiTransientException $obException) {
+            // expected — Laravel would now retry per $tries/$backoff
+        }
+
+        $bAfterDispatchFired = false;
+        Event::listen(SendCapiEvent::HOOK_AFTER_DISPATCH, function () use (&$bAfterDispatchFired): void {
+            $bAfterDispatchFired = true;
+        });
+
+        // Attempt 2: fence collides with attempt 1's OWN row (same event_id) —
+        // must be treated as a retry of self, not a duplicate peer.
+        $obJob->handle(app(AdapterRegistry::class), new MetaClient($obClient));
+
+        $this->assertTrue($bAfterDispatchFired, 'retry attempt must proceed past the fence and deliver to Meta');
+        $this->assertSame(0, $obMock->count(), 'both mocked HTTP responses consumed — the retry actually sent');
+        $this->assertSame(0, \Illuminate\Support\Facades\DB::table('logingrupa_metapixel_failed_events')->count());
+    }
+
+    public function test_duplicate_peer_row_with_different_event_id_stays_fenced(): void
+    {
+        // Non-null site_id so the UNIQUE fence actually engages (NULL site_id
+        // rows never collide under SQL NULL-inequality semantics).
+        $this->app->instance(TestSubjectAdapter::class, new TestSubjectAdapter(1));
+
+        // Peer job already delivered this fence tuple under a DIFFERENT event_id.
+        $arPeerPayload = $this->makePayload();
+        $arPeerPayload['data'][0]['event_id'] = 'uuid-PEER';
+        $obPeerMock = new MockHandler([
+            new Response(200, [], json_encode(['events_received' => 1]) ?: ''),
+        ]);
+        $obPeerJob = new SendCapiEvent('Purchase', $arPeerPayload, new TestSubject, TestSubjectAdapter::class);
+        $obPeerJob->handle(app(AdapterRegistry::class), new MetaClient(new Client(['handler' => HandlerStack::create($obPeerMock)])));
+
+        // This job (event_id uuid-1) loses the fence to the peer — no HTTP call.
+        $obMock = new MockHandler([
+            new Response(200, [], json_encode(['events_received' => 1]) ?: ''),
+        ]);
+        $obJob = new SendCapiEvent('Purchase', $this->makePayload(), new TestSubject, TestSubjectAdapter::class);
+        $obJob->handle(app(AdapterRegistry::class), new MetaClient(new Client(['handler' => HandlerStack::create($obMock)])));
+
+        $this->assertSame(1, $obMock->count(), 'fenced duplicate peer must not reach Meta');
+    }
+
     /** @return array<string, mixed> */
     private function makePayload(): array
     {

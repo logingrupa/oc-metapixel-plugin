@@ -94,4 +94,54 @@ final class EventLogWriter
             return false;
         }
     }
+
+    /**
+     * True when the fence row for (subject_type, subject_id, event_name,
+     * channel, site_id) carries the SAME event_id — the caller lost the insert
+     * to its OWN earlier attempt (a queue retry of self), not to a duplicate
+     * peer. False on missing row, different event_id, unresolvable adapter, or
+     * DB failure (fail-safe: peer assumed to have won).
+     */
+    public static function ownsRow(
+        string $sEventId,
+        string $sEventName,
+        string $sChannel,
+        object $obSubject,
+        ?int $iSiteId,
+    ): bool {
+        if ($sEventId === '') {
+            return false;
+        }
+
+        try {
+            /** @var AdapterRegistry $obRegistry */
+            $obRegistry = App::make(AdapterRegistry::class);
+            $obAdapter = $obRegistry->resolveFor($obSubject);
+            if ($obAdapter === null) {
+                return false;
+            }
+
+            $mExistingEventId = DB::table('logingrupa_metapixel_event_log')
+                ->where('subject_type', $obAdapter->getSubjectType($obSubject))
+                ->where('subject_id', $obAdapter->getSubjectId($obSubject))
+                ->where('event_name', $sEventName)
+                ->where('channel', $sChannel)
+                ->where('site_id', $iSiteId)
+                ->value('event_id');
+
+            return is_string($mExistingEventId) && $mExistingEventId === $sEventId;
+        } catch (\Throwable $obException) {
+            Log::warning('metapixel: EventLogWriter::ownsRow lookup failed — assuming peer won', [
+                'meta_pixel.exception' => get_class($obException),
+                'meta_pixel.message' => $obException->getMessage(),
+                'meta_pixel.event_id' => $sEventId,
+                'meta_pixel.event_name' => $sEventName,
+                'meta_pixel.channel' => $sChannel,
+            ]);
+
+            // fail-safe: without a readable fence row, skipping the send is the
+            // direction that cannot double-fire
+            return false;
+        }
+    }
 }

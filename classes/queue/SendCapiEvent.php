@@ -112,7 +112,11 @@ final class SendCapiEvent implements ShouldQueue
             $iSiteId,
             $this->arPayload,
         );
-        if (! $bWonRaceFence) {
+        // A fence collision whose existing row carries THIS job's event_id is a
+        // retry of self (a prior attempt wrote the row, then failed transiently),
+        // not a duplicate peer — the send must proceed or Laravel's retry
+        // schedule silently drops the event.
+        if (! $bWonRaceFence && ! EventLogWriter::ownsRow($this->readEventId(), $this->sEventName, 'capi', $this->obSubject, $iSiteId)) {
             return;
         }
 
