@@ -6,12 +6,12 @@ current_phase: 05
 current_phase_name: documentation-marketplace-launch
 status: executing
 stopped_at: Milestone complete (Phase 06 was final phase)
-last_updated: "2026-07-03T10:15:57.831Z"
+last_updated: "2026-07-03T12:10:19.923Z"
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 49
-  completed_plans: 47
+  total_plans: 50
+  completed_plans: 49
   percent: 83
 ---
 
@@ -28,7 +28,7 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 05 (documentation-marketplace-launch) — EXECUTING
-Plan: 2 of 13
+Plan: 2 of 14
 Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
 Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
 Status: Ready to execute
@@ -174,7 +174,7 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-07-03T10:15:50.441Z
+Last session: 2026-07-03T12:09:40.386Z
 
 Stopped at: Phase 5 context gathered
 
@@ -209,6 +209,7 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 | Phase 05 P15 | 16min | 3 tasks | 5 files |
 | Phase 05 P17 | ~14min | 2 tasks (TDD, 4 commits) | 4 files |
 | Phase 05 P05-09 | 15min | 2 tasks | 1 files |
+| Phase 05 P18 | 37min | 3 tasks | 7 files |
 
 ## Decisions
 
@@ -216,3 +217,5 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 - [Phase 05]: 05-17: ViewContent server CAPI now fires per-view (not once-per-product-ever). ProductPageWatcher::handle + dispatchForOfferSwitch dispatch SendCapiEvent with a per-view ThemeActionEvent subject (action_key viewcontent:{pid}[:{oid}]:{eid}) + ThemeActionAdapter routing — mirrors the proven PixelHead PageView idiom so the EventLog UNIQUE race-fence keys on the per-view crc32(action_key) instead of the product id. Site_id baked from the product subject at dispatch time (P-01 request-independent). Prebuilt ShopaholicProductAdapter payload + browser/server event_id pairing untouched.
 - [Phase 05]: 05-17: PayloadBuilder strips value:0.0 / num_items:0 / empty contents (+ currency, meaningless without value) when the subject resolves NO content_ids — PageView CAPI no longer carries junk value:0/num_items:0 flagged in Meta Test Events. Gated on empty content_ids so value-bearing events (AddToCart/Purchase/ViewContent) stay byte-identical, including the hermetic Purchase fixture whose Lovata accessor returns 0.0.
 - [Phase ?]: 05-09: README.md marketplace surface at plugin root — VCS block before composer require (W-13), 8 field labels verbatim, twin Shopaholic+Theme walkthroughs from smoke log, 8-row Troubleshoot table on real Log signatures, 5 screenshot links; ReadmeStructureTest contract validated manually (pest vendor absent).
+- [Phase ?]: 05-18: MKT-05 closed — decomposed ThemeAjaxHandler/ProductPageWatcher/PixelHead below phpmd thresholds + new ThemeAjaxRequestReader collaborator; phpmd 7->0, composer qa exits 0 at 90.3% coverage. ExcessiveClassComplexity fires at WMC==50.
+- [Phase ?]: 05-18: pre-existing coverage was 89.0% at plan baseline (plan wrongly assumed >=90); lifted to 90.3% via 8 focused tests for extracted branches — gate not lowered. PDepend ~/.pdepend cache serves stale phpmd complexity per scan-set; clear it before trusting a re-run.
