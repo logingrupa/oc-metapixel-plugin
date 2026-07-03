@@ -109,7 +109,7 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 - [ ] **MKT-01**: Composer package published as `logingrupa/oc-metapixel-plugin` on private GitHub repo. Composer install on clean OctoberCMS 4.x + no cart-plugin completes without errors.
 - [ ] **MKT-02**: Plugin manifest (`plugin.yaml`): generic name "Meta Pixel + Conversions API", generic description, generic icon. Author `Logingrupa`. Homepage = GitHub repo.
 - [ ] **MKT-03**: Marketplace assets: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting the v2.0.0 initial public release.
-- [ ] **MKT-04**: Plugin git tag `v2.0.0` annotated. Pushed to remote.
+- [x] **MKT-04**: Plugin git tag `v2.0.0` annotated. Pushed to remote.
 - [x] **MKT-05**: `composer qa` exits 0 on clean OctoberCMS + Shopaholic install AND on clean OctoberCMS + no-cart install. Both CI matrix runs green.
 
 ### ViewContent funnel (VIEW-XX)
@@ -255,7 +255,7 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | MKT-01 | Phase 5 | Pending |
 | MKT-02 | Phase 5 | Pending |
 | MKT-03 | Phase 5 | Pending |
-| MKT-04 | Phase 5 | Pending |
+| MKT-04 | Phase 5 | Complete |
 | MKT-05 | Phase 5 | Complete |
 | VIEW-01 | Phase 6 | Complete |
 | VIEW-02 | Phase 6 | Complete |

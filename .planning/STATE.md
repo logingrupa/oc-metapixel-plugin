@@ -6,13 +6,13 @@ current_phase: 05
 current_phase_name: documentation-marketplace-launch
 status: executing
 stopped_at: Milestone complete (Phase 06 was final phase)
-last_updated: "2026-07-03T15:25:36.028Z"
+last_updated: "2026-07-03T15:28:07.201Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 53
-  completed_plans: 50
-  percent: 67
+  completed_plans: 51
+  percent: 83
 ---
 
 # Project State
@@ -28,7 +28,7 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 05 (documentation-marketplace-launch) — EXECUTING
-Plan: 3 of 14
+Plan: 4 of 14
 Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
 Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
 Status: Ready to execute
@@ -211,6 +211,7 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 | Phase 05 P05-09 | 15min | 2 tasks | 1 files |
 | Phase 05 P18 | 37min | 3 tasks | 7 files |
 | Phase 05 P19 | ~6min | 2 tasks | 2 files |
+| Phase 05 P20 | ~3 min | 1 tasks | 1 files |
 
 ## Decisions
 
@@ -220,3 +221,4 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 - [Phase ?]: 05-09: README.md marketplace surface at plugin root — VCS block before composer require (W-13), 8 field labels verbatim, twin Shopaholic+Theme walkthroughs from smoke log, 8-row Troubleshoot table on real Log signatures, 5 screenshot links; ReadmeStructureTest contract validated manually (pest vendor absent).
 - [Phase ?]: 05-18: MKT-05 closed — decomposed ThemeAjaxHandler/ProductPageWatcher/PixelHead below phpmd thresholds + new ThemeAjaxRequestReader collaborator; phpmd 7->0, composer qa exits 0 at 90.3% coverage. ExcessiveClassComplexity fires at WMC==50.
 - [Phase ?]: 05-18: pre-existing coverage was 89.0% at plan baseline (plan wrongly assumed >=90); lifted to 90.3% via 8 focused tests for extracted branches — gate not lowered. PDepend ~/.pdepend cache serves stale phpmd complexity per scan-set; clear it before trusting a re-run.
+- [Phase 05]: 05-20: Launch Milestone did not execute — ROADMAP launch-01/launch-02 bullets reverted from erroneous [x] (completed 2026-07-03) to [ ] deferred, matching progress row (0/2 Deferred) and on-disk evidence (no v2.0.0 tag, PARTIAL security sweep, no launch SUMMARY). MKT-04 gap closed.
