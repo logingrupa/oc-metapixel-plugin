@@ -195,43 +195,13 @@ class ProductPageWatcher
             [],
         );
 
-        $arForcedContentIds = ['SKU-'.$iProductId.'-'.$iOfferId];
+        $arOfferData = $this->resolveOfferContentData($obProduct, $iProductId, $iOfferId, $obResolver);
 
-        // The switched offer owns the variant name and price the visitor now
-        // sees; the product-level resolver values describe the FIRST offer.
-        // Fail-safe: unknown offer id keeps the product-level values.
-        $obOffer = $this->findOffer($obProduct, $iOfferId);
-        $sContentName = $obOffer !== null
-            ? $this->stringAttr($obOffer, 'name')
-            : $this->stringAttr($obProduct, 'name');
-        $mOfferPrice = $obOffer?->getAttribute('price_value');
-        $fOfferValue = is_numeric($mOfferPrice)
-            ? (float) $mOfferPrice
-            : $obResolver->resolveValue($obProduct);
-        $arOfferContents = [['id' => $arForcedContentIds[0], 'quantity' => 1, 'item_price' => $fOfferValue]];
-
-        $mData = $arPayload['data'] ?? null;
-        if (is_array($mData) && isset($mData[0]) && is_array($mData[0])) {
-            $mEnvelope = $mData[0];
-            $mCustomData = $mEnvelope['custom_data'] ?? null;
-            $arCustomData = is_array($mCustomData) ? $mCustomData : [];
-            $arCustomData['content_ids'] = $arForcedContentIds;
-            $arCustomData['value'] = $fOfferValue;
-            $arCustomData['contents'] = $arOfferContents;
-            $mEnvelope['custom_data'] = $arCustomData;
-            $mData[0] = $mEnvelope;
-            $arPayload['data'] = $mData;
-        }
-
+        $arPayload = $this->applyOfferCustomDataToPayload($arPayload, $arOfferData);
         $arPayload = $this->injectRequestUserData($arPayload);
 
-        $arCustomData = [
-            'content_ids' => $arForcedContentIds,
-            'content_name' => $sContentName,
-            'content_type' => 'product',
-            'value' => $fOfferValue,
-            'currency' => $obResolver->resolveCurrency($obProduct),
-        ];
+        $arCustomData = $arOfferData;
+        unset($arCustomData['contents']);
 
         $sActionKey = 'viewcontent:'.$iProductId.':'.$iOfferId.':'.$sEventId;
 
@@ -268,6 +238,65 @@ class ProductPageWatcher
             'action_key' => $sActionKey,
             'site_id' => $iSiteId,
         ]);
+    }
+
+    /**
+     * Derive the switched offer's browser custom_data plus the forced
+     * content_ids/value/contents the payload mutation needs downstream. The
+     * switched offer owns the variant name and price the visitor now sees; the
+     * product-level resolver values describe the FIRST offer. Fail-safe: an
+     * unknown offer id keeps the product-level name + value.
+     *
+     * @return array<string, mixed>
+     */
+    private function resolveOfferContentData(Product $obProduct, int $iProductId, int $iOfferId, ShopaholicProductValueResolver $obResolver): array
+    {
+        $arForcedContentIds = ['SKU-'.$iProductId.'-'.$iOfferId];
+
+        $obOffer = $this->findOffer($obProduct, $iOfferId);
+        $sContentName = $obOffer !== null
+            ? $this->stringAttr($obOffer, 'name')
+            : $this->stringAttr($obProduct, 'name');
+        $mOfferPrice = $obOffer?->getAttribute('price_value');
+        $fOfferValue = is_numeric($mOfferPrice)
+            ? (float) $mOfferPrice
+            : $obResolver->resolveValue($obProduct);
+        $arOfferContents = [['id' => $arForcedContentIds[0], 'quantity' => 1, 'item_price' => $fOfferValue]];
+
+        return [
+            'content_ids' => $arForcedContentIds,
+            'content_name' => $sContentName,
+            'content_type' => 'product',
+            'value' => $fOfferValue,
+            'currency' => $obResolver->resolveCurrency($obProduct),
+            'contents' => $arOfferContents,
+        ];
+    }
+
+    /**
+     * Inject the offer's forced content_ids/value/contents into the prebuilt
+     * payload's first data envelope. No-op when the envelope shape is absent.
+     *
+     * @param  array<string, mixed>  $arPayload
+     * @param  array<string, mixed>  $arOfferData
+     * @return array<string, mixed>
+     */
+    private function applyOfferCustomDataToPayload(array $arPayload, array $arOfferData): array
+    {
+        $mData = $arPayload['data'] ?? null;
+        if (is_array($mData) && isset($mData[0]) && is_array($mData[0])) {
+            $mEnvelope = $mData[0];
+            $mCustomData = $mEnvelope['custom_data'] ?? null;
+            $arCustomData = is_array($mCustomData) ? $mCustomData : [];
+            $arCustomData['content_ids'] = $arOfferData['content_ids'];
+            $arCustomData['value'] = $arOfferData['value'];
+            $arCustomData['contents'] = $arOfferData['contents'];
+            $mEnvelope['custom_data'] = $arCustomData;
+            $mData[0] = $mEnvelope;
+            $arPayload['data'] = $mData;
+        }
+
+        return $arPayload;
     }
 
     /** Resolve one offer of the product by id from its loaded offer relation. */
