@@ -6,7 +6,7 @@ tags: [uat, gate, cutover, operator-signoff, zero-events]
 
 requires:
   - phase: 05-documentation-marketplace-launch/05-02
-    provides: theme-strip of v1.x fbq/fbevents/purchasePixel refs deployed to new.nailscosmetics.lv
+    provides: theme-strip of v1.x fbq/fbevents/purchasePixel refs deployed to your-staging-host.example
 provides:
   - Operator-signed UAT Gate 1 log (`05-03-UAT-GATE-1.md`) confirming zero Pixel events across 5 critical pages
   - Three-source convergence on zero: Pixel Helper, Test Events live view, EventLog DB
@@ -40,7 +40,7 @@ completed: 2026-05-22
 
 # Phase 5 Plan 03: UAT Gate 1 — Zero Events After Strip Summary
 
-**Operator-signed UAT confirmation that the plan 05-02 theme-strip cleanly removed every v1.x Pixel emission point on `new.nailscosmetics.lv` — three independent sources converge on zero across all 5 critical pages.**
+**Operator-signed UAT confirmation that the plan 05-02 theme-strip cleanly removed every v1.x Pixel emission point on `your-staging-host.example` — three independent sources converge on zero across all 5 critical pages.**
 
 ## Performance
 

@@ -5,7 +5,7 @@
 > Plugin author: **LoginGrupa**
 > Target stack: **OctoberCMS 4.3** + **Lovata Shopaholic** + **Larajax** + **Laravel 11 queue**
 > Goal: send Meta the **maximum** of allowed data, deduplicated between Pixel + Conversions API, with **one canonical Purchase trigger**.
-> First user: **nailscosmetics.lv** (PRIMINENCE SIA), Pixel ID `2291486191076331`.
+> First user: **nailscosmetics.lv** (PRIMINENCE SIA), Pixel ID `<pixel-id-redacted>`.
 
 ---
 

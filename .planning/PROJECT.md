@@ -80,7 +80,7 @@ Meta Ads Manager sees every purchase (including bank-transfer and admin-marked-p
 
 ## Context (v1.x)
 
-- **Live Pixel ID** on nailscosmetics.lv: `2291486191076331`.
+- **Live Pixel ID** on nailscosmetics.lv: `<pixel-id-redacted>`.
 - **Live bug driving S1:** `_fbp` / `_fbc` cookies observed empty 2026-04-22 → middleware fix (`EnsureFbpFbcCookies`) alone restored CAPI user-matching baseline.
 - **Paid status resolved:** `new-payment-received` (Status ID=5, custom). PayPal + Vipps gateways auto-set via `PaymentMethod.after_status_id=5`; bank transfer + COD have null `after_status_id` → admin manually flips to ID=5 (this flip is what the `OrderStatusWatcher` observes). Base Lovata `complete` status is "shipped/done", NOT "paid".
 - **content_ids format resolved:** `SKU-{product_id}` (single-offer) / `SKU-{product_id}-{offer_id}` (multi-offer) — matches the Facebook Catalog feed at `plugins/logingrupa/facebookcatalogshopaholic/classes/helper/ExportCatalogFacebookHelper.php:356` and existing tracking at `plugins/logingrupa/storeextender/classes/event/cart/CartComponentHandler.php:137-149`. Pixel + Catalog must emit the exact same id for Meta to match.

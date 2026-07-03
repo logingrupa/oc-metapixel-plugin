@@ -6,7 +6,7 @@
 >
 > Audit files backing every fix: `.planning/quick/20260422-metapixel-plan-refactor/audit-01..07.md`.
 
-Plugin author: **Logingrupa** · Target stack: **OctoberCMS 4.x + Laravel 12 + Lovata Shopaholic** · Pixel ID on nailscosmetics.lv: `2291486191076331`.
+Plugin author: **Logingrupa** · Target stack: **OctoberCMS 4.x + Laravel 12 + Lovata Shopaholic** · Pixel ID on nailscosmetics.lv: `<pixel-id-redacted>`.
 
 ---
 
@@ -435,7 +435,7 @@ Access from code: `Settings::get('pixel_id')`, `Settings::get('paid_status_code'
 
 | Setting | Type | Default | Purpose |
 |---|---|---|---|
-| `pixel_id` | text | `2291486191076331` | Meta Pixel id |
+| `pixel_id` | text | `<pixel-id-redacted>` | Meta Pixel id |
 | `capi_access_token` | password | — | Long-lived Graph token |
 | `test_event_code` | text | — | Events Manager → Test Events |
 | `currency_code` | text | `EUR` | Default for events w/o currency |

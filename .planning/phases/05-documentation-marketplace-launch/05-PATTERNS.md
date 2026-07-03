@@ -604,7 +604,7 @@ All 5 MKT-02 criteria satisfied: lang-key name, lang-key description, author `Lo
 | `pages/<other event-emitting pages from smoke>` | edit | add `[EventPixel]` component INI block + `{% component 'eventPixel' %}` render per RESEARCH § Code Examples |
 
 **UAT Gate 3 pass criterion (D-05):**
-- Place test order on `new.nailscosmetics.lv`
+- Place test order on `your-staging-host.example`
 - Pixel Helper shows Purchase event with `eventID` field populated
 - Test Events live view shows same `event_id`, "Deduplicated" label
 - `SELECT * FROM logingrupa_metapixel_event_log WHERE event_name='Purchase' AND created_at >= NOW() - INTERVAL 2 MINUTE` returns 2 rows: `channel='capi'` + `channel='pixel'` with identical `event_id`
@@ -652,7 +652,7 @@ git ls-remote --heads origin 'legacy/*'    # MUST be empty
 
 **Required fields per D-08:**
 - timestamp (operator entry per step)
-- env name (`new.nailscosmetics.lv`)
+- env name (`your-staging-host.example`)
 - exact button clicks (operator narrative)
 - EventLog row count (`SELECT count(*), event_name, channel FROM logingrupa_metapixel_event_log GROUP BY event_name, channel`)
 - Meta Test Events screenshot count

@@ -4,7 +4,7 @@ status: resolved
 resolved_on: 2026-05-27
 resolved_by: commit 0658788 "feat(pixelhead): restore base-pixel emission lost in Phase 3 re-derive"
 verified_by: 2026-05-27 operator cutover UAT — PageView fires browser+server with matching event_id; Pixel Helper shows 1 PageView per page-load across all 5 critical pages (05-04-UAT-GATE-2.md PASS).
-trigger: PixelHead v2.0 component did not emit fbevents.js loader, fbq('init', pixel_id), or base fbq('track', 'PageView', {}, {eventID}) on page-load. Pixel Helper reported "No Pixels found on this page" on staging http://new.nailscosmetics.lv/lv/p/virsejais-parklajums-builder-top-coat-uvled-15ml even after plan 05-04 wired [pixelHead] component into all 4 theme layouts (theme commit 524189f). Blocked Phase 5 UAT Gate 2.
+trigger: PixelHead v2.0 component did not emit fbevents.js loader, fbq('init', pixel_id), or base fbq('track', 'PageView', {}, {eventID}) on page-load. Pixel Helper reported "No Pixels found on this page" on staging http://your-staging-host.example/lv/p/virsejais-parklajums-builder-top-coat-uvled-15ml even after plan 05-04 wired [pixelHead] component into all 4 theme layouts (theme commit 524189f). Blocked Phase 5 UAT Gate 2.
 created: 2026-05-25T00:00:00Z
 updated: 2026-05-27T00:00:00Z
 ---
@@ -13,7 +13,7 @@ updated: 2026-05-27T00:00:00Z
 
 ## Symptoms
 
-- **Expected:** PDP at `/lv/p/<slug>` (uses `catalog_default` layout) renders fbevents.js loader script + `fbq('init', '2291486191076331')` + `fbq('track', 'PageView', {}, {eventID: <uuid>})` inside `<head>`. Pixel Helper shows 1 PageView. Test Events shows Browser+Server with same event_id. EventLog has 1 channel=capi row per page-load with matching event_id. This is the explicit Phase 5 UAT Gate 2 acceptance criterion (plan 05-04-PLAN.md frontmatter `must_haves.truths`).
+- **Expected:** PDP at `/lv/p/<slug>` (uses `catalog_default` layout) renders fbevents.js loader script + `fbq('init', '<pixel-id-redacted>')` + `fbq('track', 'PageView', {}, {eventID: <uuid>})` inside `<head>`. Pixel Helper shows 1 PageView. Test Events shows Browser+Server with same event_id. EventLog has 1 channel=capi row per page-load with matching event_id. This is the explicit Phase 5 UAT Gate 2 acceptance criterion (plan 05-04-PLAN.md frontmatter `must_haves.truths`).
 
 - **Actual:** PDP HTML contains ZERO `fbq(`, ZERO `fbevents.js`, ZERO `connect.facebook.net`, ZERO `<noscript>` Pixel tag. Pixel Helper extension reports "No Pixels found on this page". Page renders cleanly (HTTP 200, ~63 KB). Layout file (`catalog_default.htm`) DOES contain `{% component 'pixelHead' %}` per theme commit 524189f — verified post-deploy.
 
@@ -22,10 +22,10 @@ updated: 2026-05-27T00:00:00Z
 - **Timeline:** First noticed during plan 05-04 UAT Gate 2 verification on 2026-05-25 after theme commit 524189f deploy. Plan 05-03 UAT Gate 1 (zero-events verification) passed cleanly on 2026-05-22 — confirms strip worked, no v1.x residue. v2.0 PixelHead has NEVER fired base PageView in production. v1.x PixelHead DID emit base PageView (archive `.planning/archive/v1.1.1/phases/02-skeleton-cookie-fix/02-04-PLAN.md` lines 188-244 documents this).
 
 - **Reproduction:**
-  1. Visit https://new.nailscosmetics.lv/lv/p/virsejais-parklajums-builder-top-coat-uvled-15ml (or any product page using `catalog_default` layout)
+  1. Visit https://your-staging-host.example/lv/p/virsejais-parklajums-builder-top-coat-uvled-15ml (or any product page using `catalog_default` layout)
   2. Open Pixel Helper extension → expect 1 PageView → observe "No Pixels found"
   3. View source / DevTools → expect `fbevents.js` script tag → observe none
-  4. `curl -s http://new.nailscosmetics.lv/lv/p/<slug> | grep -cE "fbq\(|fbevents|connect\.facebook"` returns 0
+  4. `curl -s http://your-staging-host.example/lv/p/<slug> | grep -cE "fbq\(|fbevents|connect\.facebook"` returns 0
 
 ## Code evidence (initial)
 
@@ -61,7 +61,7 @@ updated: 2026-05-27T00:00:00Z
 
 ## Evidence
 
-- timestamp: 2026-05-25T00:00:00Z — symptom-curl: `curl -s http://new.nailscosmetics.lv/lv/p/virsejais-parklajums-builder-top-coat-uvled-15ml` returns 200, 63647 bytes, zero `fbq\|fbevents\|connect\.facebook` matches in head section. Layout used is `catalog_default` (per `themes/.../pages/product.htm`).
+- timestamp: 2026-05-25T00:00:00Z — symptom-curl: `curl -s http://your-staging-host.example/lv/p/virsejais-parklajums-builder-top-coat-uvled-15ml` returns 200, 63647 bytes, zero `fbq\|fbevents\|connect\.facebook` matches in head section. Layout used is `catalog_default` (per `themes/.../pages/product.htm`).
 - timestamp: 2026-05-25T00:00:00Z — code-grep: `grep -rln "fbevents.js" plugins/logingrupa/metapixel/` returns no matches. Loader genuinely absent.
 - timestamp: 2026-05-25T00:00:00Z — file-read: `components/PixelHead.php` onRun reads only ThemeEventCollector. No PluginGuard / Settings::lookup / SendCapiEvent::dispatch for a base PageView.
 - timestamp: 2026-05-25T00:00:00Z — file-read: `components/eventpixel/default.htm` calls `fbq('track', ...)` directly assuming the global exists.

@@ -88,7 +88,7 @@ The original `05-02-SUMMARY.md` (Task 0 + cross-repo blocker doc) remains untouc
 
 Deleted via `git rm`:
 
-- `themes/logingrupa-naisstore/partials/form/checkout-form/tracking/facebook-purchase-tracking.js` (39 LOC; carried the hardcoded live Pixel id `2291486191076331` — removed as side-effect of file deletion)
+- `themes/logingrupa-naisstore/partials/form/checkout-form/tracking/facebook-purchase-tracking.js` (39 LOC; carried the hardcoded live Pixel id `<pixel-id-redacted>` — removed as side-effect of file deletion)
 - `themes/logingrupa-naisstore/partials/shared/tracking/facebook-add-to-cart.js` (37 LOC)
 - `themes/logingrupa-naisstore/partials/shared/tracking/facebook-view-content.js` (31 LOC)
 

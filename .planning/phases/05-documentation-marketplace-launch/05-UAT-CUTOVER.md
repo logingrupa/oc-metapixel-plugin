@@ -3,7 +3,7 @@ status: complete
 phase: 05-documentation-marketplace-launch
 scope: post-cutover acceptance — covers conversion events, FailedEvents UI, multisite, cookie kill switch, TrustedHosts, translations
 date: 2026-05-27
-env: https://new.nailscosmetics.lv
+env: https://your-staging-host.example
 operator: Rolands Zeltins
 related:
   - 05-04-UAT-GATE-2.md

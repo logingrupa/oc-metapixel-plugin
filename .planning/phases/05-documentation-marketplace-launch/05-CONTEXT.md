@@ -9,7 +9,7 @@
 Phase 5 delivers the marketplace launch surface for v2.0.0. Scope expanded during discuss to absorb two pre-launch blockers:
 
 1. **Legacy v1.x JS pixel strip** in `themes/logingrupa-naisstore/` — gated cutover with operator UAT between each step (strip → zero-events verify → PixelHead add → PageView verify → EventPixel per event → event_id-sync verify).
-2. **Live end-to-end smoke** on `new.nailscosmetics.lv` (Forge-hosted, real Lovata stack, real orders, `test_event_code` set) — produces the validated step-sequence + screenshots that feed the README walkthrough.
+2. **Live end-to-end smoke** on `your-staging-host.example` (Forge-hosted, real Lovata stack, real orders, `test_event_code` set) — produces the validated step-sequence + screenshots that feed the README walkthrough.
 3. **Docs (DOCS-01..03):** single-page `README.md` with Shopaholic + Theme twin walkthroughs; `docs/CUSTOM-ADAPTERS.md` with OFFLINE\Mall preview example + all 3 Event::fire hook patterns + dedicated `## Testing your adapter` section covering `EventSubjectAdapterContractTestCase`.
 4. **Marketplace assets (MKT-01..05):** 5 screenshots from the smoke run, FA `icon-bullseye` kept, generic `plugin.yaml`, CHANGELOG.md as **clean v2.0.0 initial release** (no v1.x diff), pre-flip-public security sweep, annotated tag from master, repo flipped public at launch.
 
@@ -33,7 +33,7 @@ Strict no-scope-creep beyond these four buckets. AddToCart + Theme Twig API smok
 
 ### Live end-to-end smoke
 
-- **D-06:** Target environment = `new.nailscosmetics.lv` (Laravel Forge-hosted Production-shaped staging install with real Lovata stack + real orders + Settings `test_event_code` set so events route to Meta Test Events live view, NOT production Pixel analytics). NOT docker. NOT prod.nailscosmetics.lv. Single environment — no parallel docker dry-run.
+- **D-06:** Target environment = `your-staging-host.example` (Laravel Forge-hosted Production-shaped staging install with real Lovata stack + real orders + Settings `test_event_code` set so events route to Meta Test Events live view, NOT production Pixel analytics). NOT docker. NOT prod.nailscosmetics.lv. Single environment — no parallel docker dry-run.
 - **D-07:** Smoke event set = Purchase (primary, DOCS-01 critical path) + PageView (head-tag sanity) + ViewContent (content_ids format `SKU-{product_id}[-{offer_id}]`). AddToCart + Theme Twig API custom event deferred to post-launch.
 - **D-08:** Smoke results captured as `.planning/phases/05-documentation-marketplace-launch/05-SMOKE-LOG.md` — markdown audit trail with timestamp, env, exact button clicks, EventLog row count, Meta Test Events screenshot count, fbp/fbc cookie values, event_id sample, fail-pass per step. README walkthrough copies the validated step sequence verbatim from this file.
 - **D-09:** Smoke-found bugs route to `/gsd-debug` sessions (one session per bug). Fix lands in a Phase 5 fix-plan or backport plan as the debug session determines. NOT inline-fix-and-continue.
@@ -50,7 +50,7 @@ Strict no-scope-creep beyond these four buckets. AddToCart + Theme Twig API smok
 
 ### Marketplace assets (MKT-01..05)
 
-- **D-17:** All 5 MKT-03 screenshots come from the live smoke on `new.nailscosmetics.lv` — Settings UI, FailedEvents list (after intentionally bad-token call), Replay flow success, CheckDedup with Meta API response, theme Twig API on a real product page. Smoke produces them as side-effect. NOT synthetic docker. NOT Figma mockups.
+- **D-17:** All 5 MKT-03 screenshots come from the live smoke on `your-staging-host.example` — Settings UI, FailedEvents list (after intentionally bad-token call), Replay flow success, CheckDedup with Meta API response, theme Twig API on a real product page. Smoke produces them as side-effect. NOT synthetic docker. NOT Figma mockups.
 - **D-18:** Redaction strategy = redact-friendly Settings record on staging: dummy row with placeholder values (`pixel_id = 000000000000000`, `access_token = REDACTED_FOR_DEMO_DO_NOT_USE`). Screenshot the dummy row. No image post-processing overlay required. Plan 05-12 explicitly verifies the dummy row is in place before screenshot capture.
 - **D-19:** Screenshots live at `docs/screenshots/01-settings.png ... 05-twig-api.png`. README references them by relative path. plugin.yaml does not embed screenshot refs (October backend does not consume them).
 - **D-20:** Plugin icon = keep existing `icon-bullseye` Font Awesome reference in `plugin.yaml`. October backend renders the FA glyph natively. Zero binary asset commitment. MKT-03 PNG-icon line satisfied if marketplace listing later requires PNG — punt to that point.
@@ -62,7 +62,7 @@ Strict no-scope-creep beyond these four buckets. AddToCart + Theme Twig API smok
 - **D-23:** Plan 05-11 strips ALL v1.x references from `.planning/` docs, `lang/en/lang.php`, `lang/lv/lang.php`, `Plugin.php` docblocks, `ROADMAP.md` (MKT-04 wording currently says "v1.1.1 + legacy/v1.1.1 branch preserved" — rewrite to "v2.0.0 annotated tag from master"), `REQUIREMENTS.md` (MKT-04 same), any class-level PHPDoc citing Phase N or legacy semantics. Net effect: a reader of the public repo finds no trace of v1.x.
 - **D-24:** `legacy/v1.1.1` branch + `v1.1.1` tag stay **local-only** as personal archive. NEVER pushed to origin. Confirmed via `git ls-remote --tags origin 'v1*'` returns empty. Operator retains `git checkout legacy/v1.1.1` inspection capability.
 - **D-25:** Publishing flow = repo flipped public at v2.0.0 launch (current state: private GitHub repo, master + tag local + remote). Buyer install path = composer VCS without auth: `{"repositories":[{"type":"vcs","url":"https://github.com/logingrupa/oc-metapixel-plugin"}]}` then `composer require logingrupa/oc-metapixel-plugin`. NOT Packagist (defer to post-launch if buyer demand surfaces).
-- **D-26:** Pre-flip-public security sweep (plan 05-13) scope = (1) secrets in git history (`git log -p | grep -iE 'pixel_id|access_token|capi_access_token'`) — any hit triggers `git filter-repo` history rewrite BEFORE flip; (2) internal hostnames + IPs in `.planning/` docs (`grep -r 'new.nailscosmetics.lv\|forge.laravel.com\|10\.\|192\.168\.' .planning/`) — redact or generalize. Theme PII NOT in scope (theme is separate private repo). Application logs NOT in scope (DB-only, never committed).
+- **D-26:** Pre-flip-public security sweep (plan 05-13) scope = (1) secrets in git history (`git log -p | grep -iE 'pixel_id|access_token|capi_access_token'`) — any hit triggers `git filter-repo` history rewrite BEFORE flip; (2) internal hostnames + IPs in `.planning/` docs (`grep -r 'your-staging-host.example\|forge.laravel.com\|10\.\|192\.168\.' .planning/`) — redact or generalize. Theme PII NOT in scope (theme is separate private repo). Application logs NOT in scope (DB-only, never committed).
 - **D-27:** `.planning/` directory ships **in the public repo** (after sweep). Shows GSD workflow rigor to marketplace audience + helps collaborators. NOT `.gitignore`-d. NOT split into separate repo. Sweep removes operator-specific infra refs.
 
 ### Claude's Discretion
@@ -109,7 +109,7 @@ Strict no-scope-creep beyond these four buckets. AddToCart + Theme Twig API smok
 - `themes/logingrupa-naisstore/assets/js/common.js` — webpack output; D-02 bundled-pixel inspection point
 
 ### Smoke environment
-- `new.nailscosmetics.lv` — Forge-hosted staging-shaped install (D-06); credentials, Forge deploy path, and `test_event_code` setting set out-of-band by operator before plan 05-08 fires
+- `your-staging-host.example` — Forge-hosted staging-shaped install (D-06); credentials, Forge deploy path, and `test_event_code` setting set out-of-band by operator before plan 05-08 fires
 
 ### v1.x archive (referenced only for what NOT to inherit)
 - `legacy/v1.1.1` local git branch + `v1.1.1` local git tag — D-24 confirms local-only, never pushed; D-23 strips all references from public surface
@@ -150,7 +150,7 @@ Strict no-scope-creep beyond these four buckets. AddToCart + Theme Twig API smok
 <specifics>
 ## Specific Ideas
 
-- **`new.nailscosmetics.lv` Forge install** is the canonical smoke environment. Real Lovata + real orders. Settings `test_event_code` routes events to Meta Test Events live view, NOT production Pixel analytics. Operator handles credential setup + place-test-order + refund-after.
+- **`your-staging-host.example` Forge install** is the canonical smoke environment. Real Lovata + real orders. Settings `test_event_code` routes events to Meta Test Events live view, NOT production Pixel analytics. Operator handles credential setup + place-test-order + refund-after.
 - **Public flip = launch event.** Plan 05-14 atomic action: GitHub repo settings → Visibility → Public. Verify Composer VCS install works from an unauthenticated clone immediately after.
 - **No legacy mentions anywhere on the public surface.** D-22 + D-23 + D-26 enforce. CHANGELOG starts at v2.0.0 with no rear-view text. README never references "v1.x" or "legacy". `.planning/` docs scrubbed of internal infra + secrets but retain GSD workflow context (planner judges what stays).
 - **Operator-confirmed UAT gates between cutover plans.** D-03 + D-05 mandatory. No autonomous cutover. Each gate has a measurable pass criterion (Pixel Helper detects N events, Meta Test Events live view shows N events, EventLog has N rows) documented in the gate plan.

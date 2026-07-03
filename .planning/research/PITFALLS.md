@@ -38,7 +38,7 @@
 
 ### P-01 — Cross-context resolution drift (writer vs reader)
 
-**v1.x anchor:** Phase 3.1-07 production bug, orders 29802+29803 on `new.nailscosmetics.lv` (2026-05-14). Writer (admin `/back` queue) saw `SiteManager::getActiveSiteId() = null`; reader (frontend `/lv/checkout`) saw `= 1`; UNIQUE constraint on `(subject_type, subject_id, event_name, channel, site_id)` made the rows un-pair. CAPI fired 2xx, Pixel never rendered, attribution silent.
+**v1.x anchor:** Phase 3.1-07 production bug, orders 29802+29803 on `your-staging-host.example` (2026-05-14). Writer (admin `/back` queue) saw `SiteManager::getActiveSiteId() = null`; reader (frontend `/lv/checkout`) saw `= 1`; UNIQUE constraint on `(subject_type, subject_id, event_name, channel, site_id)` made the rows un-pair. CAPI fired 2xx, Pixel never rendered, attribution silent.
 
 **What goes wrong in v2.0:** The same class of bug multiplies because v2.0 adds MORE context-dependent reads:
 

@@ -2,9 +2,9 @@
 status: resolved
 resolved_on: 2026-05-27
 resolved_by: |
-  Operational fix — stale OPcache (PHP 8.4 FPM workers started May 14, predating commit 6b2cd09 that wired App::singleton(HostIndexResolver::class)). On-disk code was correct; CLI bootstrap resolved cleanly. Operator ran `sudo systemctl reload php8.4-fpm` per parent CLAUDE.md OPcache flush protocol; Settings save then succeeded with all fields persisted (pixel_id 2291486191076331, CAPI token, Test Events Code TEST58466, paid_status, default_currency EUR).
-verified_by: 2026-05-22 operator save success on http://new.nailscosmetics.lv/back/system/settings/update/logingrupa/metapixel/settings + 2026-05-27 cutover UAT items 4+5 PASS (Multisite per-site pixel_id + Cookie kill switch + TrustedHosts allowlist all behave correctly).
-trigger: "when I try to save Unresolvable dependency resolving [Parameter #0 [ <required> string $sPslPath ]] in class Logingrupa\\Metapixel\\Classes\\Helper\\HostIndexResolver — at http://new.nailscosmetics.lv/back/system/settings/update/logingrupa/metapixel/settings#primarytab-pixel-capi"
+  Operational fix — stale OPcache (PHP 8.4 FPM workers started May 14, predating commit 6b2cd09 that wired App::singleton(HostIndexResolver::class)). On-disk code was correct; CLI bootstrap resolved cleanly. Operator ran `sudo systemctl reload php8.4-fpm` per parent CLAUDE.md OPcache flush protocol; Settings save then succeeded with all fields persisted (pixel_id <pixel-id-redacted>, CAPI token, Test Events Code <test-event-code-redacted>, paid_status, default_currency EUR).
+verified_by: 2026-05-22 operator save success on http://your-staging-host.example/back/system/settings/update/logingrupa/metapixel/settings + 2026-05-27 cutover UAT items 4+5 PASS (Multisite per-site pixel_id + Cookie kill switch + TrustedHosts allowlist all behave correctly).
+trigger: "when I try to save Unresolvable dependency resolving [Parameter #0 [ <required> string $sPslPath ]] in class Logingrupa\\Metapixel\\Classes\\Helper\\HostIndexResolver — at http://your-staging-host.example/back/system/settings/update/logingrupa/metapixel/settings#primarytab-pixel-capi"
 created: 2026-05-22T21:05:00Z
 updated: 2026-05-27T00:00:00Z
 ---

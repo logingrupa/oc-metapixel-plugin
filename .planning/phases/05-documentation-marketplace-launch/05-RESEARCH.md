@@ -8,7 +8,7 @@
 
 Phase 5 is a launch phase, not a build phase. The plugin code is already complete — Phase 2 contracts, Phase 3 ShopaholicAdapter + ThemeActionAdapter, Phase 4 Multisite + TrustedHosts + FailedEvents are all shipped and tested. What ships in Phase 5 is the *surface*: a single-page README that gets a buyer to a verified CAPI event in under 10 minutes, a `docs/CUSTOM-ADAPTERS.md` that gets a third-party developer to a registered custom adapter, the marketplace assets (`plugin.yaml` lang-key driven, 5 PNG screenshots from a live smoke, `CHANGELOG.md` as a fresh v2.0.0 entry), an annotated `v2.0.0` tag, and the atomic GitHub repo-visibility flip from private to public.
 
-Two pre-launch blockers were absorbed into the phase per D-01: (1) stripping the legacy v1.x JS pixel from `themes/logingrupa-naisstore/` and replacing it with the new `PixelHead` + `EventPixel` components under gated UAT checkpoints; (2) running a live Purchase + PageView + ViewContent smoke on `new.nailscosmetics.lv` with `test_event_code` set, producing the screenshots and validated step sequence that feed the README walkthrough. Everything else (MallAdapter, AddToCart, docker dry-run, Packagist, PNG icon for marketplace listing, video screencast) is explicitly deferred.
+Two pre-launch blockers were absorbed into the phase per D-01: (1) stripping the legacy v1.x JS pixel from `themes/logingrupa-naisstore/` and replacing it with the new `PixelHead` + `EventPixel` components under gated UAT checkpoints; (2) running a live Purchase + PageView + ViewContent smoke on `your-staging-host.example` with `test_event_code` set, producing the screenshots and validated step sequence that feed the README walkthrough. Everything else (MallAdapter, AddToCart, docker dry-run, Packagist, PNG icon for marketplace listing, video screencast) is explicitly deferred.
 
 **Primary recommendation:** Sequence the 14 plans exactly as D-01 specifies — legacy-strip is irreversible until UAT confirms zero events, the live smoke produces the inputs for both README and screenshots, and the security sweep MUST run BEFORE the public-flip is atomic. Within that locked sequence the planner has freedom on wave-packing (e.g., merge 05-04 PixelHead-wire with 05-05 PageView-UAT into a single plan with internal checkpoint) and on the keywords/license-field discretion items.
 
@@ -29,7 +29,7 @@ Two pre-launch blockers were absorbed into the phase per D-01: (1) stripping the
 
 **Live end-to-end smoke:**
 
-- **D-06:** Target environment = `new.nailscosmetics.lv` (Laravel Forge-hosted Production-shaped staging install with real Lovata stack + real orders + Settings `test_event_code` set). NOT docker. NOT prod.nailscosmetics.lv.
+- **D-06:** Target environment = `your-staging-host.example` (Laravel Forge-hosted Production-shaped staging install with real Lovata stack + real orders + Settings `test_event_code` set). NOT docker. NOT prod.nailscosmetics.lv.
 - **D-07:** Smoke event set = Purchase (primary, DOCS-01 critical path) + PageView (head-tag sanity) + ViewContent (content_ids format `SKU-{product_id}[-{offer_id}]`). AddToCart + Theme Twig API custom event deferred to post-launch.
 - **D-08:** Smoke results captured as `.planning/phases/05-documentation-marketplace-launch/05-SMOKE-LOG.md` — markdown audit trail with timestamp, env, exact button clicks, EventLog row count, Meta Test Events screenshot count, fbp/fbc cookie values, event_id sample, fail-pass per step. README walkthrough copies the validated step sequence verbatim.
 - **D-09:** Smoke-found bugs route to `/gsd-debug` sessions (one session per bug). Fix lands in a Phase 5 fix-plan or backport plan as the debug session determines. NOT inline-fix-and-continue.
@@ -46,7 +46,7 @@ Two pre-launch blockers were absorbed into the phase per D-01: (1) stripping the
 
 **Marketplace assets (MKT-01..05):**
 
-- **D-17:** All 5 MKT-03 screenshots come from the live smoke on `new.nailscosmetics.lv` — Settings UI, FailedEvents list (after intentionally bad-token call), Replay flow success, CheckDedup with Meta API response, theme Twig API on a real product page.
+- **D-17:** All 5 MKT-03 screenshots come from the live smoke on `your-staging-host.example` — Settings UI, FailedEvents list (after intentionally bad-token call), Replay flow success, CheckDedup with Meta API response, theme Twig API on a real product page.
 - **D-18:** Redaction strategy = redact-friendly Settings record on staging: dummy row with placeholder values (`pixel_id = 000000000000000`, `access_token = REDACTED_FOR_DEMO_DO_NOT_USE`).
 - **D-19:** Screenshots live at `docs/screenshots/01-settings.png ... 05-twig-api.png`. README references them by relative path. plugin.yaml does not embed screenshot refs.
 - **D-20:** Plugin icon = keep existing `icon-bullseye` Font Awesome reference in `plugin.yaml`. October backend renders the FA glyph natively. Zero binary asset commitment. MKT-03 PNG-icon line satisfied if marketplace listing later requires PNG — punt to that point.
@@ -197,7 +197,7 @@ Phase 5 does NOT add a single composer require. Every dependency the plugin need
                     ┌──────────────────────────────────────────┐
                     │   LIVE SMOKE (D-06..D-09)                │
                     │                                          │
-[new.nailscosmetics.lv Forge install + test_event_code set]   │
+[your-staging-host.example Forge install + test_event_code set]   │
    ↓                                                            │
 [Place real order via UI]                                       │
    ↓                                                            │
@@ -226,7 +226,7 @@ Phase 5 does NOT add a single composer require. Every dependency the plugin need
                     │                                          │
 [git log -p | grep -iE 'pixel_id|access_token']─→ verified no real secrets
    ↓                                                            │
-[grep -r 'new.nailscosmetics.lv\|forge.laravel.com\|10\.\|192\.168\.' .planning/]
+[grep -r 'your-staging-host.example\|forge.laravel.com\|10\.\|192\.168\.' .planning/]
    ↓                                                            │
 [Redact/generalize → commit cleanup]                            │
                                                                  │
@@ -406,13 +406,13 @@ plugins/logingrupa/metapixel/
 | Category | Items Found | Action Required |
 |----------|-------------|------------------|
 | Stored data | None — there is no DB-stored "v1.x"/"shopaholic-coupled" content. EventLog + FailedEvent tables store opaque alias (`'shopaholic.order'`) and Meta event names — no version strings. | None |
-| Live service config | None — `new.nailscosmetics.lv` Settings table holds dummy values per D-18 (`pixel_id=000000000000000`, `access_token=REDACTED_FOR_DEMO_DO_NOT_USE`). Settings UI has no version-string field. | None |
+| Live service config | None — `your-staging-host.example` Settings table holds dummy values per D-18 (`pixel_id=000000000000000`, `access_token=REDACTED_FOR_DEMO_DO_NOT_USE`). Settings UI has no version-string field. | None |
 | OS-registered state | None — Forge deploy uses standard `php artisan queue:work` + supervisord (assumed); no version string baked into process names. | None |
 | Secrets/env vars | None in plugin scope — `.env` lives at project root, not in plugin repo. No secret keys reference "v1.x". | None |
 | Build artifacts | None in plugin scope — composer.lock is not committed for plugin packages (H-4 from STATE.md). No `dist/` artifacts. | None |
 | **Source-code v1.x decorators** | 13 hits across `classes/` + `components/` (Plugin.php:148 "Phase 3 D-08"; classes/testing/EventSubjectAdapterContractTestCase.php × 4 "Phase 2/3" references; classes/queue/SendCapiEvent.php × 2 "Phase 4 admin UI"; etc.) [VERIFIED: grep on 2026-05-21] | **CODE EDIT (05-11):** strip docblock decorators per D-23. Behavior unchanged. |
 | **Planning-doc v1.x refs** | 29 hits across ROADMAP.md, REQUIREMENTS.md, STATE.md [VERIFIED: grep on 2026-05-21] | **DOC EDIT (05-11):** rewrite per D-23 — MKT-04 wording from "v1.1.1 + legacy/v1.1.1 branch preserved" → "v2.0.0 annotated tag from master". |
-| **Operator-infra refs in .planning/** | 12 hits referencing `new.nailscosmetics.lv` outside archive (4 files: 05-CONTEXT.md, 05-DISCUSSION-LOG.md, milestones/v1.1.1-ROADMAP.md, research/PITFALLS.md) [VERIFIED: grep] | **DOC EDIT (05-13):** redact or generalize (D-26). 05-CONTEXT.md may keep the ref as planning context — operator judgment. |
+| **Operator-infra refs in .planning/** | 12 hits referencing `your-staging-host.example` outside archive (4 files: 05-CONTEXT.md, 05-DISCUSSION-LOG.md, milestones/v1.1.1-ROADMAP.md, research/PITFALLS.md) [VERIFIED: grep] | **DOC EDIT (05-13):** redact or generalize (D-26). 05-CONTEXT.md may keep the ref as planning context — operator judgment. |
 | **Git tag `v1.1.1`** | Local-only [VERIFIED: `git tag -l` shows `v1.1.1`; `git ls-remote --tags origin 'v1*'` returns empty] | None — D-24 lock holds. Verify pre-flip. |
 | **Legacy branch `legacy/v1.1.1`** | Local-only (presumed — verify) | **VERIFY (05-13):** `git ls-remote --heads origin 'legacy/*'` must return empty pre-flip. |
 
@@ -479,7 +479,7 @@ plugins/logingrupa/metapixel/
 
 **What goes wrong:** Operator forgets D-18 dummy-row check before screenshot capture. `01-settings.png` shows the operator's real production Meta Pixel ID. Screenshot ships in `docs/screenshots/` and is now public.
 
-**Why it happens:** Smoke runs on `new.nailscosmetics.lv` with `test_event_code` set — operator may also have set a real `pixel_id` for testing (Test Events live view requires a real Pixel ID to route to the right account, even with test_event_code).
+**Why it happens:** Smoke runs on `your-staging-host.example` with `test_event_code` set — operator may also have set a real `pixel_id` for testing (Test Events live view requires a real Pixel ID to route to the right account, even with test_event_code).
 
 **How to avoid:**
 1. Plan 05-12 has an explicit task: SQL UPDATE the Settings row to D-18 dummy values BEFORE screenshot capture, then SQL UPDATE back to real values AFTER capture. Capture commands documented inline.
@@ -862,7 +862,7 @@ gh release view v2.0.0   # OR git ls-remote --tags origin v2.0.0
 | A4 | Forge zero-downtime release does NOT re-trigger `october:up` automatically on plugin updates | README troubleshooting | Medium — buyer runs `october:up` manually anyway per Pitfall 5 |
 | A5 | `git ls-remote --heads origin 'legacy/*'` returns empty (legacy branch is local-only per D-24) — verified ONLY for tag, not for branch | Runtime State Inventory | Low — pre-flip verification re-runs the check |
 | A6 | Meta Test Events live view dedup window is "within minutes" of event_time [CITED: leadsbridge.com + watsspace.com — sources agree but Meta official docs not directly reachable] — earlier v1.x phase docs say "±10s". Phase 5 should NOT depend on the exact value; UAT gate criteria say "Deduplicated label shown" which is the Meta-reported result, not a numerical window | UAT pass criteria | Low — Meta reports dedup state directly; we observe its label, not compute it |
-| A7 | Smoke environment `new.nailscosmetics.lv` has Forge deploy permissions set up + operator can ssh to place test orders + EventLog table is queryable from operator's tools [ASSUMED based on CONTEXT D-06] | Validation Architecture | Medium — if missing, smoke gates 05-08 cannot run; operator confirms during 05-08 task 1 |
+| A7 | Smoke environment `your-staging-host.example` has Forge deploy permissions set up + operator can ssh to place test orders + EventLog table is queryable from operator's tools [ASSUMED based on CONTEXT D-06] | Validation Architecture | Medium — if missing, smoke gates 05-08 cannot run; operator confirms during 05-08 task 1 |
 
 **The Assumptions Log is short by design.** Phase 5 deliberately picks well-trodden tooling and conventions. The handful of [ASSUMED] entries above need user confirmation only at the planner level — none are load-bearing for the locked plan sequence.
 
@@ -893,14 +893,14 @@ gh release view v2.0.0   # OR git ls-remote --tags origin v2.0.0
 | `git-filter-repo` | 05-13 history rewrite IF sweep finds secrets | ✗ [VERIFIED: command not found] | — | `pip install --user git-filter-repo`; OR `git filter-branch` (deprecated, slow) |
 | `slopcheck` | Phase 5 package legitimacy audit | ✗ [VERIFIED: command not found] | — | N/A — Phase 5 installs zero packages, audit is no-op |
 | `imagemagick` (`convert`) | 05-12 screenshot redaction (fallback for D-18) | Unverified | — | Manual screenshot retake with dummy Settings row in place |
-| Forge SSH access to `new.nailscosmetics.lv` | 05-08 live smoke | Operator-side [ASSUMED A7] | — | None — smoke cannot run without env |
+| Forge SSH access to `your-staging-host.example` | 05-08 live smoke | Operator-side [ASSUMED A7] | — | None — smoke cannot run without env |
 | Chrome + Meta Pixel Helper extension | UAT gates 1-3 + smoke verification | Operator-side | — | Edge/Firefox if equivalent; OR raw DevTools Network panel (D-05 already rejected this fallback) |
 | Meta Business Manager + Pixel + Test Events code | Live smoke + UAT verification | Operator-side | — | None — Meta-side requirement |
-| PHP 8.4 + Lovata stack (full-Lovata smoke) | 05-08 Shopaholic Purchase smoke | new.nailscosmetics.lv [ASSUMED A7] | — | — |
+| PHP 8.4 + Lovata stack (full-Lovata smoke) | 05-08 Shopaholic Purchase smoke | your-staging-host.example [ASSUMED A7] | — | — |
 | Clean OctoberCMS 4.x test machine | DOCS-01 timed dry-run + MKT-01 install verification | Buyer machine OR /tmp scratch | — | Docker container with OctoberCMS image; deferred per D-06 |
 
 **Missing dependencies with no fallback:**
-- Forge SSH to `new.nailscosmetics.lv` — operator confirms during 05-08 task 1 prep
+- Forge SSH to `your-staging-host.example` — operator confirms during 05-08 task 1 prep
 
 **Missing dependencies with fallback:**
 - `git-filter-repo` — install on demand in 05-13
@@ -1008,7 +1008,7 @@ Phase 5 deliverables: docs + manifest + screenshots + tag + repo-visibility flip
 | V5 Input Validation | no | Phase 5 ships zero input handlers |
 | V6 Cryptography | no | Phase 5 introduces no crypto; existing CAPI uses sha256 via UserDataHasher (Phase 2) |
 | **V14 Configuration** | **YES** | **Pre-flip secret-history sweep (D-26) — Pitfall 1 mitigation. No real `pixel_id` / `capi_access_token` values in git history. Verified 2026-05-21: current scan finds only dummy + test fixtures.** |
-| **V14 Configuration** | **YES** | **Operator-infra refs (`new.nailscosmetics.lv`, `forge.laravel.com`, internal IPs) redacted from `.planning/` before public flip. 12 hits found (Runtime State Inventory).** |
+| **V14 Configuration** | **YES** | **Operator-infra refs (`your-staging-host.example`, `forge.laravel.com`, internal IPs) redacted from `.planning/` before public flip. 12 hits found (Runtime State Inventory).** |
 | V12 File and Resources | edge | Screenshots in `docs/screenshots/` must not show real Pixel IDs (Pitfall 3) — verified via D-18 dummy-row strategy + visual review |
 
 ### Known Threat Patterns for marketplace launch

@@ -275,7 +275,7 @@ class Plugin extends PluginBase {
 - [x] `05-03-PLAN.md` — UAT Gate 1: zero-events verification on 5 pages via Pixel Helper + Test Events + EventLog DB (D-03 + D-05) — closed 2026-05-22 5/5 PASS (commit `933f194`)
 - [x] `05-04-PLAN.md` — PixelHead layout wire + UAT Gate 2 — closed 2026-05-27 PASS (theme commit `524189f`)
 - [x] `05-06-PLAN.md` — EventPixel per-event wire + UAT Gate 3 — closed 2026-05-27 PASS (theme commits `6d2367c` + `866236e`)
-- [ ] `05-08-PLAN.md` — Live smoke on new.nailscosmetics.lv → 05-SMOKE-LOG.md + 5 screenshots at plugin-relative `docs/screenshots/` (DOCS-01, MKT-03) — **blocks on Phase 6 ViewContent shipping**
+- [ ] `05-08-PLAN.md` — Live smoke on your-staging-host.example → 05-SMOKE-LOG.md + 5 screenshots at plugin-relative `docs/screenshots/` (DOCS-01, MKT-03) — **blocks on Phase 6 ViewContent shipping**
 - [ ] `05-09-PLAN.md` — README.md single-page walkthrough (DOCS-01, DOCS-02) — **blocks on Phase 6 ViewContent + PixelHead deferred-flush shipping (README must document ViewContent scope + breaking lifecycle change)**
 - [x] `05-10-PLAN.md` — docs/CUSTOM-ADAPTERS.md with AcmeCart minimal register snippet + OFFLINE Mall full inline example + 3 hook patterns + Testing section (DOCS-03)
 - [x] `05-11-PLAN.md` — v1.x reference strip (13 docblock decorators + ROADMAP/REQUIREMENTS MKT-* wording) + NoV1xReferencesTest gate (release hygiene)
@@ -399,7 +399,7 @@ class Plugin extends PluginBase {
 
 **Plans:** 0/2
 
-- [x] `launch-01-PLAN.md` — Pre-flip security sweep Step B: `.planning/` operator-infra redaction (replaces `new.nailscosmetics.lv` → `your-staging-host.example` in STATE.md + 05-CONTEXT.md + 05-DISCUSSION-LOG.md + research/PITFALLS.md). Worklist captured in `.planning/phases/05-documentation-marketplace-launch/05-13-SECURITY-SWEEP.md`. _(was Phase 5 plan 05-13)_ (completed 2026-07-03)
+- [x] `launch-01-PLAN.md` — Pre-flip security sweep Step B: `.planning/` operator-infra redaction (replaces `your-staging-host.example` → `your-staging-host.example` in STATE.md + 05-CONTEXT.md + 05-DISCUSSION-LOG.md + research/PITFALLS.md). Worklist captured in `.planning/phases/05-documentation-marketplace-launch/05-13-SECURITY-SWEEP.md`. _(was Phase 5 plan 05-13)_ (completed 2026-07-03)
 - [ ] `launch-02-PLAN.md` — Repo flip public + `v2.0.0` annotated tag + composer VCS install smoke from /tmp + CI matrix verify (MKT-01, MKT-04, MKT-05). _(was Phase 5 plan 05-14)_
 
 Resume signal: `LAUNCH SCHEDULED` after operator decision.

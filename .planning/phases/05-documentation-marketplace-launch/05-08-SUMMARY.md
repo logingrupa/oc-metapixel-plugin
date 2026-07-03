@@ -9,7 +9,7 @@ requirements: [DOCS-01, MKT-03]
 
 # 05-08 SUMMARY — Live smoke + 5 marketplace screenshots
 
-**One-liner:** Full live smoke on new.nailscosmetics.lv executed agent-driven (operator-delegated): Purchase/ViewContent/PageView event_id round-trip confirmed browser↔CAPI, FailedEvent→Replay→CheckDedup flow exercised, 5 MKT-03 screenshots captured with dummy-values-only, smoke log authored for the 05-09 README walkthrough.
+**One-liner:** Full live smoke on your-staging-host.example executed agent-driven (operator-delegated): Purchase/ViewContent/PageView event_id round-trip confirmed browser↔CAPI, FailedEvent→Replay→CheckDedup flow exercised, 5 MKT-03 screenshots captured with dummy-values-only, smoke log authored for the 05-09 README walkthrough.
 
 ## Smoke window
 

@@ -1,11 +1,11 @@
-# 05-SMOKE-LOG — Live smoke on new.nailscosmetics.lv
+# 05-SMOKE-LOG — Live smoke on your-staging-host.example
 
 ---
 date: 2026-07-03
-env: new.nailscosmetics.lv (Forge staging, OctoberCMS v4 / Laravel 12, QUEUE_CONNECTION=sync)
+env: your-staging-host.example (Forge staging, OctoberCMS v4 / Laravel 12, QUEUE_CONNECTION=sync)
 operator: Claude Code agent-driven smoke (5 sequential subagents driving Playwright headless Chromium 1440x900 + `php artisan tinker`), operator-delegated 2026-07-03
 settings_mechanism: OctoberCMS Backend UI (PRIMARY path per W-15) for every dummy/real transition — SQL fallback never needed
-test_event_code: TEST50287 (active for the whole window)
+test_event_code: <test-event-code-redacted> (active for the whole window)
 smoke_window_utc: 2026-07-03 09:27 – 10:06
 status: PASS (Step K pass-with-limitation — see below)
 ---

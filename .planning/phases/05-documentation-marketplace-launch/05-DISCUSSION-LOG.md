@@ -114,8 +114,8 @@
 | Local docker / Sail install | Disposable OctoberCMS 4.x | |
 | Both: docker dry-run + prod canary | Two-environment validation | |
 
-**User's choice:** Free-text — "this is staging. Production new.nailscosmetics.lv — Real install, real Lovata stack, real orders. Set Meta `test_event_code` so events route to Test Events live view (NOT production Pixel analytics). Captures real-world env vars, Laravel FORGE."
-**Notes:** `new.nailscosmetics.lv` is the smoke target — Forge-hosted staging-shaped install with real orders + Settings `test_event_code`.
+**User's choice:** Free-text — "this is staging. Production your-staging-host.example — Real install, real Lovata stack, real orders. Set Meta `test_event_code` so events route to Test Events live view (NOT production Pixel analytics). Captures real-world env vars, Laravel FORGE."
+**Notes:** `your-staging-host.example` is the smoke target — Forge-hosted staging-shaped install with real orders + Settings `test_event_code`.
 
 | Option | Description | Selected |
 |--------|-------------|----------|
@@ -191,7 +191,7 @@
 
 | Option | Description | Selected |
 |--------|-------------|----------|
-| Capture from live smoke on new.nailscosmetics.lv | Real env, redact via dummy row | ✓ |
+| Capture from live smoke on your-staging-host.example | Real env, redact via dummy row | ✓ |
 | Synthetic disposable install screenshots | Fresh docker OctoberCMS | |
 | Mockup composites (Figma) | Designer mockups | |
 

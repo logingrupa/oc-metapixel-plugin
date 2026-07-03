@@ -5,7 +5,7 @@ phase: 05-documentation-marketplace-launch
 status: PASS
 verdict: passed
 date: 2026-05-27
-env: https://new.nailscosmetics.lv
+env: https://your-staging-host.example
 operator: Rolands Zeltins
 gates_plan: 05-06
 ---

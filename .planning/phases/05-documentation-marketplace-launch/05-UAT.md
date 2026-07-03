@@ -32,7 +32,7 @@ expected: |
   no "Component purchasePixel not found" exception in `storage/logs/laravel.log`.
   Confirms the dead v1.x `[purchasePixel]` INI block + render are gone.
 result: pass
-note: "Verified at http://new.nailscosmetics.lv/lv/checkout/85ff11a0849c840d985c7877d212e45e — no pixel event emitted."
+note: "Verified at http://your-staging-host.example/lv/checkout/85ff11a0849c840d985c7877d212e45e — no pixel event emitted."
 
 ### 3. Theme Settings panel has no Facebook fields
 expected: |
@@ -43,8 +43,8 @@ result: pass
 note: |
   Initially reported blocker on plugin Settings save (HostIndexResolver $sPslPath DI failure)
   — diagnosed as stale OPcache (FPM workers predated commit 6b2cd09). Fixed via FPM reload.
-  Post-fix: user saved plugin Settings successfully — Pixel ID 2291486191076331,
-  CAPI token (redacted), Test Events Code TEST58466, paid_status "new-payment-received"
+  Post-fix: user saved plugin Settings successfully — Pixel ID <pixel-id-redacted>,
+  CAPI token (redacted), Test Events Code <test-event-code-redacted>, paid_status "new-payment-received"
   (Pasūtījums saņemts - Apmaksa saņemta), default_currency EUR.
   Theme Settings check (no Facebook Pixel ID / Domain Verification ID fields) implicitly
   verified — no legacy fbq fields surfaced anywhere in the Settings UI flow.
@@ -95,7 +95,7 @@ expected: |
   first CAPI event verified in Meta Test Events. Completes in under 10 minutes,
   stopwatched. This is the launch acceptance gate.
 result: issue
-reported: "Agent-verified 2026-07-03 (subagent README audit + clean-install cross-check + live-production evidence). README content accurate against codebase (all 8 field labels, screenshots, troubleshoot signatures, API examples verified; ReadmeStructure + CustomAdaptersStructure gates pass). Live production proves pipeline end-to-end: 629 event_log rows incl. dedup twins, 6 dead-letters all auto-replayed, fbq('init','2291486191076331') rendering on live pages. Estimated theme-path time ~9-10 min. BUT the dry-run following ONLY the README dead-ends at step 1: test-8 clean install proved plain `composer require logingrupa/oc-metapixel-plugin` (README:45) fails on a fresh October 4 lockfile (Lovata toolbox pins composer/installers ~1.0 vs fresh lock v2.3.0 — needs -W), and Lovata deps are unresolvable until `php artisan project:set <license>` adds the October gateway repo — neither documented. Minor: README:81 says 'Meta Business Manager' vs lang comment/Meta UI 'Events Manager' (D1); no single ordered quick-start to first Test Event (D2). Stopwatch itself remains humanly unverified."
+reported: "Agent-verified 2026-07-03 (subagent README audit + clean-install cross-check + live-production evidence). README content accurate against codebase (all 8 field labels, screenshots, troubleshoot signatures, API examples verified; ReadmeStructure + CustomAdaptersStructure gates pass). Live production proves pipeline end-to-end: 629 event_log rows incl. dedup twins, 6 dead-letters all auto-replayed, fbq('init','<pixel-id-redacted>') rendering on live pages. Estimated theme-path time ~9-10 min. BUT the dry-run following ONLY the README dead-ends at step 1: test-8 clean install proved plain `composer require logingrupa/oc-metapixel-plugin` (README:45) fails on a fresh October 4 lockfile (Lovata toolbox pins composer/installers ~1.0 vs fresh lock v2.3.0 — needs -W), and Lovata deps are unresolvable until `php artisan project:set <license>` adds the October gateway repo — neither documented. Minor: README:81 says 'Meta Business Manager' vs lang comment/Meta UI 'Events Manager' (D1); no single ordered quick-start to first Test Event (D2). Stopwatch itself remains humanly unverified."
 severity: major
 
 ### 8. Clean-install composer require smoke (MKT-01)
@@ -143,7 +143,7 @@ note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = sta
 
 - truth: "Plugin Settings page saves cleanly; HostIndexResolver resolves via DI."
   status: failed
-  reason: "User reported: when I try to save Unresolvable dependency resolving [Parameter #0 [ <required> string $sPslPath ]] in class Logingrupa\\Metapixel\\Classes\\Helper\\HostIndexResolver `http://new.nailscosmetics.lv/back/system/settings/update/logingrupa/metapixel/settings#primarytab-pixel-capi`"
+  reason: "User reported: when I try to save Unresolvable dependency resolving [Parameter #0 [ <required> string $sPslPath ]] in class Logingrupa\\Metapixel\\Classes\\Helper\\HostIndexResolver `http://your-staging-host.example/back/system/settings/update/logingrupa/metapixel/settings#primarytab-pixel-capi`"
   severity: blocker
   test: 3
   root_cause: "Stale PHP 8.4 FPM workers (started May 14) running OPcache-compiled bytecode of Plugin.php from BEFORE the May 21 commit 6b2cd09 that wired App::singleton(HostIndexResolver::class). On-disk code is correct (Plugin.php:63-68 has the binding). CLI bootstrap resolves cleanly. Production error log 2026-05-22 20:49:47 shows the stack trace from Container.php:1425 → Settings.php:239. NOT a code bug — operational deploy step missed."

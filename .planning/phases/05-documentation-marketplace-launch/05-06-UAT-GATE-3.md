@@ -5,7 +5,7 @@ phase: 05-documentation-marketplace-launch
 status: PASS
 verdict: passed
 date: 2026-05-27
-env: https://new.nailscosmetics.lv
+env: https://your-staging-host.example
 operator: Rolands Zeltins
 gates_plan: 05-08
 ---
@@ -16,7 +16,7 @@ Per D-03 cutover contract + D-05 three-source convergence rule. Plan 05-08 (live
 
 ## Operator action
 
-Real test order placed on `new.nailscosmetics.lv` with `test_event_code=TEST58466` set in Settings. Browser fbq('track','Purchase',...,{eventID:<uuid>}) inline emit from EventPixel + server-side CAPI dispatch via OrderStatusWatcher → SendCapiEvent.
+Real test order placed on `your-staging-host.example` with `test_event_code=<test-event-code-redacted>` set in Settings. Browser fbq('track','Purchase',...,{eventID:<uuid>}) inline emit from EventPixel + server-side CAPI dispatch via OrderStatusWatcher → SendCapiEvent.
 
 ## Three-source verdict — Purchase
 

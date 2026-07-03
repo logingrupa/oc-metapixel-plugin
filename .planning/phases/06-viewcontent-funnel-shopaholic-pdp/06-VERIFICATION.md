@@ -174,7 +174,7 @@ Per verifier prompt: "5 pre-existing RED test failures … were RED before Phase
 
 ### Human Verification Required
 
-None for this phase. The Phase 6 manual-only verifications declared in `06-VALIDATION.md` (Meta Events Manager dedup ratio, browser fbq timing, offer-switch event_id propagation, JS soft-gate against cart-modal, minimal-install cell drop) are operator-acceptance items that surface at the **Launch Milestone** (post-deploy on new.nailscosmetics.lv), not at this verification gate. They are tracked in 06-VALIDATION.md `Manual-Only Verifications` table and will run as part of plan `05-08` smoke (deferred to Launch Milestone). No human-verify checks need to run for this phase's status to be `passed` — all server-side / static / behavioral gates are GREEN.
+None for this phase. The Phase 6 manual-only verifications declared in `06-VALIDATION.md` (Meta Events Manager dedup ratio, browser fbq timing, offer-switch event_id propagation, JS soft-gate against cart-modal, minimal-install cell drop) are operator-acceptance items that surface at the **Launch Milestone** (post-deploy on your-staging-host.example), not at this verification gate. They are tracked in 06-VALIDATION.md `Manual-Only Verifications` table and will run as part of plan `05-08` smoke (deferred to Launch Milestone). No human-verify checks need to run for this phase's status to be `passed` — all server-side / static / behavioral gates are GREEN.
 
 ### Gaps Summary
 

@@ -87,7 +87,7 @@ Output: `05-13-SECURITY-SWEEP.md` audit log + redacted `.planning/` docs. Resume
 |-----------|----------|-----------|-------------|-----------------|
 | T-05-01 | Information Disclosure | real EAA-prefix CAPI token in any historical commit | mitigate | `git log --all -p` regex sweep; if hit → `git filter-repo --replace-text` + force-push BEFORE flip; current scan (2026-05-21) shows only dummy + test fixtures |
 | T-05-02 | Information Disclosure | real Pixel ID (10+ digit non-dummy) in git history | mitigate | Same as T-05-01 |
-| T-05-13-01 | Information Disclosure | new.nailscosmetics.lv / forge.laravel.com / private IPs in `.planning/` | mitigate | grep + redact pass; baseline 12 hits in 4 files (RESEARCH); redact each to placeholder OR delete |
+| T-05-13-01 | Information Disclosure | your-staging-host.example / forge.laravel.com / private IPs in `.planning/` | mitigate | grep + redact pass; baseline 12 hits in 4 files (RESEARCH); redact each to placeholder OR delete |
 | T-05-13-02 | Repudiation | legacy v1.x tag/branch accidentally pushed | mitigate | `git ls-remote --tags origin 'v1*'` + `git ls-remote --heads origin 'legacy/*'` MUST both return empty before flip |
 </threat_model>
 
@@ -126,7 +126,7 @@ Output: `05-13-SECURITY-SWEEP.md` audit log + redacted `.planning/` docs. Resume
     ```
     Baseline: 12 hits across 4 files (RESEARCH 2026-05-21). For each hit decide:
       - Keep (operator judges load-bearing AND not a secret) — record rationale
-      - Redact (replace `new.nailscosmetics.lv` with `your-staging-host.example` — RFC 2606)
+      - Redact (replace `your-staging-host.example` with `your-staging-host.example` — RFC 2606)
       - Delete the line (purely operator-internal)
 
     Apply redactions via `sed -i 's/new\.nailscosmetics\.lv/your-staging-host.example/g' <file>` OR Edit tool.
@@ -159,7 +159,7 @@ Output: `05-13-SECURITY-SWEEP.md` audit log + redacted `.planning/` docs. Resume
     Command: <command>
     Hits before redaction: N
     Per-hit disposition (file:line — keep|redact|delete + rationale):
-    - .planning/STATE.md:42 — redact "new.nailscosmetics.lv" → "your-staging-host.example"
+    - .planning/STATE.md:42 — redact "your-staging-host.example" → "your-staging-host.example"
     - …
 
     Hits after redaction: 0  (or: M kept hits, all documented above)
