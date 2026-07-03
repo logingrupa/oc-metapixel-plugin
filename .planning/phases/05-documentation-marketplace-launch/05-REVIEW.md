@@ -1,23 +1,27 @@
 ---
 phase: 05-documentation-marketplace-launch
-reviewed: 2026-07-03T10:26:22Z
+reviewed: 2026-07-03T12:20:25Z
 depth: standard
-files_reviewed: 22
+files_reviewed: 25
 files_reviewed_list:
   - classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php
   - classes/adapter/shopaholic/ShopaholicSettingsOptions.php
   - classes/adapter/theme/ThemeAjaxHandler.php
+  - classes/adapter/theme/ThemeAjaxRequestReader.php
   - classes/event/adapter/shopaholic/CartPositionWatcher.php
   - classes/event/adapter/shopaholic/ProductPageWatcher.php
   - classes/meta/AddToCartPixelResult.php
   - classes/meta/PayloadBuilder.php
   - classes/queue/SendCapiEvent.php
   - classes/testing/EventSubjectAdapterContractTestCase.php
+  - components/PixelHead.php
   - docs/CUSTOM-ADAPTERS.md
-  - README.md
   - tests/Feature/Adapter/Shopaholic/CartPositionWatcherBrowserPixelTest.php
   - tests/Feature/Adapter/Shopaholic/ProductPageWatcherTest.php
   - tests/Feature/Adapter/Theme/ThemeAjaxHandlerMarkAddToCartTest.php
+  - tests/Feature/Adapter/Theme/ThemeAjaxHandlerSubjectTypeTest.php
+  - tests/Feature/Adapter/Theme/ThemeAjaxRequestReaderTest.php
+  - tests/Feature/Components/PixelHeadDeferredFlushTest.php
   - tests/Feature/Docs/AssetsExistTest.php
   - tests/Feature/Docs/CustomAdaptersStructureTest.php
   - tests/Feature/Docs/NoV1xReferencesTest.php
@@ -26,197 +30,241 @@ files_reviewed_list:
   - tests/Unit/Meta/PayloadBuilderTest.php
   - ../../../themes/logingrupa-naisstore/partials/shared/controls/add-to-cart-control.js
 findings:
-  critical: 1
+  critical: 2
   warning: 9
   info: 8
-  total: 18
+  total: 19
 status: issues_found
 ---
 
 # Phase 05: Code Review Report
 
-**Reviewed:** 2026-07-03T10:26:22Z
+**Reviewed:** 2026-07-03T12:20:25Z
 **Depth:** standard
-**Files Reviewed:** 22
+**Files Reviewed:** 25
 **Status:** issues_found
 
 ## Summary
 
-Standard-depth review of the Phase 05 documentation/marketplace-launch surface: two marketplace-facing docs, the theme AJAX handler + Shopaholic watchers touched by the D-07 AddToCart dedup work, the queue job, the contract-test harness, docs gate tests, and the theme add-to-cart JS.
+Re-review after gap-closure plan 05-18 (ThemeAjaxHandler refactor with new
+ThemeAjaxRequestReader collaborator, ProductPageWatcher::dispatchForOfferSwitch
+and PixelHead::flushDeferredFromController extraction, plus focused coverage
+tests). The refactor itself is clean — the extracted ThemeAjaxRequestReader is
+correct, stateless, and well-tested; PixelHead's deferred-flush split matches
+its documented lifecycle contract; PayloadBuilder and the contract test base
+are sound. Doc-gate tests (AssetsExist, ReadmeStructure, NoV1xReferences,
+PluginYamlSanity, CustomAdaptersStructure) are hermetic and correct.
 
-Docs factual claims were cross-checked against the codebase: all eight README troubleshoot log signatures verified verbatim, the `pixelHead` component alias, `this.metapixel.pushEvent` Twig API, `new-payment-received` default, "Settings → Marketing → Meta Pixel + CAPI" path, and all `field.*_label` strings are accurate, and the five screenshots exist and are git-tracked. The 04-check-dedup.png fail-safe caption is accurate per instructions.
+However, tracing the reviewed AJAX/queue paths end-to-end surfaced two
+Critical defects: (1) the SendCapiEvent retry contract is defeated by the
+EventLog race-fence — any transient Meta/API failure permanently and silently
+drops the event with no dead-letter; (2) the `Metapixel::onFireEvent` theme
+path passes the raw client payload into ThemeActionEvent, letting any
+unauthenticated visitor inject arbitrary CAPI identity fields (`em`, `ph`,
+`external_id`, …), a `secret_key`, and a `site_id` into server-signed CAPI
+events — and conversely never captures server-side IP/UA/cookie user_data, so
+legitimate theme events ship with empty user_data that Meta rejects.
 
-The headline defect: **both marketplace docs teach a third-party adapter registration API that does not exist** — the copy-paste snippet fatals inside the third party's `Plugin::boot()`, the exact host-site cascade failure the PluginGuard pattern was designed to prevent — and the docs gate test enshrines the broken forms. Additional warnings cover an event-name mismatch on the hybrid AJAX product path, unvalidated offer IDs poisoning `content_ids`, missing PluginGuard on the theme fire paths, a `$tries`/backoff mismatch, queued-job model-deletion loss, and two theme-JS tracking defects.
+Nine warnings cover multisite site-resolution drift in the cart adapter,
+Graph-payload contamination, event-name mismatch on the hybrid path,
+fabricated content_ids, an orphaned collector push, a queue-latency race that
+drops the browser AddToCart pixel, a missing PluginGuard on the fire-event
+path, premature Google tracking in the theme JS, and a copy-paste-fatal doc
+example.
 
 ## Critical Issues
 
-### CR-01: Both marketplace docs teach an `AdapterRegistry` registration API that does not exist — copy-paste fatals in third-party `Plugin::boot()`
+### CR-01: Transient CAPI failures permanently and silently drop events — retry defeated by race fence
 
-**File:** `docs/CUSTOM-ADAPTERS.md:106` and `README.md:177`
-**Issue:** `AdapterRegistry` (classes/adapter/AdapterRegistry.php) is a `final` class with only an *instance* method `register(string, string)`; it has no `instance()` static (no October `Singleton` trait) and no static `register()`. Yet:
-- `docs/CUSTOM-ADAPTERS.md:106` instructs: `AdapterRegistry::instance()->register(AcmeCart::class, AcmeCartAdapter::class);` → `Error: Call to undefined method ...AdapterRegistry::instance()`.
-- `README.md:177` instructs: `AdapterRegistry::register(\Vendor\Plugin\Models\Booking::class, ...);` → `Error: Non-static method ...register() cannot be called statically` on PHP 8.
+**File:** `classes/queue/SendCapiEvent.php:105-132` (with `classes/helper/EventLogWriter.php:68-83`)
+**Issue:** `handle()` writes the EventLog race-fence row (`EventLogWriter::record`, an `insertOrIgnore`) BEFORE calling `MetaClient::sendForPixel`. On a `MetaApiTransientException` (Meta 5xx, network timeout, rate limit) the exception is rethrown so Laravel schedules a retry — but on attempt 2, `record()` collides with the row written on attempt 1, returns `false`, and `handle()` returns cleanly ("peer won"). The retry is a no-op that Laravel counts as success:
+- The event is never delivered to Meta.
+- `failed()` never runs (the job did not exhaust `$tries` with exceptions), so no `FailedEvent` row and no `metapixel.event.dead_letter` hook fires.
+- `$tries = 3` / `$backoff = [1, 4, 16]` are effectively dead configuration for the transient path.
 
-Either snippet, pasted into a third-party `Plugin::boot()` as documented, throws at boot and cascade-breaks the entire host site — the precise failure mode the plugin's own PluginGuard lock exists to prevent. This is the primary deliverable of the DOCS-03/extensibility documentation and it is executable-wrong on both public surfaces. (The plugin's own `Plugin.php:83` and its class docblock show the correct container form.)
-**Fix:** Replace both snippets with the container-singleton form the plugin itself uses:
+This directly contradicts the documented contract in `docs/CUSTOM-ADAPTERS.md` ("On transient HTTP failure, Laravel retries per the job's `$tries` and `$backoff` schedule") and is silent data loss for every event that hits a transient failure — the exact class of failure retries exist for.
+**Fix:** Make the fence retry-aware: treat a fence collision as "won" when the existing row carries the SAME `event_id` (a retry of self, not a duplicate peer). E.g. in `SendCapiEvent::handle()`:
 ```php
-use Illuminate\Support\Facades\App;
-use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
-
-App::make(AdapterRegistry::class)->register(AcmeCart::class, AcmeCartAdapter::class);
+if (! $bWonRaceFence && ! EventLogWriter::ownsRow($this->readEventId(), $this->sEventName, 'capi', $this->obSubject, $iSiteId)) {
+    return; // genuine duplicate peer
+}
+// same event_id row exists → this is our own retry, proceed to send
 ```
-Also update the prose at `docs/CUSTOM-ADAPTERS.md:124` ("`AdapterRegistry::instance()->register(...)` maps your subject class...") to match. Must be fixed together with WR-01, whose gate currently locks in the broken forms.
+with `ownsRow()` doing a `SELECT event_id` on the fence key and comparing. Alternatively, track delivery separately (e.g. a `delivered_at` column set after a 2xx) and only skip the send when the row is marked delivered.
+
+### CR-02: onFireEvent theme path accepts client-controlled CAPI identity, secret_key, and site_id; never captures server-side user_data
+
+**File:** `classes/adapter/theme/ThemeAjaxHandler.php:107-126` (with `classes/adapter/theme/ThemeActionEvent.php:44`, `classes/adapter/theme/ThemeActionAdapter.php:63-79,102-112`)
+**Issue:** `handleFireEvent()` builds `ThemeActionEvent::fromArray($arData)` from the RAW client AJAX payload. `fromArray` stores the entire array as `arPayload`, and `ThemeActionAdapter` then reads from it:
+- `getUserData()` reads all 13 Meta CAPI identity keys (`em`, `ph`, `fn`, `ln`, `external_id`, `fbp`, `fbc`, `client_ip_address`, `client_user_agent`, …) straight from `arPayload`. Any unauthenticated visitor can POST `data[em]=victim@example.com` and have the plugin hash it (UserDataHasher) and submit it in a server-signed CAPI event — arbitrary identity injection / conversion-attribution pollution of the operator's Meta dataset, throttled only by the 30/min rate limit.
+- `getSiteId()` honors client-supplied `data[site_id]`, so on a multisite install the attacker selects which site's `pixel_id`/`capi_access_token` (`Settings::lookupForSite`) the event fires under, and which site's fence partition the EventLog row lands in.
+- `getSecretKey()` honors client-supplied `data[secret_key]`, persisting attacker data into the EventLog `secret_key` column.
+
+The inverse defect compounds it: unlike `PixelHead::emitBasePixel()` (which calls `collectRequestUserData()` server-side) and the watchers (which use `injectRequestUserData`), `handleFireEvent()` injects NO server-derived `client_ip_address`/`client_user_agent`/`_fbp`/`_fbc`. A legitimate theme JS call that sends only `name` + `action_key` produces a CAPI event with all-null user_data — which Meta rejects (HTTP 400 subcode 2804050 per PixelHead's own docblock), permanently dead-lettering every honest theme-path event.
+**Fix:** In `handleFireEvent()`, before `fromArray`: (1) strip the identity/config keys from the client payload — allow only `name`, `action_key`, and (for hybrid) `subject_type`/`subject_id`/`offer_id`/`context`; (2) merge server-captured user_data, mirroring PixelHead:
+```php
+$arSafe = array_intersect_key($arData, array_flip(['name', 'action_key']));
+$arSafe = array_merge($arSafe, [
+    'client_ip_address' => Request::ip(),
+    'client_user_agent' => Request::userAgent(),
+    'fbp' => Cookie::get('_fbp'),
+    'fbc' => Cookie::get('_fbc'),
+    'site_id' => Site::getSiteIdFromContext(),
+]);
+$obEvent = ThemeActionEvent::fromArray($arSafe);
+```
+(ThemeAjaxHandler lives in `classes/adapter/theme/`, which is already the documented D-16 exclusion zone for the Request/Site ban, so this is permitted there — or delegate capture to a `components/`-layer helper.)
 
 ## Warnings
 
-### WR-01: Docs gate test enshrines the two broken registration call shapes
+### WR-01: Cart adapter's request-context site fallback actually executes in the queue worker — contradicting its own safety rationale
 
-**File:** `tests/Feature/Docs/CustomAdaptersStructureTest.php:100-109`
-**Issue:** `test_doc_shows_register_pattern` passes when the doc contains **either** `AdapterRegistry::instance()->register` **or** `AdapterRegistry::register` — both of which are fatal call shapes (see CR-01). The gate validates the wrong contract: fixing the doc to the correct `App::make(AdapterRegistry::class)->register(...)` form would still pass (substring `AdapterRegistry::register` is absent, `::instance()` absent → both false → test FAILS), so the fix for CR-01 is actively blocked by this test.
-**Fix:** Assert the correct pattern:
+**File:** `classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php:44-55` (with `classes/queue/SendCapiEvent.php:103`, `classes/event/adapter/shopaholic/CartPositionWatcher.php:50-57`)
+**Issue:** The docblock justifies the `Site::getSiteIdFromContext()` fallback with "Cart events fire in-request by definition … never from queue worker rehydration". That is false for the CAPI path: `SendCapiEvent::handle()` calls `SiteResolver::forSubject($this->obSubject, $obAdapter)` → `getSiteId()` inside the worker (CLI context). Since the docblock itself states Lovata `Cart` has no native `site_id` column, the fallback is the NORMAL path, and in the worker it resolves to the CLI default/primary site. Consequences on any multisite single-DB install: (a) `Settings::lookupForSite()` resolves the wrong (primary) site's pixel credentials for events originating on non-primary sites; (b) the EventLog fence row gets the worker-context site_id while `handleUpdated()`'s dedup query (run in-request, resolving the request-context site) filters on a DIFFERENT site_id — the "already logged" check never matches, so every qty-bump update re-dispatches a redundant AddToCart job (absorbed only by the worker-side fence).
+**Fix:** Bake the site_id into the dispatched subject/payload at request time (mirroring ProductPageWatcher's `makeDispatchEvent` "site_id is baked from the subject" pattern) — e.g. have `CartPositionWatcher::dispatchAddToCart` resolve site_id in-request and route through a subject that carries it, and make `handleUpdated`'s dedup query use the same baked value. At minimum, correct the docblock — the current text documents an invariant the code does not have.
+
+### WR-02: Generic hybrid dispatch injects top-level `action_key` into the outgoing Graph API payload
+
+**File:** `classes/adapter/theme/ThemeAjaxHandler.php:285-290` (with `classes/queue/SendCapiEvent.php:119-123`)
+**Issue:** `dispatchGenericAdapter()` sets `$arPayload['action_key'] = $sWireActionKey.':'.$sEventId` at the TOP level of the CAPI envelope. `SendCapiEvent::handle()` sends `$this->arPayload` (plus `test_event_code`) verbatim to `MetaClient::sendForPixel`, so the internal routing key is transmitted to Meta as an unknown top-level Graph parameter. Graph API commonly rejects unknown POST parameters with `(#100)` — a permanent error that would dead-letter every generic-alias hybrid event; even if tolerated, it leaks internal routing data to a third party. The comment calls the append "observability-only", but nothing strips it before send. Everywhere else `action_key` lives in `custom_data` (see `PayloadBuilderTest::test_event_extras_merge_into_custom_data`) or on the subject, never top-level.
+**Fix:** Pass it through the builder's extras so it lands in `custom_data`:
 ```php
-$this->assertStringContainsString(
-    'App::make(AdapterRegistry::class)->register',
-    $sDoc,
-    'docs/CUSTOM-ADAPTERS.md must show the container-resolved AdapterRegistry registration snippet.',
+$arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+    $sName, $obAdapter, $obSubject, $obAdapter->getValueResolver($obSubject),
+    $sEventId, $iEventTime,
+    $sWireActionKey !== '' ? ['action_key' => $sWireActionKey.':'.$sEventId] : [],
 );
 ```
+or strip non-Graph top-level keys inside `SendCapiEvent::withTestEventCode`/`MetaClient` before send.
 
-### WR-02: Hybrid AJAX product path renders the caller-supplied event name in the browser script while the server always dispatches ViewContent
+### WR-03: Hybrid AJAX path ignores `getSupportedEvents()`; shopaholic branch echoes client-chosen event name over a hard-coded ViewContent CAPI dispatch
 
-**File:** `classes/adapter/theme/ThemeAjaxHandler.php:228-239`
-**Issue:** In `dispatchViaAdapter`, the `ShopaholicProductAdapter` branch delegates to `ProductPageWatcher::dispatchForOfferSwitch`, which hardcodes `'ViewContent'` for the CAPI dispatch — but the returned fbq script is built with `FbqScriptBuilder::build($mName, ...)` where `$mName` is any allowlisted name from the request (`AddToCart`, `Purchase`, `Lead`, ...). A request with `subject_type=shopaholic.product&name=Purchase` yields a browser `Purchase` event carrying an `event_id` whose server twin is a `ViewContent` — the pair never deduplicates by name, so the browser event counts as an extra standalone conversion in Meta. Client-controllable event-count inflation on a conversion pixel.
-**Fix:** Reject non-ViewContent names on this branch:
+**File:** `classes/adapter/theme/ThemeAjaxHandler.php:228-259`
+**Issue:** `dispatchViaAdapter()` validates the event name only against the global allowlist (META_STANDARD ∪ custom names) — the adapter's declared event-channel matrix (`getSupportedEvents()`, documented in CUSTOM-ADAPTERS.md as contract surface) is never consulted. Worse, in `dispatchShopaholicOfferSwitch()` the delegate `ProductPageWatcher::dispatchForOfferSwitch()` always dispatches CAPI `'ViewContent'`, while the returned browser script is built with the CLIENT-SUPPLIED `$sName`. A request with `name=Purchase&subject_type=shopaholic.product` yields a browser `fbq('track', 'Purchase', …, {eventID: X})` paired with a server CAPI `ViewContent` carrying the same event_id — Meta dedup only pairs identical event names, so the visitor mints an unmatched, server-blessed Purchase browser event with real catalog custom_data.
+**Fix:** In `dispatchShopaholicOfferSwitch()`, reject `$sName !== 'ViewContent'` with 422 (or pass `$sName` down and have the watcher dispatch it). In `dispatchViaAdapter()`, add:
 ```php
-if ($sAdapterClass === ShopaholicProductAdapter::class) {
-    if ($mName !== 'ViewContent') {
-        return new JsonResponse(['error' => 'shopaholic.product supports ViewContent only'], 422);
-    }
-    ...
+if (! array_key_exists($sName, $obAdapter->getSupportedEvents())) {
+    return new JsonResponse(['error' => 'event_name not supported by subject_type'], 422);
 }
 ```
 
-### WR-03: `dispatchForOfferSwitch` accepts any offer_id and stamps it into `content_ids` — bogus SKUs sent to Meta
+### WR-04: dispatchForOfferSwitch fabricates content_ids for offer ids that do not belong to the product
 
-**File:** `classes/event/adapter/shopaholic/ProductPageWatcher.php:198-224`
-**Issue:** `$arForcedContentIds = ['SKU-'.$iProductId.'-'.$iOfferId]` is built from the raw browser-supplied offer_id **before** `findOffer()` checks whether the offer exists on the product. The fail-safe only reverts `content_name`/`value`; `content_ids` and `contents` keep the fabricated SKU. A request with `offer_id=9999999` sends `SKU-42-9999999` to CAPI (and into the browser script and the EventLog payload), violating the locked `SKU-{product_id}[-{offer_id}]` ↔ Facebook Catalog feed contract and degrading event match quality with attacker/typo-controllable junk IDs.
-**Fix:** Resolve the offer first and fail fast when it is not one of the product's offers:
+**File:** `classes/event/adapter/shopaholic/ProductPageWatcher.php:252-274`
+**Issue:** `resolveOfferContentData()` unconditionally forces `content_ids = ['SKU-'.$iProductId.'-'.$iOfferId]` from the raw client-supplied `offer_id` and only falls back to product-level name/value when `findOffer()` misses. A nonexistent or cross-product offer id therefore produces a CAPI + fbq event advertising a `SKU-{pid}-{oid}` that does not exist in the Facebook Catalog feed (the plugin's own locked decision requires content_ids to match the feed exporter), degrading catalog-match quality with attacker- or bug-supplied ids.
+**Fix:** Treat a `findOffer()` miss as a hard failure (Tiger-Style — this method already throws for invalid input):
 ```php
 $obOffer = $this->findOffer($obProduct, $iOfferId);
 if ($obOffer === null) {
-    throw new \RuntimeException('dispatchForOfferSwitch: offer does not belong to product');
+    throw new \RuntimeException('offer does not belong to product');
 }
 ```
-(ThemeAjaxHandler's boundary catch converts this to an error response; alternatively return 422 there.)
+letting the AJAX boundary return its error response, or fall back to the product-level `resolveContentIds()` output instead of the fabricated SKU.
 
-### WR-04: `onFireEvent` and generic hybrid paths skip PluginGuard — disabled plugin accumulates FailedEvent rows instead of suppressing
+### WR-05: Offer-switch collector push is orphaned — dead write with latent double-emission risk
 
-**File:** `classes/adapter/theme/ThemeAjaxHandler.php:82-122, 240-263`
-**Issue:** The plain `onFireEvent` path and the generic hybrid-alias path never call `PluginGuard::isDisabled()`. With an empty `pixel_id` (documented disabled mode, "events suppressed"), every theme `pushEvent` AJAX still queues a `SendCapiEvent`; each job then wins the EventLog fence, throws `MissingPixelConfigException` in `Settings::lookupForSite`/`MetaClient`, writes a `FailedEvent` dead-letter row, and fires the `metapixel.event.dead_letter` hook. A disabled plugin therefore pollutes the FailedEvents admin list and triggers third-party permanent-failure alerting on every theme event — contradicting the PluginGuard lock and the README troubleshoot row "No events fire at all ... An empty Pixel ID disables the plugin by design." The sibling paths (`markAddToCartPixel` via `resolveBrowserPixel`, `dispatchForOfferSwitch`) both check the guard.
-**Fix:** Early-return before dispatch on both paths:
+**File:** `classes/event/adapter/shopaholic/ProductPageWatcher.php:208-216`
+**Issue:** `dispatchForOfferSwitch()` is only reachable from the AJAX path (`ThemeAjaxHandler::dispatchShopaholicOfferSwitch`), which returns a `JsonResponse` from `cms.ajax.beforeRunHandler` — October short-circuits the request, so `cms.page.beforeRenderPage` (the only consumer, `Plugin.php:104` → `flushDeferredFromController`) never fires. The `ThemeEventCollector::push()` here is therefore never flushed in production: the browser script is already delivered via the JSON response. It is dead weight today, and a double-emission bug tomorrow — if the flush listener ever runs in the same request (or a future caller invokes this method during page render), the same event_id renders twice. Test coverage even asserts the orphan exists ("offer-switch leaves exactly 1 new entry in the collector"), cementing the dead behavior.
+**Fix:** Remove the collector push from `dispatchForOfferSwitch()` (the OfferSwitchResult already carries everything the AJAX boundary needs) and drop the corresponding assertion in `ProductPageWatcherTest::test_offer_switch_ajax_re_fires_viewcontent_with_new_event_id_and_offer_sku`; or guard it explicitly with `if (RequestKind::isPageRender())`.
+
+### WR-06: Browser AddToCart pixel races the queue worker — silently dropped on async queue drivers
+
+**File:** `classes/event/adapter/shopaholic/CartPositionWatcher.php:102-133` (with `classes/adapter/theme/ThemeAjaxHandler.php:161-163`)
+**Issue:** `resolveBrowserPixel()` reads the `channel='capi'` EventLog row, which is written only when the queue worker executes `SendCapiEvent::handle()` (→ `EventLogWriter::record`). The theme JS fires `Metapixel::onMarkAddToCart` immediately after `Cart::onAdd` succeeds — typically milliseconds later. On any async queue driver (database/redis), the capi row will usually not exist yet, `findCapiAddToCartRow()` returns null, and the handler returns `{event_id: null, script: ''}`: the browser AddToCart pixel is silently dropped for most adds, with no log and no retry. Only a `sync` queue makes the happy path hold in production.
+**Fix:** Decouple the browser pixel from worker completion — have `CartPositionWatcher::dispatchAddToCart` persist the generated event_id + custom_data at request time (e.g. write the `channel='pixel'` EventLog row up-front in-request, or cache event_id/custom_data keyed by cart position for a short TTL), and have `resolveBrowserPixel` read that instead of the worker-written capi row. At minimum document the sync-queue requirement and add a `Log::info` on the miss so operators can see the drop rate.
+
+### WR-07: handleFireEvent has no PluginGuard — disabled plugin still queues CAPI jobs and returns fbq scripts
+
+**File:** `classes/adapter/theme/ThemeAjaxHandler.php:88-139` (with `Plugin.php:114`)
+**Issue:** `Event::subscribe(ThemeAjaxHandler::class)` is unconditional at boot, and unlike `markAddToCartPixel` (guarded inside `resolveBrowserPixel`) and `dispatchForOfferSwitch` (throws when disabled), the plain theme-action branch of `handleFireEvent()` never checks `PluginGuard::isDisabled()`. With an empty `pixel_id`, every `Metapixel::onFireEvent` call still: dispatches a `SendCapiEvent` job that is guaranteed to dead-letter (`MissingPixelConfigException` → a FailedEvent row per call), and returns an executable `fbq(...)` script to a page whose base pixel was never rendered — `fbq` is undefined there, so the injected script throws a ReferenceError in the visitor's console. Unbounded FailedEvent growth from a misconfigured install violates the PluginGuard pattern's purpose.
+**Fix:** Add at the top of `handleFireEvent()` (dispatchViaAdapter inherits it):
 ```php
 if (PluginGuard::isDisabled()) {
-    return new JsonResponse(['event_id' => null, 'script' => '']);
+    return new JsonResponse(['event_id' => null, 'script' => ''], 200);
 }
 ```
 
-### WR-05: `SendCapiEvent::$tries = 3` contradicts its own "4 total tries" contract; third backoff entry is unreachable
-
-**File:** `classes/queue/SendCapiEvent.php:62-66`
-**Issue:** The docblock states "1 initial + 3 backoffs = 4 total tries" and `$backoff = [1, 4, 16]` provides three retry delays — but Laravel's `$tries` is the **total attempt count**, so `$tries = 3` yields 3 attempts with only the `1` and `4` second delays; the `16` is never used. Behavior deviates from the documented retry design (transient Meta outages get one fewer retry and no long backoff), and the README's "retries per the job's `$tries` and `$backoff` schedule" inherits the ambiguity.
-**Fix:** `public int $tries = 4;` (or, if 3 attempts is intended, correct the comment and trim `$backoff` to `[1, 4]`).
-
-### WR-06: Queued job serializes the live subject model — subject deleted before the worker runs loses the event outside the dead-letter system
-
-**File:** `classes/queue/SendCapiEvent.php:49-76`
-**Issue:** The job uses `SerializesModels` with `public readonly object $obSubject`, which for Eloquent subjects stores a `ModelIdentifier` and re-fetches on the worker. `CartPosition` rows are routinely deleted (checkout converts the cart, user clears it). If that happens before the queue drains, unserialization throws `ModelNotFoundException` **before** `handle()` — the job instance never exists, so `failed()`/`writeFailedEvent()`/`metapixel.event.dead_letter` never run and the AddToCart event vanishes into the framework `failed_jobs` table, invisible to the plugin's FailedEvents replay UI. The payload is already fully pre-built at dispatch time; the live model is only needed for fence keys and hook context.
-**Fix:** Either set `public $deleteWhenMissingModels = true` with an explicit decision that pre-conversion AddToCart loss is acceptable, or (better) stop serializing the live model: capture `subject_type`/`subject_id`/`site_id`/`secret_key` at dispatch time (the adapter is already resolvable by class) and pass a lightweight DTO, keeping the dead-letter path reachable.
-
-### WR-07: `fireMetaAddToCartPixel` has no error handler — October's default AJAX error alert surfaces pixel failures to the shopper
-
-**File:** `../../../themes/logingrupa-naisstore/partials/shared/controls/add-to-cart-control.js:101-110`
-**Issue:** `$.request('Metapixel::onMarkAddToCart', { data, success })` supplies only a `success` callback. The October AJAX framework's default error handler shows an `alert()` with the response body on any non-2xx. The endpoint deliberately returns 429 (shared 30/min per IP+session limiter with `onFireEvent`) and 500 on internal failure — so a rate-limited or failing *tracking* call pops a raw error dialog in the middle of add-to-cart. Observability must never degrade shopper UX.
-**Fix:**
-```js
-$.request('Metapixel::onMarkAddToCart', {
-  data: { offer_id: offerId },
-  success: function (resp) { /* unchanged */ },
-  error: function () { /* silent: tracking failure must not interrupt checkout */ },
-});
-```
-
-### WR-08: Google AddToCart fires on click, before the cart add succeeds
+### WR-08: Google AddToCart tracked before the cart add succeeds
 
 **File:** `../../../themes/logingrupa-naisstore/partials/shared/controls/add-to-cart-control.js:44-46`
-**Issue:** `onAddToCartClick` calls `trackGoogleAddToCart(selectedOption)` immediately after kicking off the (unawaited) `addOfferToCart(...)` promise. The Google event is therefore recorded even when `Cart::onAdd` returns `status: false` or the request throws, while the Meta pixel (`fireMetaAddToCartPixel`) correctly fires only inside the success branch. Result: systematic Google-vs-Meta AddToCart count skew and Google over-counting on failed adds.
-**Fix:** Move the call into the success branch of `addOfferToCart`, next to `fireMetaAddToCartPixel`:
+**Issue:** `onAddToCartClick()` calls `trackGoogleAddToCart(selectedOption)` synchronously right after kicking off the (unawaited) `addOfferToCart(...)` promise. The Google AddToCart event therefore fires on every click — including failed adds (out of stock, validation error, network failure) — while the Meta pixel (`fireMetaAddToCartPixel`) correctly fires only inside the `response.status` success branch. Google and Meta AddToCart counts will diverge, and Google conversions include adds that never happened.
+**Fix:** Move the call into the success branch of `addOfferToCart`:
 ```js
 if (response && response.status) {
   showButtonPopover(button, 'Item added to cart');
   refreshCartHeader();
-  trackGoogleAddToCart(selectedOption);
   fireMetaAddToCartPixel(selectedOption.value);
+  trackGoogleAddToCart(selectedOption);
 }
 ```
 
-### WR-09: Shipped contract-test base extends a dev-only class — the documented third-party testing flow fatals on a Composer install
+### WR-09: CUSTOM-ADAPTERS.md minimal example calls an undefined `$this->buildPayload()` — copy-paste fatal
 
-**File:** `classes/testing/EventSubjectAdapterContractTestCase.php:10,41` and `docs/CUSTOM-ADAPTERS.md:304-326`
-**Issue:** `EventSubjectAdapterContractTestCase` lives in the shipped `classes/` tree (main `autoload` PSR-4) but extends `Logingrupa\Metapixel\Tests\MetapixelTestCase`, which is registered only under `autoload-dev` in composer.json. For any third party who installed the plugin as a dependency — the exact audience of CUSTOM-ADAPTERS.md's "Testing your adapter" section ("`pest tests/MallOrderAdapterContractTest.php` exits 0 → your adapter satisfies the marketplace contract") — the parent class is not autoloadable and the documented test fatals with "Class ... MetapixelTestCase not found". The class docblock admits this is deferred ("Revisit when first third-party adapter ships"), but the marketplace doc presents it as working today with a worked Mall example.
-**Fix:** Either (a) make the harness genuinely consumable — move/duplicate the minimal `MetapixelTestCase` bootstrap into the shipped autoload namespace, or (b) add an explicit caveat in `docs/CUSTOM-ADAPTERS.md` §Testing that the contract harness currently requires a dev checkout of the plugin (composer `--prefer-source` + dev autoload), so the doc's success claim matches reality.
+**File:** `docs/CUSTOM-ADAPTERS.md:100-117`
+**Issue:** The "Minimal example" Plugin.php snippet dispatches `SendCapiEvent::dispatch('Purchase', $this->buildPayload($obCart), $obCart, AcmeCartAdapter::class)`. `buildPayload()` is not defined anywhere in the document, does not exist on `PluginBase`, and inside the `bindEvent` closure `$this` is not even reliably the Plugin instance (October rebinds model-event closures). A third-party developer following the guide — its entire purpose — copies a snippet that fatals with "Call to undefined method". The guide also never shows how to construct `$arPayload` at all: `PayloadBuilder`, the required input of the "only public entry point" (*Trigger dispatch* section), appears nowhere in the doc.
+**Fix:** Replace the phantom helper with a runnable payload build:
+```php
+$obAdapter = new AcmeCartAdapter;
+$arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+    'Purchase', $obAdapter, $obCart, $obAdapter->getValueResolver($obCart),
+    Uuid::uuid4()->toString(), time(), [],
+);
+SendCapiEvent::dispatch('Purchase', $arPayload, $obCart, AcmeCartAdapter::class);
+```
+and add a short "Build the payload" subsection introducing `PayloadBuilder` + `UserDataHasher`.
 
 ## Info
 
-### IN-01: Orphaned docblock in SendCapiEvent — `writeFailedEvent` documentation is attached to `withTestEventCode`
+### IN-01: `$tries` docblock contradicts the code — third backoff entry unreachable
 
-**File:** `classes/queue/SendCapiEvent.php:249-263`
-**Issue:** Two consecutive docblocks precede `withTestEventCode()`: the first (lines 249-254) documents `writeFailedEvent`, the second documents `withTestEventCode`. `writeFailedEvent` (line 278) itself has no docblock.
-**Fix:** Move the first docblock down to sit directly above `writeFailedEvent`.
+**File:** `classes/queue/SendCapiEvent.php:62-66`
+**Issue:** The comment says "1 initial + 3 backoffs = 4 total tries", but `$tries = 3` means 3 total attempts in Laravel; `backoff[2] = 16` is never used (only two delays occur before `failed()` runs).
+**Fix:** Either set `public int $tries = 4;` to match the comment, or fix the comment to "3 total attempts" and trim `$backoff` to `[1, 4]`.
 
-### IN-02: Dead re-validation of the event name inside `dispatchViaAdapter`
+### IN-02: Orphaned docblock stacked above withTestEventCode; writeFailedEvent left undocumented
 
-**File:** `classes/adapter/theme/ThemeAjaxHandler.php:222-225`
-**Issue:** `onBeforeRun` already returns 422 for disallowed names (line 87) before delegating, so the second `isAllowedEventName` check is unreachable dead code (and `loadSubject` DB work at line 217 happens before it, inverting the cheap-check-first order it implies).
-**Fix:** Remove the duplicate check, or hoist it above `loadSubject` with a comment if defense-in-depth is intended.
+**File:** `classes/queue/SendCapiEvent.php:249-263,278`
+**Issue:** The "Persist a FailedEvent row…" docblock (lines 249-254) is immediately followed by a second docblock and then `withTestEventCode()` — the first block is dangling and belongs to `writeFailedEvent()` (line 278), which now has no docblock at all.
+**Fix:** Move the FailedEvent docblock down to directly precede `writeFailedEvent()`.
 
-### IN-03: `dispatchForOfferSwitch` docblock overstates the boundary's error translation; subject loaded twice
+### IN-03: resolveBrowserPixel docblock claims "never throws" but the method has no try/catch
 
-**File:** `classes/event/adapter/shopaholic/ProductPageWatcher.php:155-158` (and `ThemeAjaxHandler.php:217,235`)
-**Issue:** The docblock claims "The AJAX boundary translates each throw into a 422/404/500 JsonResponse" — in reality every watcher throw reaches `onBeforeRun`'s generic `Throwable` catch and becomes a bare 500. Also `dispatchViaAdapter` calls `loadSubject` (line 217) and then `dispatchForOfferSwitch` re-loads the same product (watcher line 178) — a redundant DB round trip per switch.
-**Fix:** Correct the docblock (all throws → 500 today), or catch the watcher's `InvalidArgumentException`/`RuntimeException` in `dispatchViaAdapter` and map them to 422/404. Consider passing the already-loaded subject into the watcher.
+**File:** `classes/event/adapter/shopaholic/CartPositionWatcher.php:100-104`
+**Issue:** "Fail-safe: returns null (never throws) on every miss" — but `CartProcessor::instance()`, the CartPosition query, and the DB reads can all throw; the method relies on the AJAX boundary's catch (which returns 500, not the documented null).
+**Fix:** Reword to "returns null on every resolution miss; infrastructure failures propagate to the AJAX boundary", or wrap in try/catch returning null if that is the intended contract.
 
-### IN-04: Offer-switch pushes to ThemeEventCollector in an AJAX request that never flushes it
+### IN-04: PixelHead::extractCustomData strip list omits `offer_id`
 
-**File:** `classes/event/adapter/shopaholic/ProductPageWatcher.php:238-246`
-**Issue:** `dispatchForOfferSwitch` runs only from the AJAX boundary, whose `JsonResponse` short-circuits the CMS lifecycle — `cms.page.beforeRenderPage` (the deferred-flush drain) never fires, so the pushed collector entry is dead state discarded with the request. The browser event is delivered via the returned script instead. If a future change ever flushes the collector during AJAX partial updates, this entry would double-fire the browser ViewContent.
-**Fix:** Drop the collector push from the offer-switch path (the JsonResponse script is the delivery mechanism), or document why the push is intentionally kept.
+**File:** `components/PixelHead.php:292-299`
+**Issue:** The fallthrough strip list removes `name`, `action_key`, `also_dispatch_capi`, `site_id`, `event_id`, `product_id` — but not `offer_id`, which the offer-switch collector push includes (`ProductPageWatcher.php:215`). If such an event is ever flushed (see WR-05), `offer_id` leaks into the browser fbq custom_data as a non-standard field.
+**Fix:** Add `'offer_id' => true` to the `array_diff_key` filter.
 
-### IN-05: Contract invariants 03/04 are weaker than their names claim
+### IN-05: Planning-artifact references in shipped docblocks
+
+**File:** `classes/adapter/theme/ThemeAjaxHandler.php:196-199,264-265`; `classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php:16,20`
+**Issue:** Docblocks on public marketplace surface reference internal planning artifacts ("CONTEXT.md Claude's Discretion", "CONTEXT.md D-15"). The plugin's no-comment-pollution rule bans workflow markers in source; `.planning/` will not ship with the marketplace package, making these references dangling for third parties.
+**Fix:** Restate the decision content inline and drop the CONTEXT.md pointers.
+
+### IN-06: Dead ReflectionProperty setup in offer-switch test
+
+**File:** `tests/Feature/Adapter/Shopaholic/ProductPageWatcherTest.php:392-395`
+**Issue:** `$obReflect = new ReflectionProperty(Offer::class, 'fSavedPrice'); $obReflect->setAccessible(true);` is never used — the actual pre-seeding happens inside `makeOffer()`. Dead code with a misleading comment above it.
+**Fix:** Delete lines 392-395 (comment + reflection setup).
+
+### IN-07: Contract-test invariants 03/04 assert less than their names claim
 
 **File:** `classes/testing/EventSubjectAdapterContractTestCase.php:81-102`
-**Issue:** `test_invariant_03_site_id_deterministic_across_set_site_context` never changes site context — it calls `getSiteId` twice under identical conditions, so a request/site-context-dependent adapter passes. `test_invariant_04` asserts only the `?int` return type; it cannot detect a `Request::` read (acknowledged in the message, but the test name promises more).
-**Fix:** In invariant 03, mutate the active site context (e.g. `Site::withContext(...)` / swap the SiteManager fake) between the two calls; rename invariant 04 to reflect that the real enforcement is the static PHPStan disallowed-calls rule.
+**Issue:** `test_invariant_03_site_id_deterministic_across_set_site_context` never varies any site context — it just calls `getSiteId` twice back-to-back. `test_invariant_04_get_site_id_reads_no_request_or_site_manager` asserts only the return type; it cannot detect Request/SiteManager reads (the docblock admits phpstan anchors that statically — but third-party adapters, the harness's marketplace audience, are NOT covered by this repo's phpstan config, so for them the invariant is unenforced).
+**Fix:** In invariant 03, flip the active site between the two calls before asserting equality; rename invariant 04 to reflect what it asserts, or strengthen it (swap the bound request instance and assert the result is unchanged).
 
-### IN-06: Doc says user-data keys "MUST be null (do not omit)" but the contract test permits omission
+### IN-08: Status dropdown pluck bypasses translation accessors
 
-**File:** `docs/CUSTOM-ADAPTERS.md:59` vs `classes/testing/EventSubjectAdapterContractTestCase.php:125-145`
-**Issue:** Invariant 07 only asserts returned keys are a subset of the 13-key set with `string|null` values — an adapter omitting keys passes the harness while violating the documented MUST. Doc and gate disagree on the contract.
-**Fix:** Either assert all 13 keys are present in invariant 07, or soften the doc to "missing keys may be omitted or null".
-
-### IN-07: Minimal AcmeCart example calls undefined `$this->buildPayload()` inside `Plugin::boot()` closures
-
-**File:** `docs/CUSTOM-ADAPTERS.md:108-115`
-**Issue:** In the registration snippet, `$this` inside the `bindEvent` closure is the `Plugin` instance, and no `buildPayload` method is shown or defined anywhere — verbatim copy-paste throws `Error: Call to undefined method` on the first paid-status save. The reader has no pointer to what a payload builder for their cart looks like (PayloadBuilder usage appears nowhere in this doc).
-**Fix:** Show a one-line `PayloadBuilder` usage (mirroring `SendCapiEvent` callers) or annotate the call: `// buildPayload(): your wrapper around Logingrupa\Metapixel\Classes\Meta\PayloadBuilder::buildEventPayload(...)`.
-
-### IN-08: Shipped source docblocks reference planning-only artifacts that won't exist in the marketplace package
-
-**File:** `classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php:16-23`, `classes/adapter/theme/ThemeAjaxHandler.php:190-193`, `Plugin.php:82`
-**Issue:** Public-shipped docblocks cite "CONTEXT.md D-15/D-16", "CONTEXT.md Claude's Discretion", and "RESEARCH §10" — files that live under `.planning/` and are not distributed. For marketplace consumers these are dangling references; the plugin CLAUDE.md's own rule is that workflow refs belong in commits/PRs, not source. (The `NoV1xReferencesTest` gate only bans "Phase N" markers, so these slip through.)
-**Fix:** Replace with self-contained rationale (the D-15/D-16 exception text is already inlined; drop the file citations) or widen the D-23 gate regex to catch `CONTEXT.md`/`RESEARCH §` references.
+**File:** `classes/adapter/shopaholic/ShopaholicSettingsOptions.php:30`
+**Issue:** `Status::orderBy('sort_order')->pluck('name', 'code')` reads the raw column via the query builder, bypassing Lovata's multilingual (RainLab.Translate) accessor on `name` — backend operators on non-default locales see untranslated status names; duplicate `code` values silently collapse to the last row.
+**Fix:** Hydrate models so pluck goes through the accessor: `Status::orderBy('sort_order')->get()->pluck('name', 'code')->all();`
 
 ---
 
-_Reviewed: 2026-07-03T10:26:22Z_
+_Reviewed: 2026-07-03T12:20:25Z_
 _Reviewer: Claude (gsd-code-reviewer)_
 _Depth: standard_
