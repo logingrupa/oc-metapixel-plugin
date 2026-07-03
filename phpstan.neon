@@ -24,6 +24,16 @@ parameters:
 
     tmpDir: .phpstan-cache
 
+    # October module classes (System\, Cms\, Backend\) and Lovata plugin classes
+    # ship NO composer autoload — at runtime October's ClassLoader maps them from
+    # the host app's modules/ + plugins/ trees. Static analysis cannot rely on that
+    # runtime autoloader for symbol discovery, so scan the host-app trees directly.
+    # The plugin always runs mounted at <app>/plugins/logingrupa/metapixel (local
+    # dev, CI host app, operator installs), so both paths resolve in every topology.
+    scanDirectories:
+        - ../../../modules
+        - ../../../plugins/lovata
+
     reportUnmatchedIgnoredErrors: true
     treatPhpDocTypesAsCertain: true
     checkUninitializedProperties: true
