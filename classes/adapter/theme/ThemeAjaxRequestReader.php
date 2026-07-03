@@ -2,17 +2,46 @@
 
 namespace Logingrupa\Metapixel\Classes\Adapter\Theme;
 
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Request;
+use October\Rain\Support\Facades\Site;
 
 /**
  * Reads the Metapixel AJAX event payload from the request. Holds the
  * request-payload parsing responsibility split out of ThemeAjaxHandler:
- * normalises both supported transport shapes and narrows the hybrid-AJAX
- * loadSubject context to a string-keyed array. Stateless; classes/adapter/theme/
+ * normalises both supported transport shapes, narrows the hybrid-AJAX
+ * loadSubject context to a string-keyed array, and captures server-derived
+ * CAPI user_data + site context. Stateless; classes/adapter/theme/
  * is outside the phpstan Request/SiteManager disallow scope (D-16).
  */
 final class ThemeAjaxRequestReader
 {
+    /**
+     * Server-derived Meta CAPI user_data + site context for the theme-action
+     * path. Mirrors PixelHead::collectRequestUserData — without at least one
+     * customer-info parameter Meta rejects the event (HTTP 400 subcode
+     * 2804050). site_id is baked in-request so queue-side ThemeActionAdapter
+     * getSiteId never falls back to the worker's CLI site context.
+     *
+     * @return array<string, mixed>
+     */
+    public function collectServerUserData(): array
+    {
+        $sClientIp = (string) Request::ip();
+        $sClientUa = (string) Request::userAgent();
+        $mFbp = Cookie::get('_fbp');
+        $mFbc = Cookie::get('_fbc');
+        $mSiteId = Site::getSiteIdFromContext();
+
+        return [
+            'client_ip_address' => $sClientIp !== '' ? $sClientIp : null,
+            'client_user_agent' => $sClientUa !== '' ? $sClientUa : null,
+            'fbp' => is_string($mFbp) && $mFbp !== '' ? $mFbp : null,
+            'fbc' => is_string($mFbc) && $mFbc !== '' ? $mFbc : null,
+            'site_id' => is_int($mSiteId) && $mSiteId > 0 ? $mSiteId : null,
+        ];
+    }
+
     /**
      * Read the AJAX event payload from either supported transport shape.
      * Larajax nests fields under data[]; October's native $.request posts
