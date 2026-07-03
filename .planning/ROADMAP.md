@@ -402,7 +402,7 @@ class Plugin extends PluginBase {
 **Plans:** 1/2
 
 - [x] `launch-01-PLAN.md` — Pre-flip security sweep Step B: `.planning/` operator-infra redaction (staging hostnames, pixel/test-event IDs → placeholders; 33 files). Executed 2026-07-03 via plan 05-21 REDACT-FIRST; sweep log `.planning/launch/launch-01-SECURITY-SWEEP.md` status COMPLETE. _(was Phase 5 plan 05-13)_ (completed 2026-07-03)
-- [x] `launch-02-PLAN.md` — `v2.0.0` annotated tag + composer VCS install smoke from /tmp + CI-green-on-tag verify (MKT-01, MKT-04). Repo already public; CI matrix green on master since 2026-07-03. Awaits operator `LAUNCH SCHEDULED` signal — operator-gated, do NOT auto-stamp complete. _(was Phase 5 plan 05-14)_ (completed 2026-07-03)
+- [ ] `launch-02-PLAN.md` — `v2.0.0` annotated tag + composer VCS install smoke from /tmp + CI-green-on-tag verify (MKT-01, MKT-04). Repo already public; CI matrix green on master since 2026-07-03. Awaits operator `LAUNCH SCHEDULED` signal — operator-gated, do NOT auto-stamp complete. _(was Phase 5 plan 05-14)_
 
 Resume signal: `LAUNCH SCHEDULED` after operator decision.
 
