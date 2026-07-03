@@ -244,20 +244,25 @@ class ProductPageWatcher
      * Derive the switched offer's browser custom_data plus the forced
      * content_ids/value/contents the payload mutation needs downstream. The
      * switched offer owns the variant name and price the visitor now sees; the
-     * product-level resolver values describe the FIRST offer. Fail-safe: an
-     * unknown offer id keeps the product-level name + value.
+     * product-level resolver values describe the FIRST offer. Tiger-Style: an
+     * offer id that does not belong to the product throws — fabricating a
+     * SKU-{pid}-{oid} absent from the Facebook Catalog feed would poison
+     * catalog match quality with attacker- or bug-supplied ids.
      *
      * @return array<string, mixed>
      */
     private function resolveOfferContentData(Product $obProduct, int $iProductId, int $iOfferId, ShopaholicProductValueResolver $obResolver): array
     {
-        $arForcedContentIds = ['SKU-'.$iProductId.'-'.$iOfferId];
-
         $obOffer = $this->findOffer($obProduct, $iOfferId);
-        $sContentName = $obOffer !== null
-            ? $this->stringAttr($obOffer, 'name')
-            : $this->stringAttr($obProduct, 'name');
-        $mOfferPrice = $obOffer?->getAttribute('price_value');
+        if ($obOffer === null) {
+            throw new \RuntimeException(
+                'ProductPageWatcher::dispatchForOfferSwitch: offer '.$iOfferId.' does not belong to product '.$iProductId,
+            );
+        }
+
+        $arForcedContentIds = ['SKU-'.$iProductId.'-'.$iOfferId];
+        $sContentName = $this->stringAttr($obOffer, 'name');
+        $mOfferPrice = $obOffer->getAttribute('price_value');
         $fOfferValue = is_numeric($mOfferPrice)
             ? (float) $mOfferPrice
             : $obResolver->resolveValue($obProduct);

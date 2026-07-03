@@ -457,6 +457,34 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $obWatcher->dispatchForOfferSwitch(42, 101);
     }
 
+    public function test_offer_switch_rejects_offer_not_belonging_to_product(): void
+    {
+        DB::table('lovata_shopaholic_products')->insertOrIgnore([[
+            'id' => 42,
+            'name' => 'Test Product',
+            'slug' => 'test-product-42',
+            'active' => 1,
+        ]]);
+        DB::table('lovata_shopaholic_offers')->insertOrIgnore([
+            ['id' => 100, 'product_id' => 42, 'name' => 'Offer A', 'price_value' => 9.99, 'active' => 1, 'sort_order' => 0],
+        ]);
+        DB::table('lovata_shopaholic_product_site_relation')->insertOrIgnore([
+            ['product_id' => 42, 'site_id' => 1],
+        ]);
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('offer 999 does not belong to product 42');
+
+        // Offer 999 exists nowhere on product 42 — a fabricated SKU-42-999
+        // would not match the Facebook Catalog feed, so this must throw and
+        // dispatch nothing.
+        try {
+            (new ProductPageWatcher)->dispatchForOfferSwitch(42, 999);
+        } finally {
+            Bus::assertNotDispatched(SendCapiEvent::class);
+        }
+    }
+
     /**
      * Build a Product with an in-memory Collection of Offer rows. Each offer
      * tuple is [id, price_value, sort_order, active].
