@@ -99,6 +99,12 @@ for a fully-worked example.
 
 ```php
 // plugins/acme/customcart/Plugin.php
+use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
+use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
+use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
+use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
+use Ramsey\Uuid\Uuid;
+
 class Plugin extends PluginBase {
     public $require = ['Logingrupa.Metapixel'];
 
@@ -108,7 +114,17 @@ class Plugin extends PluginBase {
         AcmeCart::extend(function ($obCart) {
             $obCart->bindEvent('model.afterSave', function () use ($obCart) {
                 if ($obCart->isDirty('status') && $obCart->status === 'paid') {
-                    SendCapiEvent::dispatch('Purchase', $this->buildPayload($obCart), $obCart, AcmeCartAdapter::class);
+                    $obAdapter = new AcmeCartAdapter;
+                    $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+                        'Purchase',
+                        $obAdapter,
+                        $obCart,
+                        $obAdapter->getValueResolver($obCart),
+                        Uuid::uuid4()->toString(),  // event_id — server-generated dedup anchor
+                        time(),                     // event_time
+                        [],                         // extras merged into custom_data
+                    );
+                    SendCapiEvent::dispatch('Purchase', $arPayload, $obCart, AcmeCartAdapter::class);
                 }
             });
         });
@@ -125,8 +141,8 @@ Three things matter here:
   to your adapter class — the registry is a service-container singleton, so
   resolve it through the container. The plugin core's queue worker calls
   `resolveByClass(AcmeCartAdapter::class)` on the same instance on rehydrate.
-- `SendCapiEvent::dispatch(...)` is the only public entry point — see
-  *Trigger dispatch* below.
+- `SendCapiEvent::dispatch(...)` takes a PRE-BUILT payload from
+  `PayloadBuilder` — see *Build the payload* and *Trigger dispatch* below.
 
 ## Full inline example: OFFLINE Mall
 
@@ -217,11 +233,39 @@ This code lives ONLY in this documentation. The plugin itself does NOT ship a
 adapt the subject class, field names, and currency conversions to your
 domain.
 
+## Build the payload
+
+`PayloadBuilder` assembles the Meta CAPI event envelope from your adapter +
+value resolver — you never hand-write the `data[0]` structure. Construct it
+with a `UserDataHasher`, which SHA-256-hashes the hashable user-data fields
+and passes `fbp`/`fbc`/`client_ip_address`/`client_user_agent` through raw:
+
+```php
+use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
+use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
+use Ramsey\Uuid\Uuid;
+
+$obAdapter = new MallOrderAdapter;
+$arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+    'Purchase',                               // Meta event name
+    $obAdapter,                               // your EventSubjectAdapter
+    $obSubject,                               // the subject (order, cart, …)
+    $obAdapter->getValueResolver($obSubject), // your ValueResolver
+    Uuid::uuid4()->toString(),                // event_id — UUIDv4, server-generated
+    time(),                                   // event_time — unix seconds
+    [],                                       // extras — merged into custom_data
+);
+```
+
+The generated `event_id` is the browser↔server dedup anchor: render the SAME
+id into any `fbq('track', ..., {eventID: ...})` browser twin.
+
 ## Trigger dispatch
 
 `SendCapiEvent::dispatch` is the only public entry point. It takes the Meta
-event name, the pre-built payload array, the subject object, and the adapter
-class FQN, queues the job, and returns immediately.
+event name, the pre-built payload array (see *Build the payload* above), the
+subject object, and the adapter class FQN, queues the job, and returns
+immediately.
 
 ```php
 SendCapiEvent::dispatch(
