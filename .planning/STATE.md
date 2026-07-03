@@ -6,12 +6,12 @@ current_phase: 05
 current_phase_name: documentation-marketplace-launch
 status: executing
 stopped_at: Milestone complete (Phase 06 was final phase)
-last_updated: "2026-07-03T15:28:07.201Z"
+last_updated: "2026-07-03T17:21:39.604Z"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 53
-  completed_plans: 51
+  completed_plans: 52
   percent: 83
 ---
 
@@ -28,7 +28,7 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 05 (documentation-marketplace-launch) — EXECUTING
-Plan: 4 of 14
+Plan: 5 of 14
 Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
 Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
 Status: Ready to execute
@@ -170,11 +170,13 @@ Anchored CRITICALs:
 
 ### Blockers/Concerns
 
-(none — Plan 01-03 shipped cleanly; standalone-repo composer install limitation persists from 01-01/01-02 — smoke tests executed via host vendor binaries, documented in 01-03-SUMMARY.md "Smoke-Test Path Deviations". Full qa chain integration smoke (including composer-dependency-analyser) deferred to CI matrix.)
+(— Plan 01-03 shipped cleanly; standalone-repo composer install limitation persists from 01-01/01-02 — smoke tests executed via host vendor binaries, documented in 01-03-SUMMARY.md "Smoke-Test Path Deviations". Full qa chain integration smoke (including composer-dependency-analyser) deferred to CI matrix.)
+
+- RESOLVED 2026-07-03 (05-21): CI matrix green on public repo — all 4 cells pass on HEAD 7754485 (run 28674577778). Deferred: shipmonk composer-dependency-analyser onboarding (structurally inoperable for October plugins as configured — see 05-21-SUMMARY.md Deferred Follow-ups).
 
 ## Session Continuity
 
-Last session: 2026-07-03T15:25:36.017Z
+Last session: 2026-07-03T17:20:48.378Z
 
 Stopped at: Phase 5 context gathered
 
@@ -212,6 +214,7 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 | Phase 05 P18 | 37min | 3 tasks | 7 files |
 | Phase 05 P19 | ~6min | 2 tasks | 2 files |
 | Phase 05 P20 | ~3 min | 1 tasks | 1 files |
+| Phase 05 P21 | 2h | 3 tasks | 38 files |
 
 ## Decisions
 
@@ -222,3 +225,6 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 - [Phase ?]: 05-18: MKT-05 closed — decomposed ThemeAjaxHandler/ProductPageWatcher/PixelHead below phpmd thresholds + new ThemeAjaxRequestReader collaborator; phpmd 7->0, composer qa exits 0 at 90.3% coverage. ExcessiveClassComplexity fires at WMC==50.
 - [Phase ?]: 05-18: pre-existing coverage was 89.0% at plan baseline (plan wrongly assumed >=90); lifted to 90.3% via 8 focused tests for extracted branches — gate not lowered. PDepend ~/.pdepend cache serves stale phpmd complexity per scan-set; clear it before trusting a re-run.
 - [Phase 05]: 05-20: Launch Milestone did not execute — ROADMAP launch-01/launch-02 bullets reverted from erroneous [x] (completed 2026-07-03) to [ ] deferred, matching progress row (0/2 Deferred) and on-disk evidence (no v2.0.0 tag, PARTIAL security sweep, no launch SUMMARY). MKT-04 gap closed.
+- [Phase ?]: 05-21: CI mirrors local-dev topology — qa toolchain in host October app vendor, gates via ../../../vendor/bin/*; larastan app discovery via plugin-vendor symlink into host vendor
+- [Phase ?]: 05-21: composer deps gate dropped from CI — shipmonk analyser structurally inoperable for October plugins; onboarding deferred
+- [Phase ?]: 05-21: security-sweep Step B executed pre-push (REDACT-FIRST); plain push justified — no live token in unpushed range, no new exposure class
