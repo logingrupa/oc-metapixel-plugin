@@ -2,11 +2,11 @@
 gsd_state_version: 1.0
 milestone: v2.0.0
 milestone_name: — Generic-event-tracking marketplace plugin
-current_phase: 05
-current_phase_name: documentation-marketplace-launch
+current_phase: 06
+current_phase_name: ViewContent funnel — Shopaholic PDP + offer-switch
 status: executing
 stopped_at: Completed 05-22-PLAN.md (UAT test 7 gap-closure)
-last_updated: "2026-07-03T20:19:15.596Z"
+last_updated: "2026-07-03T20:43:55.449Z"
 progress:
   total_phases: 6
   completed_phases: 5
@@ -27,8 +27,8 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 
 ## Current Position
 
-Phase: 05 (documentation-marketplace-launch) — EXECUTING
-Plan: 2 of 18
+Phase: 06 — ViewContent funnel — Shopaholic PDP + offer-switch
+Plan: Not started
 Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
 Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
 Status: Ready to execute
