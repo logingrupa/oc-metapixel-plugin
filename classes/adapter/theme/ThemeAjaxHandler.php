@@ -300,7 +300,10 @@ final class ThemeAjaxHandler
      * observability-only; payload-side dedup is anchored by event_id within
      * ±10s of event_time. Generic-alias theme actions are contentless — empty
      * {} browser custom_data (do NOT invent content); the builder still adds
-     * eventID + test code.
+     * eventID + test code. Server-captured ip/UA/fbp/fbc are merged into the
+     * built payload's user_data before dispatch — an anonymous subject would
+     * otherwise ship empty user_data, which Meta rejects (subcode 2804050)
+     * into a permanent dead-letter. Adapter-supplied values win.
      *
      * @param  array<string, mixed>  $arData
      */
@@ -319,6 +322,7 @@ final class ThemeAjaxHandler
             $iEventTime,
             $sWireActionKey !== '' ? ['action_key' => $sWireActionKey.':'.$sEventId] : [],
         );
+        $arPayload = $this->obRequestReader->injectServerUserData($arPayload);
         SendCapiEvent::dispatch($sName, $arPayload, $obSubject, $sAdapterClass);
 
         $sScript = FbqScriptBuilder::build($sName, [], $sEventId, $sTestCode);

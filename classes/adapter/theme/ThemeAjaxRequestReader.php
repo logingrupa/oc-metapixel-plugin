@@ -18,10 +18,11 @@ final class ThemeAjaxRequestReader
 {
     /**
      * Server-derived Meta CAPI user_data + site context for the theme-action
-     * path. Mirrors PixelHead::collectRequestUserData — without at least one
-     * customer-info parameter Meta rejects the event (HTTP 400 subcode
-     * 2804050). site_id is baked in-request so queue-side ThemeActionAdapter
-     * getSiteId never falls back to the worker's CLI site context.
+     * and generic hybrid paths. Mirrors PixelHead::collectRequestUserData —
+     * without at least one customer-info parameter Meta rejects the event
+     * (HTTP 400 subcode 2804050). site_id is baked in-request so queue-side
+     * ThemeActionAdapter getSiteId never falls back to the worker's CLI site
+     * context.
      *
      * @return array<string, mixed>
      */
@@ -40,6 +41,48 @@ final class ThemeAjaxRequestReader
             'fbc' => is_string($mFbc) && $mFbc !== '' ? $mFbc : null,
             'site_id' => is_int($mSiteId) && $mSiteId > 0 ? $mSiteId : null,
         ];
+    }
+
+    /**
+     * Merge server-captured passthrough user_data into a built CAPI payload
+     * for the generic hybrid-AJAX dispatch path. An anonymous subject (the
+     * documented guest-order adapter pattern) yields all-null user_data from
+     * the hasher; without the request-context bridge Meta rejects the event
+     * with HTTP 400 subcode 2804050 and it permanently dead-letters. site_id
+     * is excluded — hybrid subjects are adapter-loaded and getSiteId reads
+     * from the subject, never from request context. Adapter-supplied non-null
+     * values win, mirroring CapturesRequestUserData::injectRequestUserData.
+     *
+     * @param  array<string, mixed>  $arPayload  output of PayloadBuilder::buildEventPayload
+     * @return array<string, mixed>
+     */
+    public function injectServerUserData(array $arPayload): array
+    {
+        $arServerData = $this->collectServerUserData();
+        unset($arServerData['site_id']);
+
+        $mData = $arPayload['data'] ?? null;
+        if (! is_array($mData) || ! isset($mData[0]) || ! is_array($mData[0])) {
+            return $arPayload;
+        }
+        $mEnvelope = $mData[0];
+        $mUserData = $mEnvelope['user_data'] ?? null;
+        $arUserData = is_array($mUserData) ? $mUserData : [];
+
+        foreach ($arServerData as $sKey => $mValue) {
+            if ($mValue === null) {
+                continue;
+            }
+            $mExisting = $arUserData[$sKey] ?? null;
+            if ($mExisting === null || $mExisting === '') {
+                $arUserData[$sKey] = $mValue;
+            }
+        }
+        $mEnvelope['user_data'] = $arUserData;
+        $mData[0] = $mEnvelope;
+        $arPayload['data'] = $mData;
+
+        return $arPayload;
     }
 
     /**
