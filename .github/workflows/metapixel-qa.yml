@@ -37,6 +37,11 @@ jobs:
     env:
       OCTOBER_APP_DIR: ${{ github.workspace }}/october-host
       PLUGIN_DIR: ${{ github.workspace }}/october-host/plugins/logingrupa/metapixel
+      # Location-independent gateway credential. Composer reads COMPOSER_AUTH for
+      # every command regardless of where COMPOSER_HOME resolves (the runner uses
+      # the XDG path $HOME/.config/composer, not $HOME/.composer), so this avoids
+      # the wrong-auth-path 403 that made gateway packages look "not found".
+      COMPOSER_AUTH: ${{ secrets.OCTOBER_AUTH_JSON }}
 
     steps:
       - name: Checkout plugin (standalone repo — the plugin IS the repo root)
@@ -52,22 +57,26 @@ jobs:
           coverage: xdebug
           extensions: dom, json, libxml, mbstring, pdo, pdo_sqlite, sqlite3, intl, fileinfo, gd, zip, curl
 
-      - name: Authenticate to gateway.octobercms.com
-        env:
-          OCTOBER_AUTH_JSON: ${{ secrets.OCTOBER_AUTH_JSON }}
+      - name: Configure October gateway (credential + repository)
         run: |
           # october/system and every lovata/* backbone package resolve ONLY through
           # the authenticated October gateway — there is no public Packagist path.
-          # Fail fast with an actionable message if the operator secret is absent.
-          if [ -z "$OCTOBER_AUTH_JSON" ]; then
+          # COMPOSER_AUTH (set at job level from the secret) supplies the credential
+          # for every composer command, location-independent. Fail fast if absent.
+          if [ -z "$COMPOSER_AUTH" ]; then
             echo "::error title=Missing OCTOBER_AUTH_JSON::october/system and lovata/* install only via authenticated gateway.octobercms.com. Add the OCTOBER_AUTH_JSON repository secret under Settings -> Secrets and variables -> Actions, containing your October auth.json contents."
             exit 1
           fi
-          mkdir -p "$HOME/.composer"
-          printf '%s' "$OCTOBER_AUTH_JSON" > "$HOME/.composer/auth.json"
-          chmod 600 "$HOME/.composer/auth.json"
-          # Validate it is well-formed JSON before any composer step consumes it.
-          php -r '$s = file_get_contents(getenv("HOME") . "/.composer/auth.json"); json_decode($s); if (json_last_error() !== JSON_ERROR_NONE) { fwrite(STDERR, "OCTOBER_AUTH_JSON is not valid JSON: " . json_last_error_msg() . PHP_EOL); exit(1); }'
+          # Validate the secret is well-formed JSON before any composer step consumes it.
+          php -r '$s = getenv("COMPOSER_AUTH"); json_decode($s); if (json_last_error() !== JSON_ERROR_NONE) { fwrite(STDERR, "OCTOBER_AUTH_JSON is not valid JSON: " . json_last_error_msg() . PHP_EOL); exit(1); }'
+          # A fresh October project has NO gateway repository entry (php artisan
+          # project:set adds it interactively from the license, unavailable in CI).
+          # The credential alone does not declare WHERE to look, so lovata/* stay
+          # invisible to the resolver. Register the gateway globally so it applies to
+          # both the host-app require AND the plugin-dir dev-toolchain install (the
+          # plugin's own composer.json declares no repositories, like any marketplace
+          # plugin). Mirrors the monorepo composer.json octobercms repository.
+          composer config --global repositories.octobercms composer https://gateway.octobercms.com
 
       - name: Create host OctoberCMS 4.x app
         run: composer create-project october/october "$OCTOBER_APP_DIR" "^4.0" --no-interaction --no-progress --prefer-dist
