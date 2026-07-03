@@ -39,12 +39,20 @@ Add this VCS repository to your project's `composer.json` so Composer can locate
 }
 ```
 
+Register your OctoberCMS gateway before you require anything. On a fresh install `october/system` and the `lovata/*` backbone are only reachable through the authenticated `gateway.octobercms.com` repository, which `project:set` wires in — substitute your own October project license key for `<license>`:
+
+```bash
+php artisan project:set <license>
+```
+
 Then require the package and run the migrations:
 
 ```bash
-composer require logingrupa/oc-metapixel-plugin
+composer require logingrupa/oc-metapixel-plugin -W
 php artisan october:up
 ```
+
+The `-W` (with-all-dependencies) flag is required because a fresh October lockfile pins `composer/installers` at the ~1.0 line that `lovata/toolbox-plugin ^2.2` must move — without `-W` Composer refuses to update that shared constraint and the require fails.
 
 If **Settings → Marketing → Meta Pixel + CAPI** is not visible after install, run `php artisan october:up` to apply the plugin migrations — the settings panel and the failed-events table are created by that step.
 
@@ -76,9 +84,9 @@ On a multi-site install, pick the target site from the backend top-bar site pick
 
 ## Acquire Meta credentials
 
-Follow these steps in Meta Business Manager. No screenshots are provided here on purpose — the Meta UI changes often, and these plain-text steps stay accurate:
+Follow these steps in Meta Events Manager. No screenshots are provided here on purpose — the Meta UI changes often, and these plain-text steps stay accurate:
 
-1. Open **Meta Business Manager → Data sources → Pixel → Settings** and copy the **Pixel ID** (digits only). Paste it into the **Pixel ID** field.
+1. Open **Meta Events Manager → Data sources → Pixel → Settings** and copy the **Pixel ID** (digits only). Paste it into the **Pixel ID** field.
 2. On the same screen choose **Generate Access Token** and copy the token. Paste it into the **CAPI Access Token** field.
 3. Optionally open **Test Events** on the same screen and copy the **Test Event Code**. Paste it into **Test Events Code** to route events to the Meta Test Events live view while you verify the setup, then clear it for production.
 
