@@ -1,5 +1,5 @@
 ---
-status: complete
+status: partial
 phase: 05-documentation-marketplace-launch
 source:
   - 05-00-SUMMARY.md
@@ -9,12 +9,12 @@ source:
   - 05-11-SUMMARY.md
   - 05-VERIFICATION.md
 started: 2026-05-22T12:28:52Z
-updated: 2026-07-03T15:30:00Z
+updated: 2026-07-03T22:30:00Z
 ---
 
 ## Current Test
 
-[testing complete]
+[testing paused — 1 item outstanding: test 7 stopwatch dry-run (human-only, natural to run at LAUNCH SCHEDULED)]
 
 ## Tests
 
@@ -94,9 +94,9 @@ expected: |
   `composer require logingrupa/oc-metapixel-plugin` → Settings configuration →
   first CAPI event verified in Meta Test Events. Completes in under 10 minutes,
   stopwatched. This is the launch acceptance gate.
-result: issue
-reported: "Agent-verified 2026-07-03 (subagent README audit + clean-install cross-check + live-production evidence). README content accurate against codebase (all 8 field labels, screenshots, troubleshoot signatures, API examples verified; ReadmeStructure + CustomAdaptersStructure gates pass). Live production proves pipeline end-to-end: 629 event_log rows incl. dedup twins, 6 dead-letters all auto-replayed, fbq('init','<pixel-id-redacted>') rendering on live pages. Estimated theme-path time ~9-10 min. BUT the dry-run following ONLY the README dead-ends at step 1: test-8 clean install proved plain `composer require logingrupa/oc-metapixel-plugin` (README:45) fails on a fresh October 4 lockfile (Lovata toolbox pins composer/installers ~1.0 vs fresh lock v2.3.0 — needs -W), and Lovata deps are unresolvable until `php artisan project:set <license>` adds the October gateway repo — neither documented. Minor: README:81 says 'Meta Business Manager' vs lang comment/Meta UI 'Events Manager' (D1); no single ordered quick-start to first Test Event (D2). Stopwatch itself remains humanly unverified."
-severity: major
+result: blocked
+blocked_by: other
+reason: "Stopwatch measurement requires a human timed run against a fresh install + live Meta Test Events access — not derivable from static analysis. All previously reported README defects re-verified FIXED 2026-07-03 post-05-19: README:42-55 documents `php artisan project:set <license>` gateway prerequisite AND `composer require logingrupa/oc-metapixel-plugin -W` with one-line -W rationale; README:61-71 ordered 'Quick start — first event in 10 minutes' (7 steps: gateway → require -W → migrate → Settings 4 fields → pixelHead mount → load page → Meta Events Manager Test Events); 'Business Manager' wording gone (Events Manager throughout). CI green on HEAD 4a3b4a0 (run 28675470920) covers ReadmeStructure doc-gate. Natural to execute the stopwatch alongside operator's LAUNCH SCHEDULED pass — it is the Launch Milestone acceptance gate."
 
 ### 8. Clean-install composer require smoke (MKT-01)
 expected: |
@@ -125,19 +125,29 @@ expected: |
   tag commit. As of 2026-07-03 only `v2.0.0-rc.1` exists — ROADMAP claims the
   Launch Milestone "completed 2026-07-03" but no launch SUMMARY.md corroborates
   it and the tag state contradicts it. Resolve the discrepancy.
-result: issue
-reported: "Agent-verified 2026-07-03. No v2.0.0 tag locally (only v1.1.1, v2.0.0-rc.1) or on remote (git ls-remote --tags empty; gh api tags []). CI: only 3 workflow runs ever (metapixel-qa.yml), ALL failures, last 2026-05-21; 146 local commits unpushed since remote master 41bdf3c. Launch Milestone never executed: launch-01-SECURITY-SWEEP.md says 'PARTIAL — Step B deferred, launch_scheduled: false'; no LAUNCH-LOG, no launch SUMMARY.md. ROADMAP.md:393-394 '[x] completed 2026-07-03' marks are erroneous bookkeeping — contradicted by ROADMAP.md:408 own progress row ('0/2 Deferred — awaits operator decision'). Oddity: repo is ALREADY public (gh repo view isPrivate=false) though pre-flip security sweep Step B never ran. Tag creation itself awaits operator LAUNCH SCHEDULED signal by design; the defects are the erroneous ROADMAP marks, red+stale CI, 146 unpushed commits, and public repo without completed security sweep."
-severity: major
+result: pass
+verified_by: |
+  Re-verified 2026-07-03 22:25Z after gap-closure plans 05-19..05-21 + commit 14e1ef6.
+  All four reported defects fixed: (1) ROADMAP.md:403 launch-02 reverted to `[ ]` with
+  explicit 'operator-gated, do NOT auto-stamp complete' note; launch-01 `[x]` truthful
+  (SECURITY-SWEEP.md status COMPLETE, step_b_executed 2026-07-03, redaction re-verified).
+  (2) CI green on master HEAD 4a3b4a0 — runs 28674577778 + 28674865872 + 28675470920 all
+  success (metapixel-qa matrix). (3) Zero unpushed commits (origin/master == master).
+  (4) Public-repo-without-sweep inversion resolved via REDACT-FIRST (plan 05-21 executed
+  Step B). v2.0.0 tag still absent locally + remote — BY DESIGN: tag creation is
+  launch-02-PLAN.md deliverable gated on operator LAUNCH SCHEDULED signal (same deferral
+  precedent as test 8 / MKT-01). Discrepancy the test demanded resolved: bookkeeping now
+  matches tag state.
 
 ## Summary
 
 total: 9
-passed: 7
-issues: 2
+passed: 8
+issues: 0
 pending: 0
 skipped: 0
-blocked: 0
-note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = stale OPcache. Fixed via FPM reload. Re-verified pass after user successfully saved plugin Settings."
+blocked: 1
+note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = stale OPcache. Fixed via FPM reload. Re-verified pass after user successfully saved plugin Settings. Tests 7+9 re-verified 2026-07-03 post gap-closure 05-19..05-21: test 9 flipped to pass (all defects fixed, tag operator-gated by design); test 7 flipped to blocked (README fixes verified, stopwatch dry-run is the sole human-only remainder)."
 
 ## Gaps
 
