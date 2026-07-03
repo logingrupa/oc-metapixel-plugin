@@ -49,12 +49,12 @@ Then require the package and run the migrations:
 
 ```bash
 composer require logingrupa/oc-metapixel-plugin -W
-php artisan october:up
+php artisan october:migrate
 ```
 
 The `-W` (with-all-dependencies) flag is required because a fresh October lockfile pins `composer/installers` at the ~1.0 line that `lovata/toolbox-plugin ^2.2` must move — without `-W` Composer refuses to update that shared constraint and the require fails.
 
-If **Settings → Marketing → Meta Pixel + CAPI** is not visible after install, run `php artisan october:up` to apply the plugin migrations — the settings panel and the failed-events table are created by that step.
+If **Settings → Marketing → Meta Pixel + CAPI** is not visible after install, run `php artisan october:migrate` to apply the plugin migrations — the settings panel and the failed-events table are created by that step.
 
 Install the exact package name `logingrupa/oc-metapixel-plugin` from the VCS URL `https://github.com/logingrupa/oc-metapixel-plugin`. Do not install a similarly named package.
 
@@ -65,7 +65,7 @@ The shortest path from a fresh OctoberCMS 4.x app to a verified hit in the Meta 
 1. Add the VCS `repositories` entry above to your project's `composer.json`.
 2. Register the October gateway: `php artisan project:set <license>` (your own project license key).
 3. Require the plugin: `composer require logingrupa/oc-metapixel-plugin -W`.
-4. Run the migrations: `php artisan october:up`.
+4. Run the migrations: `php artisan october:migrate`.
 5. Enter the four required fields under **Settings → Marketing → Meta Pixel + CAPI**: **Pixel ID**, **CAPI Access Token**, **Test Events Code**, and **Default currency code**. **Save**.
 6. Mount the head Pixel by adding the `pixelHead` component to your layout: `{% component 'pixelHead' %}`.
 7. Load any front-end page and confirm the event appears in **Meta Events Manager → Test Events**.
@@ -176,7 +176,7 @@ Grep the OctoberCMS runtime log at `storage/logs/system.log` for these signature
 | Order is paid but no Purchase event ships | `metapixel: OrderStatusWatcher payload-build failed` | The order has no currency — set a **Default currency code**, and confirm the order status matches the **Paid status code**. |
 | An event is silently dropped, nothing in the event log | `metapixel: EventLogWriter — no adapter registered for subject` | Enable `Lovata.OrdersShopaholic` for the Shopaholic path, or register a custom adapter for that subject. |
 | Failed-events rows accumulate and nothing reaches Meta | `metapixel: adapter rehydrate failed — dead-lettered` | A worker restarted with a stale queue — open **Failed events** and **Replay** the affected rows. |
-| Event log writes fail | `metapixel: EventLogWriter::record DB write FAILED` | Run `php artisan october:up` to ensure the event-log table exists, then check the database connection. |
+| Event log writes fail | `metapixel: EventLogWriter::record DB write FAILED` | Run `php artisan october:migrate` to ensure the event-log table exists, then check the database connection. |
 | ViewContent does not fire on a product page | `metapixel: ProductPageWatcher emission failed` | Confirm the product resolves an offer and a currency; check the surrounding log context for the failing field. |
 | A theme `pushEvent` call is rejected | `metapixel: ThemeAjaxHandler failed` | Add the event name to **Custom theme event names** (one per line) if it is not a standard Meta event. |
 | `_fbp` / `_fbc` cookies stop refreshing | `PSL snapshot is <N> days old — run php artisan metapixel:refresh-psl` | Run `php artisan metapixel:refresh-psl` to refresh the bundled Public Suffix List. |

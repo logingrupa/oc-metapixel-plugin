@@ -79,13 +79,13 @@ final class ReadmeStructureTest extends MetapixelTestCase
         );
     }
 
-    public function test_readme_install_block_shows_october_up(): void
+    public function test_readme_install_block_shows_october_migrate(): void
     {
         $sReadme = $this->loadReadme();
         $this->assertStringContainsString(
-            'php artisan october:up',
+            'php artisan october:migrate',
             $sReadme,
-            'README install block must show `php artisan october:up` (Pitfall 5 mitigation — migrations otherwise unran).',
+            'README install block must show `php artisan october:migrate` — October 4.3 deprecated the old migrate-on-install command to a no-op; only october:migrate applies plugin migrations.',
         );
     }
 
