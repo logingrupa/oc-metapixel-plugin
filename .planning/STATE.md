@@ -230,3 +230,20 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 - [Phase ?]: 05-21: composer deps gate dropped from CI — shipmonk analyser structurally inoperable for October plugins; onboarding deferred
 - [Phase ?]: 05-21: security-sweep Step B executed pre-push (REDACT-FIRST); plain push justified — no live token in unpushed range, no new exposure class
 - [Phase 05]: 05-22: UAT test 7 gap-closure — README october:up→october:migrate (October 4.3 deprecation), [pixelHead] INI declaration documented as mandatory alongside the Twig mount (tag alone is a silent no-op), :dev-master -W pre-release install fallback for the tagless remote (primary -W retained, doc-gate asserts it); launch-02 Step F.2/F.3 schedule the post-tag verbatim re-verify + note removal
+
+## Deferred Items
+
+Items acknowledged and deferred at milestone close on 2026-07-04:
+
+| Category | Item | Status |
+|----------|------|--------|
+| quick_task | 260518-999-fix-jsonable-on-failedevent-payload-docu | unknown — review post-close |
+| quick_task | 260616-wcp-pixelhead-testcode-pageview-noise | unknown — review post-close |
+| quick_task | 260619-osv-offer-switch-viewcontent | unknown — likely closed by Phase 6 (offer-switch shipped); review post-close |
+| todo | 2026-05-27-enable-optional-queue-for-capi-server-events | deferred post-v2.0.0 (pre-existing decision) |
+| uat | 05-03-UAT-GATE-1.md | status unknown, 0 pending scenarios — gates 2+3 pass |
+| context_questions | 02-CONTEXT.md OQ-1..3 | historic — answered by Phase 2 execution (VERIFICATION passed) |
+| tech_debt | FailedEvents Replay uses primary-site creds (FAIL-01/02, MULT-04 multisite edge) | documented v2.0 limitation, controllers/FailedEvents.php:28-35 |
+| tech_debt | onReplay per-row UI trigger missing (batch-of-one works) | cosmetic |
+
+Resolved at close: 01-VERIFICATION.md gaps_found → passed (re-verification addendum 2026-07-04); REQUIREMENTS.md SHOP/THEM stale rows flipped Complete.

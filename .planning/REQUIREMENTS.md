@@ -46,20 +46,20 @@
 
 Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_ids = `SKU-{product_id}[-{offer_id}]`, paid_status_code dropdown) but writes FRESH code following current October 4 + Laravel 12 + Lovata.Toolbox idioms. NOT a v1.x port.
 
-- [ ] **SHOP-01**: `Classes\Adapter\Shopaholic\ShopaholicOrderAdapter` implements `EventSubjectAdapter`. `getSubjectType()` returns `'shopaholic.order'` (opaque alias, NOT class FQN). `getSiteId()` reads `$obOrder->getAttribute('site_id')` (Lovata column written by `OrderProcessor`).
-- [ ] **SHOP-02**: `Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver` implements `ValueResolver`. `resolveContentIds()` returns Facebook Catalog feed format `SKU-{product_id}[-{offer_id}]`. Currency resolves in order: Order.currency relation → Order.currency_code field → adapter Settings default → throw `OrderHasNoCurrencyException`.
-- [ ] **SHOP-03**: `Classes\Event\Adapter\Shopaholic\OrderStatusWatcher` subscribes `eloquent.updated` + `eloquent.created` on Order. On `paid_status_code` Settings match + EventLog row absent, dispatches `SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class)`. One responsibility per method, ≤70 LOC.
-- [ ] **SHOP-04**: `Plugin::boot()` conditionally registers ShopaholicOrderAdapter + subscribes OrderStatusWatcher only when `PluginManager::instance()->exists('Lovata.OrdersShopaholic')` is true. Composer-dependency-analyser enforces no `Lovata\OrdersShopaholic\*` imports outside `Classes\Adapter\Shopaholic\` directory.
-- [ ] **SHOP-05**: Pest integration test exercises end-to-end Purchase flow on a generic Order fixture (`example.test` host, hermetic SQLite): status flip to `new-payment-received` → dispatch → `EventLogWriter::record` race-fence (channel=capi) → MetaClient mocked via Guzzle MockHandler → assert payload shape, event_id round-trip, dedup contract. Second admin-flip flow asserts EventLog row prevents re-fire.
+- [x] **SHOP-01**: `Classes\Adapter\Shopaholic\ShopaholicOrderAdapter` implements `EventSubjectAdapter`. `getSubjectType()` returns `'shopaholic.order'` (opaque alias, NOT class FQN). `getSiteId()` reads `$obOrder->getAttribute('site_id')` (Lovata column written by `OrderProcessor`).
+- [x] **SHOP-02**: `Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver` implements `ValueResolver`. `resolveContentIds()` returns Facebook Catalog feed format `SKU-{product_id}[-{offer_id}]`. Currency resolves in order: Order.currency relation → Order.currency_code field → adapter Settings default → throw `OrderHasNoCurrencyException`.
+- [x] **SHOP-03**: `Classes\Event\Adapter\Shopaholic\OrderStatusWatcher` subscribes `eloquent.updated` + `eloquent.created` on Order. On `paid_status_code` Settings match + EventLog row absent, dispatches `SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class)`. One responsibility per method, ≤70 LOC.
+- [x] **SHOP-04**: `Plugin::boot()` conditionally registers ShopaholicOrderAdapter + subscribes OrderStatusWatcher only when `PluginManager::instance()->exists('Lovata.OrdersShopaholic')` is true. Composer-dependency-analyser enforces no `Lovata\OrdersShopaholic\*` imports outside `Classes\Adapter\Shopaholic\` directory.
+- [x] **SHOP-05**: Pest integration test exercises end-to-end Purchase flow on a generic Order fixture (`example.test` host, hermetic SQLite): status flip to `new-payment-received` → dispatch → `EventLogWriter::record` race-fence (channel=capi) → MetaClient mocked via Guzzle MockHandler → assert payload shape, event_id round-trip, dedup contract. Second admin-flip flow asserts EventLog row prevents re-fire.
 
 ### ThemeActionAdapter
 
-- [ ] **THEM-01**: `Classes\Adapter\Theme\ThemeActionEvent` value object: `sActionKey` (e.g. `'product-view:42'`), `iSyntheticId` (hash of action_key for event_log subject_id), `sEventName`, `arPayload`.
-- [ ] **THEM-02**: `Classes\Adapter\Theme\ThemeActionAdapter` implements `EventSubjectAdapter`. `getSiteId()` reads from `ThemeActionEvent->arPayload['site_id']` (operator-supplied) OR falls back to `Site::getCurrent()?->getId()` (only place where request-context site fallback allowed — documented in PHPDoc).
-- [ ] **THEM-03**: `Classes\Adapter\Theme\ThemeEventCollector` request-scoped singleton. Accumulates events pushed via Twig API. Reset between requests; test teardown calls explicit `flush()`.
-- [ ] **THEM-04**: `Plugin::registerMarkupTags()` registers `this.metapixel.pushEvent(arEvent)` Twig helper. Theme layouts call `{% do this.metapixel.pushEvent({name: 'ViewContent', action_key: 'product-view:' ~ product.id, content_ids: [...], value: 12.50, currency: 'EUR'}) %}` before PixelHead renders.
+- [x] **THEM-01**: `Classes\Adapter\Theme\ThemeActionEvent` value object: `sActionKey` (e.g. `'product-view:42'`), `iSyntheticId` (hash of action_key for event_log subject_id), `sEventName`, `arPayload`.
+- [x] **THEM-02**: `Classes\Adapter\Theme\ThemeActionAdapter` implements `EventSubjectAdapter`. `getSiteId()` reads from `ThemeActionEvent->arPayload['site_id']` (operator-supplied) OR falls back to `Site::getCurrent()?->getId()` (only place where request-context site fallback allowed — documented in PHPDoc).
+- [x] **THEM-03**: `Classes\Adapter\Theme\ThemeEventCollector` request-scoped singleton. Accumulates events pushed via Twig API. Reset between requests; test teardown calls explicit `flush()`.
+- [x] **THEM-04**: `Plugin::registerMarkupTags()` registers `this.metapixel.pushEvent(arEvent)` Twig helper. Theme layouts call `{% do this.metapixel.pushEvent({name: 'ViewContent', action_key: 'product-view:' ~ product.id, content_ids: [...], value: 12.50, currency: 'EUR'}) %}` before PixelHead renders.
 - [x] **THEM-05**: `Classes\Adapter\Theme\ThemeAjaxHandler` listens on `cms.ajax.beforeRunHandler` for `Metapixel::onFireEvent`. Validates against `EVENT_NAME_ALLOWLIST` (Meta-standard event names), enforces CSRF token, rate-limits per IP+session, JS-escapes returned payload. Dispatches `SendCapiEvent` + emits `<script>fbq(...)</script>` response fragment.
-- [ ] **THEM-06**: `Components\EventPixel` — browser-side fbq() renderer for any server-confirmed subject. Operator places on thank-you/confirmation pages. Properties: `subject_class` (e.g. `Lovata\OrdersShopaholic\Models\Order`) + `subject_slug_field` (e.g. `secret_key`). On run: queries EventLog for matching CAPI row; if present + Pixel row absent, emits inline `fbq('track', name, data, {eventID})` with the server-supplied event_id. `onMarkFired` AJAX writes `channel='pixel'` row to EventLog with event_id validation.
+- [x] **THEM-06**: `Components\EventPixel` — browser-side fbq() renderer for any server-confirmed subject. Operator places on thank-you/confirmation pages. Properties: `subject_class` (e.g. `Lovata\OrdersShopaholic\Models\Order`) + `subject_slug_field` (e.g. `secret_key`). On run: queries EventLog for matching CAPI row; if present + Pixel row absent, emits inline `fbq('track', name, data, {eventID})` with the server-supplied event_id. `onMarkFired` AJAX writes `channel='pixel'` row to EventLog with event_id validation.
 - [x] **THEM-07**: `Components\PixelHead` extended with Twig API surface — reads `ThemeEventCollector` accumulator, emits `fbq('track', ...)` script blocks per pushed event. Optional `also_dispatch_capi: true` triggers CAPI mirror.
 
 ### Multisite + Settings rework
@@ -218,17 +218,17 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | ADAP-09 | Phase 2 | Complete |
 | ADAP-10 | Phase 2 | Complete |
 | ADAP-11 | Phase 2 | Complete |
-| SHOP-01 | Phase 3 | Pending |
-| SHOP-02 | Phase 3 | Pending |
-| SHOP-03 | Phase 3 | Pending |
-| SHOP-04 | Phase 3 | Pending |
-| SHOP-05 | Phase 3 | Pending |
-| THEM-01 | Phase 3 | Pending |
-| THEM-02 | Phase 3 | Pending |
-| THEM-03 | Phase 3 | Pending |
-| THEM-04 | Phase 3 | Pending |
+| SHOP-01 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
+| SHOP-02 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
+| SHOP-03 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
+| SHOP-04 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
+| SHOP-05 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
+| THEM-01 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
+| THEM-02 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
+| THEM-03 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
+| THEM-04 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
 | THEM-05 | Phase 3 | Complete |
-| THEM-06 | Phase 3 | Pending |
+| THEM-06 | Phase 3 | Complete (Phase 3 VERIFICATION passed 12/12; flipped at v2.0.0 audit 2026-07-04) |
 | THEM-07 | Phase 3 | Complete |
 | MULT-01 | Phase 4 | Complete |
 | MULT-02 | Phase 4 | Complete |

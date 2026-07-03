@@ -1,7 +1,7 @@
 ---
 phase: 01-tooling-composer-namespace-rename-ci-matrix
 verified: 2026-05-16T07:25:00Z
-status: gaps_found
+status: passed
 score: 7/12 must-haves verified (4 SCs + 7 of 11 TOOL-* fully satisfied; 4 partial/failed)
 overrides_applied: 0
 gaps:
@@ -289,3 +289,18 @@ After closure, expected verifier result: `passed`, 5/5 SCs verified, 11/11 TOOL-
 
 *Verified: 2026-05-16T07:25:00Z*
 *Verifier: Claude (gsd-verifier, opus-4.7-1m)*
+
+---
+
+## Re-verification addendum — 2026-07-04
+
+Status flipped gaps_found → passed. All 6 gaps from the 2026-05-16 verification closed by later phases; re-verified by direct code probes during v2.0.0 milestone audit (see `.planning/v2.0.0-MILESTONE-AUDIT.md` "Phase 1 stale-verification closure evidence"):
+
+1. lovata require-dev — composer.json require-dev now has lovata/shopaholic-plugin + lovata/ordersshopaholic-plugin + lovata/buddies-plugin
+2. Run A/B distinction — Run B excludes adapter tests via `pest --exclude-group=adapter` (.github/workflows/metapixel-qa.yml:236,251)
+3. Adapter testsuite exclusion — superseded by `#[Group('adapter')]` class attributes (locked in plugin CLAUDE.md Tooling section)
+4. `#[\Deprecated]` ban — phpstan.neon uses `disallowedAttributes` (correct shipmonk rule type)
+5. dep-analyser boundary — path-scoped `ignoreErrorsOnPackageAndPath` for lovata packages (composer-dependency-analyser.php:35-45); global ignore is UNUSED_DEPENDENCY only
+6. TOOL-01/02/03 traceability rows — flipped Complete in REQUIREMENTS.md
+
+*Re-verified: 2026-07-04 (milestone audit, integration-checker + orchestrator code probes)*

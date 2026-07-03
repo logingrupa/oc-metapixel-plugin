@@ -2,7 +2,7 @@
 phase: 02-adapter-system-core-contracts-registry-extension-hooks
 verified: 2026-05-17T00:00:00Z
 reverified: 2026-05-27T00:00:00Z
-status: verified
+status: passed
 score: 5/5 must-haves verified
 overrides_applied: 0
 adap_coverage:
