@@ -172,4 +172,38 @@ final class ReadmeStructureTest extends MetapixelTestCase
             'Quick start must reach the Meta Test Events verification (DOCS-01).',
         );
     }
+
+    /**
+     * DOCS-01 Theme-walkthrough fidelity — the README must show the
+     * `[pixelHead]` INI declaration, not just the bare Twig tag. A
+     * `{% component 'pixelHead' %}` with no matching INI section silently
+     * renders an empty string (HTTP 200, no `fbq()`), so the declaration
+     * is load-bearing install guidance and must not regress.
+     */
+    public function test_readme_theme_walkthrough_shows_pixelhead_ini_declaration(): void
+    {
+        $sReadme = $this->loadReadme();
+        $this->assertStringContainsString(
+            '[pixelHead]',
+            $sReadme,
+            'README Theme walkthrough must show the `[pixelHead]` INI declaration — the bare Twig tag alone silently no-ops (DOCS-01).',
+        );
+    }
+
+    /**
+     * DOCS-01 install fidelity — the README must document the `:dev-master`
+     * pre-release fallback for a fresh October root, where the default
+     * `minimum-stability=stable` filter blocks the plugin until a stable
+     * `v2.0.0` tag is pushed. Guards against silent removal of the escape
+     * hatch.
+     */
+    public function test_readme_documents_dev_master_prerelease_fallback(): void
+    {
+        $sReadme = $this->loadReadme();
+        $this->assertStringContainsString(
+            ':dev-master',
+            $sReadme,
+            'README must document the `:dev-master` pre-release install fallback for a fresh October root (minimum-stability=stable, no v2.0.0 stable tag yet) — DOCS-01.',
+        );
+    }
 }
