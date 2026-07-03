@@ -247,6 +247,124 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         $this->assertSame([42, ['offer_id' => 100]], $obFakeAdapter->arLoadArgs);
     }
 
+    public function test_generic_hybrid_adapter_alias_dispatches_capi_and_returns_empty_custom_data_script(): void
+    {
+        Bus::fake();
+        $obFakeSubject = new \stdClass;
+        $obFakeAdapter = new class($obFakeSubject) implements SupportsHybridAjax
+        {
+            public function __construct(private object $obFakeSubject) {}
+
+            public function getSubjectType(object $obSubject): string
+            {
+                return 'mall.product';
+            }
+
+            public function getSubjectId(object $obSubject): int
+            {
+                return 7;
+            }
+
+            public function getSiteId(object $obSubject): ?int
+            {
+                return 1;
+            }
+
+            public function getSecretKey(object $obSubject): ?string
+            {
+                return null;
+            }
+
+            public function getValueResolver(object $obSubject): ValueResolver
+            {
+                return new class implements ValueResolver
+                {
+                    /** @return list<string> */
+                    public function resolveContentIds(object $obSubject): array
+                    {
+                        return [];
+                    }
+
+                    public function resolveValue(object $obSubject): float
+                    {
+                        return 0.0;
+                    }
+
+                    public function resolveCurrency(object $obSubject): string
+                    {
+                        return 'EUR';
+                    }
+
+                    /** @return list<array{id: string, quantity: int, item_price: float}> */
+                    public function resolveContents(object $obSubject): array
+                    {
+                        return [];
+                    }
+
+                    public function resolveNumItems(object $obSubject): int
+                    {
+                        return 0;
+                    }
+                };
+            }
+
+            /** @return array<string, ?string> */
+            public function getUserData(object $obSubject): array
+            {
+                return [];
+            }
+
+            /** @return array<string, list<string>> */
+            public function getSupportedEvents(): array
+            {
+                return ['ViewContent' => ['capi', 'pixel']];
+            }
+
+            /**
+             * @param  array<string, mixed>  $arContext
+             */
+            public function loadSubject(int $iSubjectId, array $arContext): ?object
+            {
+                return $this->obFakeSubject;
+            }
+        };
+
+        $sAdapterClass = get_class($obFakeAdapter);
+        $this->app->instance($sAdapterClass, $obFakeAdapter);
+        App::make(AdapterRegistry::class)->register($sAdapterClass, $sAdapterClass);
+
+        Settings::set([
+            'pixel_id' => 'PIXEL-1',
+            'capi_access_token' => 'TOKEN-1',
+            'test_event_code' => 'TEST123',
+        ]);
+        Settings::clearInternalCache();
+
+        Request::shouldReceive('input')->with('data', [])->andReturn([
+            'name' => 'ViewContent',
+            'subject_type' => 'mall.product',
+            'subject_id' => 7,
+            'action_key' => 'viewcontent:7',
+        ]);
+
+        $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
+            Mockery::mock(Controller::class),
+            'Metapixel::onFireEvent',
+        );
+
+        $this->assertInstanceOf(JsonResponse::class, $mResponse);
+        $this->assertSame(200, $mResponse->getStatusCode());
+        $arBody = json_decode((string) $mResponse->getContent(), true);
+        $this->assertIsArray($arBody);
+        $sScript = (string) ($arBody['script'] ?? '');
+        $sEventId = (string) ($arBody['event_id'] ?? '');
+        $this->assertNotSame('', $sEventId);
+        // Generic-alias theme actions are contentless — empty {} custom_data.
+        $this->assertStringContainsString('fbq("track", "ViewContent", {}', $sScript);
+        $this->assertStringContainsString('eventID: "'.$sEventId.'"', $sScript);
+        $this->assertStringContainsString('test_event_code: "TEST123"', $sScript);
+    }
+
     public function test_generic_theme_branch_carries_test_event_code_and_event_i_d_with_empty_custom_data(): void
     {
         Settings::set([

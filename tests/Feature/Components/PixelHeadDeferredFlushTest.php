@@ -51,7 +51,7 @@ final class PixelHeadDeferredFlushTest extends MetapixelTestCase
         parent::tearDown();
     }
 
-    public function test_emit_collected_events_flushes_on_cms_page_beforeRenderPage_not_onRun(): void
+    public function test_emit_collected_events_flushes_on_cms_page_before_render_page_not_on_run(): void
     {
         Bus::fake();
         App::make(ThemeEventCollector::class)->push([
@@ -75,7 +75,7 @@ final class PixelHeadDeferredFlushTest extends MetapixelTestCase
         $this->assertNotNull($arPage['pixelHeadBase'], 'onRun still emits base PageView');
     }
 
-    public function test_collector_push_between_onRun_and_beforeRenderPage_is_flushed(): void
+    public function test_collector_push_between_on_run_and_before_render_page_is_flushed(): void
     {
         Bus::fake();
 
@@ -204,6 +204,52 @@ final class PixelHeadDeferredFlushTest extends MetapixelTestCase
         // no-event_id branch unchanged: 3-arg call, no 4th-arg object, no test_event_code.
         $this->assertStringNotContainsString('test_event_code', $arBlocks[1]);
         $this->assertStringNotContainsString('eventID', $arBlocks[1]);
+    }
+
+    public function test_event_flagged_also_dispatch_capi_mirrors_to_queue_and_still_emits_block(): void
+    {
+        Bus::fake();
+
+        App::make(ThemeEventCollector::class)->push([
+            'name' => 'Lead',
+            'action_key' => 'lead:contact-form',
+            'also_dispatch_capi' => true,
+            'site_id' => 1,
+        ]);
+
+        PixelHead::flushDeferredFromController(Mockery::mock(CmsController::class));
+
+        $arBlocks = App::make(PixelHeadDeferredFlushBuffer::class)->getBlocks();
+        $this->assertCount(1, $arBlocks, 'flagged event still renders its browser fbq block');
+        $this->assertStringContainsString('fbq("track", "Lead"', $arBlocks[0]);
+
+        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob): bool {
+            return $obJob->obSubject instanceof ThemeActionEvent
+                && $obJob->obSubject->sActionKey === 'lead:contact-form';
+        });
+    }
+
+    public function test_event_without_usable_name_is_skipped_and_emits_no_block(): void
+    {
+        Bus::fake();
+
+        $obCollector = App::make(ThemeEventCollector::class);
+        $obCollector->push([
+            'event_id' => 'eid-nameless',
+            'site_id' => 1,
+        ]);
+        $obCollector->push([
+            'name' => 'ViewContent',
+            'event_id' => 'eid-valid',
+            'site_id' => 1,
+            'content_ids' => ['SKU-1'],
+        ]);
+
+        PixelHead::flushDeferredFromController(Mockery::mock(CmsController::class));
+
+        $arBlocks = App::make(PixelHeadDeferredFlushBuffer::class)->getBlocks();
+        $this->assertCount(1, $arBlocks, 'nameless event skipped; only the valid event renders');
+        $this->assertStringContainsString('eventID: "eid-valid"', $arBlocks[0]);
     }
 
     /**
