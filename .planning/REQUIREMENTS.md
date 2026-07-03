@@ -100,8 +100,8 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 
 ### Documentation
 
-- [ ] **DOCS-01**: `README.md` install guide walks buyer from `composer require logingrupa/oc-metapixel-plugin` → Settings configuration → first CAPI event verified in Meta Test Events in under 10 minutes. Timed dry-run as launch acceptance gate.
-- [ ] **DOCS-02**: `README.md` includes: Settings field walkthrough, Shopaholic + Theme adapter setup, Pixel + CAPI token acquisition with Meta UI screenshots, `.env` variable reference, troubleshooting runbook keyed to `Log::*` context arrays, multi-site routing setup.
+- [x] **DOCS-01**: `README.md` install guide walks buyer from `composer require logingrupa/oc-metapixel-plugin` → Settings configuration → first CAPI event verified in Meta Test Events in under 10 minutes. Timed dry-run as launch acceptance gate.
+- [x] **DOCS-02**: `README.md` includes: Settings field walkthrough, Shopaholic + Theme adapter setup, Pixel + CAPI token acquisition with Meta UI screenshots, `.env` variable reference, troubleshooting runbook keyed to `Log::*` context arrays, multi-site routing setup.
 - [ ] **DOCS-03**: `docs/CUSTOM-ADAPTERS.md` — custom-adapter authoring guide with working `AcmeCartAdapter` + `AcmeCartValueResolver` example (~50 LOC). Documents AdapterRegistry::register pattern, $require dependency declaration, the 3 Event::fire hooks.
 
 ### Marketplace launch
@@ -249,8 +249,8 @@ Reuses v1.x DECISIONS (event_id contract, EventLog UNIQUE race-fence, content_id
 | FAIL-02 | Phase 4 | Complete |
 | FAIL-03 | Phase 4 | Complete |
 | LANG-01 | Phase 4 | Complete |
-| DOCS-01 | Phase 5 | Pending |
-| DOCS-02 | Phase 5 | Pending |
+| DOCS-01 | Phase 5 | Complete |
+| DOCS-02 | Phase 5 | Complete |
 | DOCS-03 | Phase 5 | Pending |
 | MKT-01 | Phase 5 | Pending |
 | MKT-02 | Phase 5 | Pending |

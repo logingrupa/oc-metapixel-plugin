@@ -6,13 +6,13 @@ current_phase: 05
 current_phase_name: documentation-marketplace-launch
 status: executing
 stopped_at: Milestone complete (Phase 06 was final phase)
-last_updated: "2026-07-03T09:11:47.379Z"
+last_updated: "2026-07-03T10:15:57.831Z"
 progress:
   total_phases: 6
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 49
-  completed_plans: 46
-  percent: 67
+  completed_plans: 47
+  percent: 83
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 05 (documentation-marketplace-launch) — EXECUTING
-Plan: 1 of 13
+Plan: 2 of 13
 Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
 Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
-Status: Executing Phase 05
+Status: Ready to execute
 
 **UAT closure 2026-05-27:**
 
@@ -174,7 +174,7 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-07-02T13:51:29.652Z
+Last session: 2026-07-03T10:15:50.441Z
 
 Stopped at: Phase 5 context gathered
 
@@ -208,9 +208,11 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 | Phase 03 P10 | 5min | 4 tasks | 3 files |
 | Phase 05 P15 | 16min | 3 tasks | 5 files |
 | Phase 05 P17 | ~14min | 2 tasks (TDD, 4 commits) | 4 files |
+| Phase 05 P05-09 | 15min | 2 tasks | 1 files |
 
 ## Decisions
 
 - [Phase 05]: 05-15: browser AddToCart reuses server CAPI event_id via CartPositionWatcher::resolveBrowserPixel + Metapixel::onMarkAddToCart pixel-only branch (D-07 true event_id dedup, not fbp fallback)
 - [Phase 05]: 05-17: ViewContent server CAPI now fires per-view (not once-per-product-ever). ProductPageWatcher::handle + dispatchForOfferSwitch dispatch SendCapiEvent with a per-view ThemeActionEvent subject (action_key viewcontent:{pid}[:{oid}]:{eid}) + ThemeActionAdapter routing — mirrors the proven PixelHead PageView idiom so the EventLog UNIQUE race-fence keys on the per-view crc32(action_key) instead of the product id. Site_id baked from the product subject at dispatch time (P-01 request-independent). Prebuilt ShopaholicProductAdapter payload + browser/server event_id pairing untouched.
 - [Phase 05]: 05-17: PayloadBuilder strips value:0.0 / num_items:0 / empty contents (+ currency, meaningless without value) when the subject resolves NO content_ids — PageView CAPI no longer carries junk value:0/num_items:0 flagged in Meta Test Events. Gated on empty content_ids so value-bearing events (AddToCart/Purchase/ViewContent) stay byte-identical, including the hermetic Purchase fixture whose Lovata accessor returns 0.0.
+- [Phase ?]: 05-09: README.md marketplace surface at plugin root — VCS block before composer require (W-13), 8 field labels verbatim, twin Shopaholic+Theme walkthroughs from smoke log, 8-row Troubleshoot table on real Log signatures, 5 screenshot links; ReadmeStructureTest contract validated manually (pest vendor absent).
