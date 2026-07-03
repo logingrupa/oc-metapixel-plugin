@@ -77,9 +77,26 @@ jobs:
           # plugin's own composer.json declares no repositories, like any marketplace
           # plugin). Mirrors the monorepo composer.json octobercms repository.
           composer config --global repositories.octobercms composer https://gateway.octobercms.com
+          # Composer 2.2+ blocks installer plugins unless allow-listed, and errors
+          # (instead of prompting) in non-interactive CI. Allow the same set the
+          # monorepo composer.json permits, globally — this governs the plugin-dir
+          # install, whose composer.json declares no allow-plugins of its own.
+          for P in composer/installers php-http/discovery pestphp/pest-plugin cweagans/composer-patches; do
+            composer config --global "allow-plugins.$P" true
+          done
 
       - name: Create host OctoberCMS 4.x app
         run: composer create-project october/october "$OCTOBER_APP_DIR" "^4.0" --no-interaction --no-progress --prefer-dist
+
+      - name: Allow required composer plugins in the host app
+        working-directory: ${{ env.OCTOBER_APP_DIR }}
+        run: |
+          # The host app's own composer.json config.allow-plugins takes precedence
+          # over the global default, so allow-list the required plugins here too for
+          # the lovata/* require step below (idempotent if the skeleton already has them).
+          for P in composer/installers php-http/discovery pestphp/pest-plugin cweagans/composer-patches; do
+            composer config "allow-plugins.$P" true
+          done
 
       - name: Mount the checked-out plugin into the host app
         run: |
@@ -112,12 +129,21 @@ jobs:
       - name: Install plugin dev toolchain (full-lovata cell)
         if: matrix.install == 'full-lovata'
         working-directory: ${{ env.PLUGIN_DIR }}
-        run: composer install --no-interaction --no-progress --prefer-dist
+        run: |
+          # The mounted plugin composer.json declares no allow-plugins; set it here
+          # so the standalone install permits October's installer plugins deterministically.
+          for P in composer/installers php-http/discovery pestphp/pest-plugin cweagans/composer-patches; do
+            composer config "allow-plugins.$P" true
+          done
+          composer install --no-interaction --no-progress --prefer-dist
 
       - name: Install plugin dev toolchain (minimal cell — strip cart plugins from require-dev)
         if: matrix.install == 'minimal'
         working-directory: ${{ env.PLUGIN_DIR }}
         run: |
+          for P in composer/installers php-http/discovery pestphp/pest-plugin cweagans/composer-patches; do
+            composer config "allow-plugins.$P" true
+          done
           # Strip the Lovata cart packages from the plugin's require-dev so the
           # adapter-coupled dependencies are absent, mirroring the minimal operator.
           composer remove --dev --no-update --no-interaction \
