@@ -64,6 +64,8 @@ final class ThemeAjaxHandler
 
     private const RATE_LIMIT_WINDOW_SECONDS = 60;
 
+    public function __construct(private readonly ThemeAjaxRequestReader $obRequestReader = new ThemeAjaxRequestReader) {}
+
     public function subscribe(Dispatcher $obDispatcher): void
     {
         $obDispatcher->listen('cms.ajax.beforeRunHandler', [$this, 'onBeforeRun']);
@@ -79,8 +81,14 @@ final class ThemeAjaxHandler
             return null;
         }
 
+        return $this->handleFireEvent();
+    }
+
+    /** Validate + route a Metapixel::onFireEvent call to the adapter or theme-action path. */
+    private function handleFireEvent(): JsonResponse
+    {
         try {
-            $arData = $this->readEventData();
+            $arData = $this->obRequestReader->readEventData();
             if ($arData === null) {
                 return new JsonResponse(['error' => 'invalid request shape'], 400);
             }
@@ -141,9 +149,8 @@ final class ThemeAjaxHandler
     private function markAddToCartPixel(): JsonResponse
     {
         try {
-            $arData = $this->readEventData() ?? [];
-            $mOfferId = $arData['offer_id'] ?? 0;
-            $iOfferId = is_numeric($mOfferId) ? (int) $mOfferId : 0;
+            $arData = $this->obRequestReader->readEventData() ?? [];
+            $iOfferId = $this->obRequestReader->readIntField($arData, 'offer_id');
             if ($iOfferId <= 0) {
                 return new JsonResponse(['error' => 'invalid offer_id'], 422);
             }
@@ -206,65 +213,83 @@ final class ThemeAjaxHandler
             return new JsonResponse(['error' => 'subject_type does not support hybrid AJAX'], 422);
         }
 
-        $mSubjectId = $arData['subject_id'] ?? 0;
-        $iSubjectId = is_numeric($mSubjectId) ? (int) $mSubjectId : 0;
+        $iSubjectId = $this->obRequestReader->readIntField($arData, 'subject_id');
         if ($iSubjectId <= 0) {
             return new JsonResponse(['error' => 'invalid subject_id'], 422);
         }
 
-        $arContext = $this->buildHybridContext($arData);
+        $arContext = $this->obRequestReader->buildHybridContext($arData);
 
         $obSubject = $obAdapter->loadSubject($iSubjectId, $arContext);
         if ($obSubject === null) {
             return new JsonResponse(['error' => 'subject not found'], 404);
         }
 
-        $mName = $arData['name'] ?? '';
-        if (! is_string($mName) || $mName === '' || ! $this->isAllowedEventName($mName)) {
+        $sName = $this->resolveAllowedEventName($arData['name'] ?? '');
+        if ($sName === null) {
             return new JsonResponse(['error' => 'event_name not allowed'], 422);
         }
 
         $sTestCode = $this->resolveTestEventCode();
         if ($sAdapterClass === ShopaholicProductAdapter::class) {
-            $mOfferId = $arData['offer_id'] ?? 0;
-            $iOfferId = is_numeric($mOfferId) ? (int) $mOfferId : 0;
-            if ($iOfferId <= 0) {
-                return new JsonResponse(['error' => 'invalid offer_id'], 422);
-            }
-            /** @var OfferSwitchResult $obResult */
-            $obResult = App::make(ProductPageWatcher::class)->dispatchForOfferSwitch($iSubjectId, $iOfferId);
-            $sEventId = $obResult->sEventId;
-            $sScript = FbqScriptBuilder::build($mName, $obResult->arCustomData, $sEventId, $sTestCode);
-
-            return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
-        } else {
-            $sEventId = Uuid::uuid4()->toString();
-            $iEventTime = time();
-            $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
-                $mName,
-                $obAdapter,
-                $obSubject,
-                $obAdapter->getValueResolver($obSubject),
-                $sEventId,
-                $iEventTime,
-                [],
-            );
-            // Server-side append: convert wire-format action_key to canonical
-            // four-segment shape (CONTEXT.md Claude's Discretion). The append
-            // is observability-only here; payload-side dedup is anchored by
-            // event_id within ±10s of event_time. Generic-alias path retained
-            // for future adapters (e.g. mall.product).
-            $mWireActionKey = $arData['action_key'] ?? null;
-            $sWireActionKey = is_string($mWireActionKey) ? $mWireActionKey : '';
-            if ($sWireActionKey !== '') {
-                $arPayload['action_key'] = $sWireActionKey.':'.$sEventId;
-            }
-            SendCapiEvent::dispatch($mName, $arPayload, $obSubject, $sAdapterClass);
+            return $this->dispatchShopaholicOfferSwitch($sName, $iSubjectId, $arData, $sTestCode);
         }
 
-        // Generic-alias theme actions are contentless — empty {} custom_data
-        // (do NOT invent content); the builder still adds eventID + test code.
-        $sScript = FbqScriptBuilder::build($mName, [], $sEventId, $sTestCode);
+        return $this->dispatchGenericAdapter($sName, $obAdapter, $obSubject, $sAdapterClass, $arData, $sTestCode);
+    }
+
+    /**
+     * Terminal shopaholic.product dispatch — delegates to
+     * ProductPageWatcher::dispatchForOfferSwitch which owns the canonical
+     * viewcontent:{pid}:{oid}:{eid} action_key shape.
+     *
+     * @param  array<string, mixed>  $arData
+     */
+    private function dispatchShopaholicOfferSwitch(string $sName, int $iSubjectId, array $arData, ?string $sTestCode): JsonResponse
+    {
+        $iOfferId = $this->obRequestReader->readIntField($arData, 'offer_id');
+        if ($iOfferId <= 0) {
+            return new JsonResponse(['error' => 'invalid offer_id'], 422);
+        }
+        /** @var OfferSwitchResult $obResult */
+        $obResult = App::make(ProductPageWatcher::class)->dispatchForOfferSwitch($iSubjectId, $iOfferId);
+        $sEventId = $obResult->sEventId;
+        $sScript = FbqScriptBuilder::build($sName, $obResult->arCustomData, $sEventId, $sTestCode);
+
+        return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
+    }
+
+    /**
+     * Terminal generic-alias dispatch. Appends the server-generated event_id to
+     * the wire-format action_key BEFORE dispatch (CONTEXT.md Claude's
+     * Discretion). The append is observability-only; payload-side dedup is
+     * anchored by event_id within ±10s of event_time. Generic-alias theme
+     * actions are contentless — empty {} custom_data (do NOT invent content);
+     * the builder still adds eventID + test code.
+     *
+     * @param  array<string, mixed>  $arData
+     */
+    private function dispatchGenericAdapter(string $sName, SupportsHybridAjax $obAdapter, object $obSubject, string $sAdapterClass, array $arData, ?string $sTestCode): JsonResponse
+    {
+        $sEventId = Uuid::uuid4()->toString();
+        $iEventTime = time();
+        $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+            $sName,
+            $obAdapter,
+            $obSubject,
+            $obAdapter->getValueResolver($obSubject),
+            $sEventId,
+            $iEventTime,
+            [],
+        );
+        $mWireActionKey = $arData['action_key'] ?? null;
+        $sWireActionKey = is_string($mWireActionKey) ? $mWireActionKey : '';
+        if ($sWireActionKey !== '') {
+            $arPayload['action_key'] = $sWireActionKey.':'.$sEventId;
+        }
+        SendCapiEvent::dispatch($sName, $arPayload, $obSubject, $sAdapterClass);
+
+        $sScript = FbqScriptBuilder::build($sName, [], $sEventId, $sTestCode);
 
         return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
     }
@@ -277,60 +302,14 @@ final class ThemeAjaxHandler
         return is_string($mTestCode) && $mTestCode !== '' ? $mTestCode : null;
     }
 
-    /**
-     * Read the AJAX event payload from either supported transport shape.
-     * Larajax nests fields under data[]; October's native $.request posts
-     * options.data as top-level form fields. Nested values win; known
-     * top-level fields fill the gaps.
-     *
-     * @return array<string, mixed>|null null when the nested payload is not an array
-     */
-    private function readEventData(): ?array
+    /** Narrow an untrusted event name to an allowed non-empty string, or null. */
+    private function resolveAllowedEventName(mixed $mName): ?string
     {
-        $arData = $this->normalizeStringKeys(Request::input('data', []));
-        if ($arData === null) {
+        if (! is_string($mName) || $mName === '' || ! $this->isAllowedEventName($mName)) {
             return null;
         }
 
-        foreach (['name', 'subject_type', 'subject_id', 'offer_id', 'action_key'] as $sField) {
-            if (array_key_exists($sField, $arData)) {
-                continue;
-            }
-            $mTopLevelValue = Request::input($sField);
-            if ($mTopLevelValue !== null) {
-                $arData[$sField] = $mTopLevelValue;
-            }
-        }
-
-        return $arData;
-    }
-
-    /**
-     * Narrow $arData['context'] to a string-keyed array (phpstan level 10
-     * requires explicit string-key narrowing on the SupportsHybridAjax
-     * loadSubject contract) + overlay top-level offer_id when present.
-     *
-     * @param  array<string, mixed>  $arData
-     * @return array<string, mixed>
-     */
-    private function buildHybridContext(array $arData): array
-    {
-        $arContext = [];
-        $mContext = $arData['context'] ?? null;
-        if (is_array($mContext)) {
-            foreach ($mContext as $mKey => $mValue) {
-                if (is_string($mKey)) {
-                    $arContext[$mKey] = $mValue;
-                }
-            }
-        }
-        foreach (['offer_id'] as $sExtra) {
-            if (isset($arData[$sExtra])) {
-                $arContext[$sExtra] = $arData[$sExtra];
-            }
-        }
-
-        return $arContext;
+        return $mName;
     }
 
     private function isAllowedEventName(mixed $mName): bool
@@ -356,26 +335,5 @@ final class ThemeAjaxHandler
         $obLimiter->hit($sKey, self::RATE_LIMIT_WINDOW_SECONDS);
 
         return false;
-    }
-
-    /**
-     * Narrow Request::input to a string-keyed array, or null when unusable.
-     *
-     * @return array<string, mixed>|null
-     */
-    private function normalizeStringKeys(mixed $mInput): ?array
-    {
-        if (! is_array($mInput)) {
-            return null;
-        }
-        $arResult = [];
-        foreach ($mInput as $mKey => $mValue) {
-            if (! is_string($mKey)) {
-                return null;
-            }
-            $arResult[$mKey] = $mValue;
-        }
-
-        return $arResult;
     }
 }
