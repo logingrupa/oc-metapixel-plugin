@@ -58,6 +58,20 @@ If **Settings → Marketing → Meta Pixel + CAPI** is not visible after install
 
 Install the exact package name `logingrupa/oc-metapixel-plugin` from the VCS URL `https://github.com/logingrupa/oc-metapixel-plugin`. Do not install a similarly named package.
 
+### Quick start — first event in 10 minutes
+
+The shortest path from a fresh OctoberCMS 4.x app to a verified hit in the Meta Test Events panel:
+
+1. Add the VCS `repositories` entry above to your project's `composer.json`.
+2. Register the October gateway: `php artisan project:set <license>` (your own project license key).
+3. Require the plugin: `composer require logingrupa/oc-metapixel-plugin -W`.
+4. Run the migrations: `php artisan october:up`.
+5. Enter the four required fields under **Settings → Marketing → Meta Pixel + CAPI**: **Pixel ID**, **CAPI Access Token**, **Test Events Code**, and **Default currency code**. **Save**.
+6. Mount the head Pixel by adding the `pixelHead` component to your layout: `{% component 'pixelHead' %}`.
+7. Load any front-end page and confirm the event appears in **Meta Events Manager → Test Events**.
+
+The full Install, Configure, and walkthrough sections below expand each step.
+
 ## Configure
 
 All configuration lives in the backend — you never place a Pixel ID or access token in `.env` or in a source file. Storing secrets through the backend keeps them server-side and out of your git history.

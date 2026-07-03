@@ -127,4 +127,49 @@ final class ReadmeStructureTest extends MetapixelTestCase
             );
         }
     }
+
+    /**
+     * DOCS-01 install fidelity — the Install section must document the two
+     * fresh-install prerequisites proven by the 2026-07-03 clean-room run:
+     * the `project:set` gateway registration and the `-W` require flag.
+     */
+    public function test_readme_install_documents_fresh_install_prerequisites(): void
+    {
+        $sReadme = $this->loadReadme();
+        $this->assertStringContainsString(
+            'php artisan project:set',
+            $sReadme,
+            'README install must document `php artisan project:set <license>` — registers the October gateway so october/system + lovata/* resolve on a fresh install (DOCS-01).',
+        );
+        $this->assertStringContainsString(
+            'oc-metapixel-plugin -W',
+            $sReadme,
+            'README require command must carry the `-W` flag — a fresh October lockfile pins composer/installers that toolbox ^2.2 must move (DOCS-01).',
+        );
+    }
+
+    /**
+     * DOCS-01 quick-start — the README must ship one ordered quick-start box
+     * reaching the first Meta Test Events hit without detouring through the
+     * full Shopaholic/Theme walkthroughs.
+     */
+    public function test_readme_ships_ordered_quick_start(): void
+    {
+        $sReadme = $this->loadReadme();
+        $this->assertStringContainsString(
+            'Quick start',
+            $sReadme,
+            'README must ship a "Quick start" box (DOCS-01 ordered zero-to-first-event path).',
+        );
+        $this->assertStringContainsString(
+            'project:set',
+            $sReadme,
+            'Quick start must include the `project:set` gateway step (DOCS-01).',
+        );
+        $this->assertStringContainsString(
+            'Test Events',
+            $sReadme,
+            'Quick start must reach the Meta Test Events verification (DOCS-01).',
+        );
+    }
 }
