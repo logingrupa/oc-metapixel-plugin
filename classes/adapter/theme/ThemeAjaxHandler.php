@@ -240,6 +240,13 @@ final class ThemeAjaxHandler
             return new JsonResponse(['error' => 'event_name not allowed'], 422);
         }
 
+        // The adapter's declared event-channel matrix is contract surface —
+        // a name outside it must not produce a server-blessed dispatch even
+        // when the global allowlist admits it.
+        if (! array_key_exists($sName, $obAdapter->getSupportedEvents())) {
+            return new JsonResponse(['error' => 'event_name not supported by subject_type'], 422);
+        }
+
         $sTestCode = $this->resolveTestEventCode();
         if ($sAdapterClass === ShopaholicProductAdapter::class) {
             return $this->dispatchShopaholicOfferSwitch($sName, $iSubjectId, $arData, $sTestCode);
@@ -257,6 +264,13 @@ final class ThemeAjaxHandler
      */
     private function dispatchShopaholicOfferSwitch(string $sName, int $iSubjectId, array $arData, ?string $sTestCode): JsonResponse
     {
+        // The delegate always dispatches CAPI 'ViewContent'. Echoing any other
+        // client-chosen name into the returned fbq script would mint an
+        // unmatched, server-blessed browser event (Meta dedup pairs identical
+        // names only) — reject instead.
+        if ($sName !== 'ViewContent') {
+            return new JsonResponse(['error' => 'offer-switch supports ViewContent only'], 422);
+        }
         $iOfferId = $this->obRequestReader->readIntField($arData, 'offer_id');
         if ($iOfferId <= 0) {
             return new JsonResponse(['error' => 'invalid offer_id'], 422);

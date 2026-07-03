@@ -406,6 +406,168 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         $this->assertStringContainsString('test_event_code: "TEST123"', $sScript);
     }
 
+    public function test_event_name_outside_adapter_supported_events_returns_422(): void
+    {
+        // Globally-allowed name (Purchase ∈ META_STANDARD) that the adapter's
+        // declared event matrix does NOT support must be rejected.
+        $obFakeSubject = new \stdClass;
+        $obFakeAdapter = new class($obFakeSubject) implements SupportsHybridAjax
+        {
+            public function __construct(private object $obFakeSubject) {}
+
+            public function getSubjectType(object $obSubject): string
+            {
+                return 'mall.product';
+            }
+
+            public function getSubjectId(object $obSubject): int
+            {
+                return 7;
+            }
+
+            public function getSiteId(object $obSubject): ?int
+            {
+                return 1;
+            }
+
+            public function getSecretKey(object $obSubject): ?string
+            {
+                return null;
+            }
+
+            public function getValueResolver(object $obSubject): ValueResolver
+            {
+                throw new \LogicException('must not be reached for unsupported event name');
+            }
+
+            /** @return array<string, ?string> */
+            public function getUserData(object $obSubject): array
+            {
+                return [];
+            }
+
+            /** @return array<string, list<string>> */
+            public function getSupportedEvents(): array
+            {
+                return ['ViewContent' => ['capi', 'pixel']];
+            }
+
+            /**
+             * @param  array<string, mixed>  $arContext
+             */
+            public function loadSubject(int $iSubjectId, array $arContext): ?object
+            {
+                return $this->obFakeSubject;
+            }
+        };
+
+        $sAdapterClass = get_class($obFakeAdapter);
+        $this->app->instance($sAdapterClass, $obFakeAdapter);
+        App::make(AdapterRegistry::class)->register($sAdapterClass, $sAdapterClass);
+
+        Request::shouldReceive('input')->with('data', [])->andReturn([
+            'name' => 'Purchase',
+            'subject_type' => 'mall.product',
+            'subject_id' => 7,
+            'action_key' => 'purchase:7',
+        ]);
+
+        $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
+            Mockery::mock(Controller::class),
+            'Metapixel::onFireEvent',
+        );
+
+        $this->assertInstanceOf(JsonResponse::class, $mResponse);
+        $this->assertSame(422, $mResponse->getStatusCode());
+        $this->assertSame(
+            ['error' => 'event_name not supported by subject_type'],
+            json_decode((string) $mResponse->getContent(), true),
+        );
+        Bus::assertNotDispatched(SendCapiEvent::class);
+    }
+
+    public function test_shopaholic_offer_switch_rejects_non_viewcontent_event_name(): void
+    {
+        // The delegate hard-codes CAPI ViewContent; a client-chosen Purchase
+        // would mint an unmatched server-blessed browser event. 422 instead.
+        $obFakeProduct = new \stdClass;
+        $obFakeAdapter = new class($obFakeProduct) implements SupportsHybridAjax
+        {
+            public function __construct(private object $obFakeProduct) {}
+
+            public function getSubjectType(object $obSubject): string
+            {
+                return 'shopaholic.product';
+            }
+
+            public function getSubjectId(object $obSubject): int
+            {
+                return 42;
+            }
+
+            public function getSiteId(object $obSubject): ?int
+            {
+                return 1;
+            }
+
+            public function getSecretKey(object $obSubject): ?string
+            {
+                return null;
+            }
+
+            public function getValueResolver(object $obSubject): ValueResolver
+            {
+                throw new \LogicException('must not be reached for rejected event name');
+            }
+
+            /** @return array<string, ?string> */
+            public function getUserData(object $obSubject): array
+            {
+                return [];
+            }
+
+            /** @return array<string, list<string>> */
+            public function getSupportedEvents(): array
+            {
+                return ['ViewContent' => ['capi', 'pixel'], 'Purchase' => ['capi', 'pixel']];
+            }
+
+            /**
+             * @param  array<string, mixed>  $arContext
+             */
+            public function loadSubject(int $iSubjectId, array $arContext): ?object
+            {
+                return $this->obFakeProduct;
+            }
+        };
+        $this->app->instance(ShopaholicProductAdapter::class, $obFakeAdapter);
+        App::make(AdapterRegistry::class)->register(
+            ShopaholicProductAdapter::class,
+            ShopaholicProductAdapter::class,
+        );
+
+        Request::shouldReceive('input')->with('data', [])->andReturn([
+            'name' => 'Purchase',
+            'subject_type' => 'shopaholic.product',
+            'subject_id' => 42,
+            'offer_id' => 100,
+            'action_key' => 'purchase:42:100',
+        ]);
+
+        $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
+            Mockery::mock(Controller::class),
+            'Metapixel::onFireEvent',
+        );
+
+        $this->assertInstanceOf(JsonResponse::class, $mResponse);
+        $this->assertSame(422, $mResponse->getStatusCode());
+        $this->assertSame(
+            ['error' => 'offer-switch supports ViewContent only'],
+            json_decode((string) $mResponse->getContent(), true),
+        );
+        Bus::assertNotDispatched(SendCapiEvent::class);
+    }
+
     public function test_adapter_lacking_supports_hybrid_ajax_returns_422(): void
     {
         $obBareAdapter = new class implements EventSubjectAdapter
