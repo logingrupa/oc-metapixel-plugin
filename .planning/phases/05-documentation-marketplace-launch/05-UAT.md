@@ -1,5 +1,5 @@
 ---
-status: diagnosed
+status: complete
 phase: 05-documentation-marketplace-launch
 source:
   - 05-00-SUMMARY.md
@@ -207,7 +207,8 @@ note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = sta
     - "Operator decisions: run security sweep Step B given repo is already public; give LAUNCH SCHEDULED signal when ready (tag creation stays gated on it)"
 
 - truth: "A buyer following only the README on a fresh October 4.x install reaches a Meta-accepted CAPI event in under 10 minutes, stopwatched (SC1/DOCS-01 launch acceptance gate)."
-  status: failed
+  status: resolved
+  resolution: "Closed by plan 05-22 (commits d4a733a, 7b8c124, 16e1e07): october:up→october:migrate (4 occurrences + doc-gate test same commit), [pixelHead] INI declaration documented in quick-start + Theme walkthrough, :dev-master -W pre-release fallback + launch-02 Step F.2/F.3 post-tag verbatim re-verify. Doc-gate ReadmeStructure 8/8 green; full suite 587 passed. Timed stopwatch re-run deferred to LAUNCH SCHEDULED (structurally impossible pre-tag) — tracked in launch-02-PLAN.md + 05-VERIFICATION.md behavior_unverified_items."
   reason: "Live agent dry-run 2026-07-03 (/home/forge/metapixel-test7, October v4.3.1, SQLite, no cart plugin): three README-verbatim steps fail — require resolves no installable version (remote repo has zero tags), october:up is a deprecated no-op that skips plugin migrations, and the documented Twig-only pixelHead mount silently renders nothing. Pipeline itself verified working end-to-end once workarounds applied: Settings save clean, fbq init + PageView rendered with server UUID eventID, CAPI twin logged, failed_events empty (Meta accepted)."
   severity: major
   test: 7
