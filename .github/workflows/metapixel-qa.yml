@@ -88,6 +88,25 @@ jobs:
       - name: Create host OctoberCMS 4.x app
         run: composer create-project october/october "$OCTOBER_APP_DIR" "^4.0" --no-interaction --no-progress --prefer-dist
 
+      - name: Prepare host app environment
+        working-directory: ${{ env.OCTOBER_APP_DIR }}
+        run: |
+          # larastan's bootstrap boots the FULL October app (bootstrap/app.php ->
+          # console kernel) to define LARAVEL_VERSION and register October's
+          # ClassLoader. Give that boot a sane env: .env, app key, sqlite driver.
+          if [ ! -f .env ] && [ -f .env.example ]; then cp .env.example .env; fi
+          if [ -f .env ]; then
+            if grep -q '^DB_CONNECTION=' .env; then
+              sed -i 's/^DB_CONNECTION=.*/DB_CONNECTION=sqlite/' .env
+            else
+              echo 'DB_CONNECTION=sqlite' >> .env
+            fi
+          fi
+          mkdir -p database && touch database/database.sqlite
+          # silent-fallback reason: key:generate is best-effort — the QA gates do
+          # not use encryption; a missing key must not fail the matrix cell.
+          php artisan key:generate --force || true
+
       - name: Allow required composer plugins in the host app
         working-directory: ${{ env.OCTOBER_APP_DIR }}
         run: |
@@ -97,6 +116,38 @@ jobs:
           for P in composer/installers php-http/discovery pestphp/pest-plugin cweagans/composer-patches; do
             composer config "allow-plugins.$P" true
           done
+
+      - name: Install plugin runtime deps + dev toolchain into the host app
+        working-directory: ${{ env.OCTOBER_APP_DIR }}
+        run: |
+          # Mirror the LOCAL dev topology (the proven-green setup): qa binaries live
+          # in the HOST app vendor and are invoked from the plugin dir as
+          # ../../../vendor/bin/<tool>. Critically, larastan then resides in the host
+          # vendor, so its bootstrap's dirname(__DIR__, 3) resolves to the host app
+          # root, finds bootstrap/app.php, boots October, and defines LARAVEL_VERSION.
+          # Booting the app also registers October's ClassLoader — the ONLY autoload
+          # source for Lovata classes (their packages declare no composer autoload;
+          # October maps them from the app's plugins/ tree).
+          #
+          # silent-fallback reason: drop the skeleton's own phpunit/pest dev pins
+          # (if any) so the plugin-aligned toolchain constraints resolve freely.
+          composer remove --dev --no-update phpunit/phpunit pestphp/pest 2>/dev/null || true
+          # Plugin runtime deps — pest runtime + phpstan reflection need them in the
+          # host vendor: MetaClient uses guzzle, TrustedHosts uses php-domain-parser.
+          composer require --no-interaction --no-progress --with-all-dependencies \
+            guzzlehttp/guzzle:^7.8 \
+            jeremykendall/php-domain-parser:^6.4
+          # Dev toolchain — constraints aligned with the plugin's require-dev.
+          # phpstan/phpstan arrives transitively via larastan (as in the plugin).
+          composer require --dev --no-interaction --no-progress --with-all-dependencies \
+            laravel/pint:^1.26 \
+            larastan/larastan:^3.0 \
+            phpmd/phpmd:^2.15 \
+            pestphp/pest:^4.1 \
+            pestphp/pest-plugin-drift:^4.0 \
+            spaze/phpstan-disallowed-calls:^4.0 \
+            shipmonk/composer-dependency-analyser:^1.8 \
+            mockery/mockery:^1.6
 
       - name: Mount the checked-out plugin into the host app
         run: |
@@ -126,59 +177,64 @@ jobs:
           composer require --no-interaction --no-progress --with-all-dependencies \
             lovata/toolbox-plugin:^2.2
 
-      - name: Install plugin dev toolchain (full-lovata cell)
+      - name: Install plugin vendor + swap larastan/spaze to host symlinks (full-lovata cell)
         if: matrix.install == 'full-lovata'
         working-directory: ${{ env.PLUGIN_DIR }}
         run: |
-          # DISABLE October's composer/installers for the plugin-dir install so
-          # october/system + lovata/* stay under vendor/ (which pint/php-cs-fixer
-          # auto-excludes) instead of being relocated into plugins/ + modules/, where
-          # the qa tools would otherwise lint/analyse third-party October code.
-          # The functional October runtime for the pest bootstrap comes from the HOST
-          # app (installers enabled there); here vendor/ only needs to autoload.
+          # The plugin-dir install exists for TWO consumers only:
+          #   1. composer-dependency-analyser (deps gate) — needs the plugin's
+          #      vendor/composer/installed.json + physical package trees to map
+          #      imported symbols to packages.
+          #   2. phpstan.neon `includes:` — vendor/larastan + vendor/spaze
+          #      extension.neon paths are plugin-vendor-relative.
+          # DISABLE October's composer/installers so october/system + lovata/* stay
+          # under vendor/ (pint auto-excludes vendor/) instead of being relocated
+          # into plugins/ + modules/ where the qa tools would lint third-party code.
           composer config allow-plugins.composer/installers false
           composer config allow-plugins.php-http/discovery true
           composer config allow-plugins.pestphp/pest-plugin true
           composer config allow-plugins.cweagans/composer-patches true
           composer install --no-interaction --no-progress --prefer-dist
-
-      - name: Install plugin dev toolchain (minimal cell — strip cart plugins from require-dev)
-        if: matrix.install == 'minimal'
-        working-directory: ${{ env.PLUGIN_DIR }}
-        run: |
-          # Keep october/* + lovata/* under vendor/ (pint-excluded) — see full-lovata cell.
-          composer config allow-plugins.composer/installers false
-          composer config allow-plugins.php-http/discovery true
-          composer config allow-plugins.pestphp/pest-plugin true
-          composer config allow-plugins.cweagans/composer-patches true
-          # Strip the Lovata cart packages from the plugin's require-dev so the
-          # adapter-coupled dependencies are absent, mirroring the minimal operator.
-          composer remove --dev --no-update --no-interaction \
-            lovata/shopaholic-plugin \
-            lovata/ordersshopaholic-plugin \
-            lovata/buddies-plugin || true
-          composer install --no-interaction --no-progress --prefer-dist
+          # THE LOCAL-DEV MECHANISM, replicated exactly: in local dev the plugin's
+          # vendor/larastan/larastan is a SYMLINK into the host app vendor. PHP's
+          # __DIR__ resolves symlinks to real paths, so larastan's bootstrap
+          # dirname(__DIR__, 3) lands on the HOST app root where bootstrap/app.php
+          # exists -> the October app boots -> LARAVEL_VERSION is defined and
+          # October's ClassLoader autoloads Lovata\* + Logingrupa\Metapixel\*.
+          # A real (non-symlink) plugin-vendor larastan resolves to the plugin dir,
+          # finds no app, and dies with "Undefined constant LARAVEL_VERSION".
+          rm -rf vendor/larastan/larastan vendor/spaze/phpstan-disallowed-calls
+          ln -sfn "$OCTOBER_APP_DIR/vendor/larastan/larastan" vendor/larastan/larastan
+          ln -sfn "$OCTOBER_APP_DIR/vendor/spaze/phpstan-disallowed-calls" vendor/spaze/phpstan-disallowed-calls
 
       - name: composer qa — full Lovata (Run A, coverage gate >= 90%)
         if: matrix.install == 'full-lovata'
         working-directory: ${{ env.PLUGIN_DIR }}
         run: |
-          composer run-script pint-test
-          composer run-script analyse
-          composer run-script phpmd
-          composer run-script deps
-          # Pest bootstraps through the mounted host app (phpunit.xml ->
+          # Host-vendor binaries invoked from the plugin dir — identical to local
+          # dev, where the qa chain runs the monorepo-root vendor/bin tools.
+          ../../../vendor/bin/pint --test
+          ../../../vendor/bin/phpstan analyse --memory-limit=1G
+          ../../../vendor/bin/phpmd Plugin.php,classes,models,console,components,middleware,controllers text phpmd.xml
+          ../../../vendor/bin/composer-dependency-analyser
+          # Pest bootstraps through the host app (phpunit.xml ->
           # ../../../modules/system/tests/bootstrap.php). Coverage gate on this cell only.
-          "$PLUGIN_DIR/vendor/bin/pest" --configuration phpunit.xml --coverage --min=90
+          XDEBUG_MODE=coverage ../../../vendor/bin/pest --configuration phpunit.xml --coverage --min=90
 
       - name: composer qa — minimal (Run B, exclude adapter group, no coverage gate)
         if: matrix.install == 'minimal'
         working-directory: ${{ env.PLUGIN_DIR }}
         run: |
-          composer run-script pint-test
-          composer run-script analyse
-          composer run-script phpmd
-          composer run-script deps
+          # No plugin-dir composer install in this cell: pint/phpmd are pure static
+          # tools and pest runs on the HOST app runtime. phpstan + deps run in the
+          # full-lovata cell ONLY — both require the Lovata cart packages to resolve
+          # symbols (Lovata plugins ship no composer autoload; October's ClassLoader
+          # maps them from the app's plugins/ tree, absent here BY DESIGN). The
+          # analysed source is identical across cells, so static gates need one cell.
+          # This cell proves the RUNTIME minimal-install shape: October boots with
+          # only Toolbox present and the non-adapter suite passes.
+          ../../../vendor/bin/pint --test
+          ../../../vendor/bin/phpmd Plugin.php,classes,models,console,components,middleware,controllers text phpmd.xml
           # Adapter tests pull in Lovata cart classes absent from the minimal cell;
           # exclude them via the Phase 3 #[Group('adapter')] attribute.
-          "$PLUGIN_DIR/vendor/bin/pest" --configuration phpunit.xml --exclude-group=adapter
+          ../../../vendor/bin/pest --configuration phpunit.xml --exclude-group=adapter
