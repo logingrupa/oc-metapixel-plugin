@@ -13,14 +13,24 @@ use October\Rain\Support\Facades\Site;
  *
  * site_id source: prefers $obPosition->cart->site_id (1-hop relation) when
  * non-null; falls back to October's Site::getSiteIdFromContext() as the SECOND
- * documented P-01 exception (alongside ThemeActionAdapter; CONTEXT.md D-15).
- * Cart events fire in-request by definition (eloquent.created /
- * eloquent.updated on CartPosition — never from queue worker rehydration),
- * so the request-context fallback is safe. phpstan disallowIn excludes this
- * file from the Site/SiteManager/Request ban (D-16; second documented
- * exception). Lovata Cart has no site_id column natively (verified via grep
- * on lovata_orders_shopaholic_carts migrations); without this fallback,
- * MySQL UNIQUE index dedup is broken (NULL != NULL semantics).
+ * documented P-01 exception (alongside ThemeActionAdapter). Lovata Cart has no
+ * site_id column natively (verified via grep on lovata_orders_shopaholic_carts
+ * migrations); without this fallback, MySQL UNIQUE index dedup is broken
+ * (NULL != NULL semantics).
+ *
+ * CAVEAT — the fallback is NOT request-only: getSiteId also executes inside
+ * the queue worker (SendCapiEvent::handle → SiteResolver::forSubject), where
+ * Site::getSiteIdFromContext() resolves the CLI-context default site. On
+ * single-site installs (the supported deployment shape: one site per server)
+ * request and worker contexts resolve identically, so behavior is correct.
+ * On a multisite single-DB install whose carts carry no site_id, worker-side
+ * sends resolve the primary site's pixel credentials; correcting that
+ * requires a subject that carries a request-time-baked site_id (mirror
+ * ProductPageWatcher::makeDispatchEvent). The in-request browser-pixel
+ * reservation written by CartPositionWatcher::dispatchAddToCart uses
+ * request-context resolution, so the qty-bump dedup query compares
+ * like-for-like. phpstan disallowIn excludes this file from the
+ * Site/SiteManager/Request ban (second documented exception).
  */
 final class ShopaholicCartPositionAdapter implements EventSubjectAdapter
 {
