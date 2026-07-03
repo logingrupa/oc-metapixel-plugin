@@ -194,6 +194,11 @@ jobs:
           composer config allow-plugins.php-http/discovery true
           composer config allow-plugins.pestphp/pest-plugin true
           composer config allow-plugins.cweagans/composer-patches true
+          # Drop rector from the CI plugin vendor: its scope-prefixed vendor stubs
+          # (RectorPrefix*\...) fatal composer-dependency-analyser's reflection pass
+          # when a scanned symbol resolves into rector's bundled symfony copies.
+          # rector is not part of the qa chain (separate `composer rector` script).
+          composer remove --dev --no-update --no-interaction rector/rector
           composer install --no-interaction --no-progress --prefer-dist
           # THE LOCAL-DEV MECHANISM, replicated exactly: in local dev the plugin's
           # vendor/larastan/larastan is a SYMLINK into the host app vendor. PHP's

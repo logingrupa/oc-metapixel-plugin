@@ -55,7 +55,13 @@ foreach ([
     );
 }
 
-// Dev tooling — referenced via composer scripts, not imported.
+// Dev tooling — referenced via composer scripts, not imported. Guard each ignore
+// on actual presence in composer.json: CI installs the plugin vendor without
+// rector (its scope-prefixed vendor stubs fatal the analyser's reflection pass),
+// and an ignore registered for an absent package is reported as an unmatched
+// ignore, failing the run.
+$arComposerJson = json_decode((string) file_get_contents(__DIR__.'/composer.json'), true);
+$arDeclaredDevPackages = array_keys($arComposerJson['require-dev'] ?? []);
 foreach ([
     'shipmonk/composer-dependency-analyser',
     'spaze/phpstan-disallowed-calls',
@@ -68,6 +74,10 @@ foreach ([
     'pestphp/pest-plugin-drift',
     'phpunit/phpunit',
 ] as $sDevPackage) {
+    if (! in_array($sDevPackage, $arDeclaredDevPackages, true)) {
+        continue;
+    }
+
     $obConfig->ignoreErrorsOnPackage($sDevPackage, [ErrorType::UNUSED_DEPENDENCY]);
 }
 
