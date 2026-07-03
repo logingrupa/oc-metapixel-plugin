@@ -282,6 +282,9 @@ class Plugin extends PluginBase {
 - [x] `05-12-PLAN.md` — CHANGELOG.md fresh v2.0.0 + composer.json keywords + plugin.yaml verify (MKT-02, MKT-03) — closed 2026-05-27 4/5 AssetsExistTest GREEN (screenshots assertion owned by 05-08)
 - [ ] `05-15-PLAN.md` — Gap closure (UAT test 9 / D-07): browser AddToCart fbq reuses server CAPI event_id + full custom_data; pixel-only wire (CartPositionWatcher::resolveBrowserPixel + Metapixel::onMarkAddToCart + theme $.request) with no second CAPI dispatch
 - [ ] `05-16-PLAN.md` — Gap closure UAT re-test (D-07): rebuild theme assets + operator verifies event_id dedup + full custom_data + stray no-event_id AddToCart gone
+- [ ] `05-19-PLAN.md` — Gap closure (UAT test 7 / SC1 / DOCS-01): README install dead-end fix — document `php artisan project:set <license>` gateway prerequisite + `-W` flag + Business→Events Manager wording + ordered quick-start box; extend ReadmeStructureTest
+- [ ] `05-20-PLAN.md` — Gap closure (UAT test 9 / MKT-04): revert erroneous ROADMAP launch-milestone `[x] completed` checkboxes to `[ ]` deferred, matching the `0/2 Deferred` progress row
+- [ ] `05-21-PLAN.md` — Gap closure (UAT test 9 / MKT-04): rewrite metapixel-qa.yml for the standalone-plugin-at-root public repo + gateway-auth secret; operator-approved push of master + watch CI matrix to green (autonomous: false)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -324,6 +327,12 @@ class Plugin extends PluginBase {
 **Wave 13** *(blocked on Wave 12 completion)*
 
 - [x] 05-17-PLAN.md
+
+**Gap-closure wave (2026-07-03 — UAT tests 7 & 9)**
+
+- [ ] 05-19-PLAN.md — README install dead-end fix (autonomous)
+- [ ] 05-20-PLAN.md — ROADMAP launch-checkbox revert (autonomous)
+- [ ] 05-21-PLAN.md — CI workflow repair + operator-gated push to green (autonomous: false; depends on 05-19, 05-20)
 
 **Cross-cutting constraints:**
 
