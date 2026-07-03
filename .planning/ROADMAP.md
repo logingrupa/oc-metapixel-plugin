@@ -263,7 +263,7 @@ class Plugin extends PluginBase {
   4. Plugin manifest (`plugin.yaml`) ships generic name "Meta Pixel + Conversions API", generic description, generic icon. Marketplace assets present: plugin icon (PNG), 5 screenshots (Settings, FailedEvents list, Replay flow, dedup verification, theme Twig API usage), CHANGELOG.md documenting the v2.0.0 initial public release.
   5. Git tag `v2.0.0` annotated and pushed to remote. No BC shim; no upgrade migration in v2.0.
 
-**Plans:** 15/14 plans complete
+**Plans:** 16/17 plans executed
 
 - [x] 05-18-PLAN.md
 
@@ -330,7 +330,7 @@ class Plugin extends PluginBase {
 
 **Gap-closure wave (2026-07-03 — UAT tests 7 & 9)**
 
-- [ ] 05-19-PLAN.md — README install dead-end fix (autonomous)
+- [x] 05-19-PLAN.md — README install dead-end fix (autonomous)
 - [ ] 05-20-PLAN.md — ROADMAP launch-checkbox revert (autonomous)
 - [ ] 05-21-PLAN.md — CI workflow repair + operator-gated push to green (autonomous: false; depends on 05-19, 05-20)
 
@@ -412,7 +412,7 @@ Resume signal: `LAUNCH SCHEDULED` after operator decision.
 | 2. Adapter system core | 9/9 | Complete   | 2026-05-20 |
 | 3. ShopaholicAdapter + ThemeActionAdapter | 9/10 | In Progress|  |
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
-| 5. Documentation + marketplace launch | 15/14 | Complete   | 2026-07-03 |
+| 5. Documentation + marketplace launch | 16/17 | In Progress|  |
 | 6. ViewContent funnel — Shopaholic PDP + offer-switch | 7/7 | Complete    | 2026-05-28 |
 | Launch Milestone | 0/2 | Deferred — awaits operator decision |  |
 
