@@ -397,10 +397,10 @@ class Plugin extends PluginBase {
 
 **Goal:** Make the plugin publicly installable. Triggered when operator decides to launch — gated by Phase 5 close + Phase 6 ship + operator readiness.
 
-**Plans:** 0/2
+**Plans:** 1/2
 
-- [x] `launch-01-PLAN.md` — Pre-flip security sweep Step B: `.planning/` operator-infra redaction (replaces `your-staging-host.example` → `your-staging-host.example` in STATE.md + 05-CONTEXT.md + 05-DISCUSSION-LOG.md + research/PITFALLS.md). Worklist captured in `.planning/phases/05-documentation-marketplace-launch/05-13-SECURITY-SWEEP.md`. _(was Phase 5 plan 05-13)_ (completed 2026-07-03)
-- [x] `launch-02-PLAN.md` — Repo flip public + `v2.0.0` annotated tag + composer VCS install smoke from /tmp + CI matrix verify (MKT-01, MKT-04, MKT-05). _(was Phase 5 plan 05-14)_ (completed 2026-07-03)
+- [x] `launch-01-PLAN.md` — Pre-flip security sweep Step B: `.planning/` operator-infra redaction (staging hostnames, pixel/test-event IDs → placeholders; 33 files). Executed 2026-07-03 via plan 05-21 REDACT-FIRST; sweep log `.planning/launch/launch-01-SECURITY-SWEEP.md` status COMPLETE. _(was Phase 5 plan 05-13)_ (completed 2026-07-03)
+- [ ] `launch-02-PLAN.md` — `v2.0.0` annotated tag + composer VCS install smoke from /tmp + CI-green-on-tag verify (MKT-01, MKT-04). Repo already public; CI matrix green on master since 2026-07-03. Awaits operator `LAUNCH SCHEDULED` signal — operator-gated, do NOT auto-stamp complete. _(was Phase 5 plan 05-14)_
 
 Resume signal: `LAUNCH SCHEDULED` after operator decision.
 
@@ -414,7 +414,7 @@ Resume signal: `LAUNCH SCHEDULED` after operator decision.
 | 4. Settings rework + Multisite + TrustedHosts + FailedEvents | 5/5 | Complete    | 2026-05-20 |
 | 5. Documentation + marketplace launch | 18/17 | Complete   | 2026-07-03 |
 | 6. ViewContent funnel — Shopaholic PDP + offer-switch | 7/7 | Complete    | 2026-05-28 |
-| Launch Milestone | 0/2 | Deferred — awaits operator decision |  |
+| Launch Milestone | 1/2 | Deferred — tag awaits operator LAUNCH SCHEDULED |  |
 
 ## Shipped Milestones
 
