@@ -67,7 +67,7 @@ The shortest path from a fresh OctoberCMS 4.x app to a verified hit in the Meta 
 3. Require the plugin: `composer require logingrupa/oc-metapixel-plugin -W`.
 4. Run the migrations: `php artisan october:migrate`.
 5. Enter the four required fields under **Settings → Marketing → Meta Pixel + CAPI**: **Pixel ID**, **CAPI Access Token**, **Test Events Code**, and **Default currency code**. **Save**.
-6. Mount the head Pixel by adding the `pixelHead` component to your layout: `{% component 'pixelHead' %}`.
+6. Mount the head Pixel in your layout. Declare `[pixelHead]` in the layout's INI/config section **and** place `{% component 'pixelHead' %}` in the layout markup. The Twig tag alone renders nothing — without the `[pixelHead]` INI declaration October emits an empty string (HTTP 200, no `fbq()`, no log signature).
 7. Load any front-end page and confirm the event appears in **Meta Events Manager → Test Events**.
 
 The full Install, Configure, and walkthrough sections below expand each step.
@@ -125,10 +125,23 @@ Keep the browser Pixel mounted on the order-complete page — it reuses the serv
 
 This is the Run B path: a plain OctoberCMS install with no cart plugin. You wire two things — the head Pixel and the event calls.
 
-1. **Mount the head Pixel.** Add the `pixelHead` component to your layout so the base Pixel boot and `PageView` render in `<head>`:
+1. **Mount the head Pixel.** Add the `pixelHead` component to your layout so the base Pixel boot and `PageView` render in `<head>`. A layout has an INI/config section, an optional PHP section, and the Twig markup section, separated by `==`. The `[pixelHead]` INI declaration is required — the Twig tag alone is a silent no-op (October renders it as an empty string with no `fbq()` and no log signature):
 
    ```twig
-   {% component 'pixelHead' %}
+   ##
+   description = "Default layout"
+
+   [pixelHead]
+   ==
+   <!DOCTYPE html>
+   <html>
+   <head>
+       {% component 'pixelHead' %}
+   </head>
+   <body>
+       {% page %}
+   </body>
+   </html>
    ```
 
 2. **Send an event from any page.** Call the theme Twig API where the action happens. For a product view:
