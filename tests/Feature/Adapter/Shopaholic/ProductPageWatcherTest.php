@@ -439,12 +439,14 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
             },
         );
 
-        $arPushedSwitch = App::make(ThemeEventCollector::class)->flush();
-        $this->assertCount(1, $arPushedSwitch, 'offer-switch leaves exactly 1 new entry in the collector');
+        // The AJAX offer-switch path pushes NOTHING to the collector — the
+        // JsonResponse short-circuits before cms.page.beforeRenderPage, so a
+        // push could never be flushed (the OfferSwitchResult carries the
+        // browser custom_data instead).
         $this->assertSame(
-            'viewcontent:42:101:'.$sNewEventId,
-            $arPushedSwitch[0]['action_key'],
-            'action_key is canonical viewcontent:{pid}:{oid}:{eid} with server-appended event_id',
+            [],
+            App::make(ThemeEventCollector::class)->flush(),
+            'offer-switch must not leave orphan entries in the collector',
         );
 
         // Disabled-state path — Settings.pixel_id empty MUST throw so the

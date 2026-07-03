@@ -146,7 +146,7 @@ class ProductPageWatcher
      *
      * action_key shape: viewcontent:{pid}:{oid_new}:{event_id} — server
      * appends the generated event_id to the wire-format action_key BEFORE
-     * collector push. The dispatch wraps that action_key in a ThemeActionEvent
+     * dispatch. The dispatch wraps that action_key in a ThemeActionEvent
      * so the EventLog UNIQUE race-fence on (subject_type, subject_id,
      * event_name, channel, site_id) keys on the per-switch action_key (via
      * ThemeActionAdapter::getSubjectId crc32) — each offer switch is a distinct
@@ -205,15 +205,12 @@ class ProductPageWatcher
 
         $sActionKey = 'viewcontent:'.$iProductId.':'.$iOfferId.':'.$sEventId;
 
-        /** @var ThemeEventCollector $obCollector */
-        $obCollector = App::make(ThemeEventCollector::class);
-        $obCollector->push(array_merge($arCustomData, [
-            'name' => 'ViewContent',
-            'action_key' => $sActionKey,
-            'event_id' => $sEventId,
-            'product_id' => $iProductId,
-            'offer_id' => $iOfferId,
-        ]));
+        // NO ThemeEventCollector push here: this method is reached from the
+        // AJAX path only, whose JsonResponse short-circuits the request before
+        // cms.page.beforeRenderPage — the deferred flush never runs. The
+        // OfferSwitchResult already carries everything the AJAX boundary needs
+        // to render the browser fbq; a push would be dead weight with a latent
+        // double-emission risk if a flush ever ran in the same request.
 
         $obDispatchEvent = $this->makeDispatchEvent($sActionKey, $obAdapter->getSiteId($obProduct));
         SendCapiEvent::dispatch('ViewContent', $arPayload, $obDispatchEvent, ThemeActionAdapter::class);
