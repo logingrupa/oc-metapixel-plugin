@@ -142,7 +142,7 @@ note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = sta
 ## Gaps
 
 - truth: "Plugin Settings page saves cleanly; HostIndexResolver resolves via DI."
-  status: failed
+  status: resolved
   reason: "User reported: when I try to save Unresolvable dependency resolving [Parameter #0 [ <required> string $sPslPath ]] in class Logingrupa\\Metapixel\\Classes\\Helper\\HostIndexResolver `http://your-staging-host.example/back/system/settings/update/logingrupa/metapixel/settings#primarytab-pixel-capi`"
   severity: blocker
   test: 3
@@ -160,7 +160,7 @@ note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = sta
   phase_scope: "Phase 4 carry-over — commit 6b2cd09 deploy missed the FPM reload step. NOT a Phase 5 code change."
 
 - truth: "A buyer following only the README completes composer require → Settings → first CAPI event in Meta Test Events in under 10 minutes."
-  status: failed
+  status: resolved
   reason: "User-directed agent verification: README:45 install command dead-ends on a genuinely fresh October 4.x install — plain `composer require logingrupa/oc-metapixel-plugin` fails to resolve (Lovata toolbox pins composer/installers ~1.0 vs fresh October lock v2.3.0; requires -W), and lovata/toolbox-plugin is unresolvable until the operator runs `php artisan project:set <license>` to add the gateway.octobercms.com repo. Neither prerequisite is in the README. Everything downstream verified working (production evidence + doc-gate tests)."
   severity: major
   test: 7
@@ -179,7 +179,7 @@ note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = sta
     - "README:81 Business→Events Manager wording fix"
 
 - truth: "v2.0.0 annotated tag exists locally and on remote with CI matrix green on the tag commit; ROADMAP launch bookkeeping reflects reality."
-  status: failed
+  status: resolved
   reason: "User-directed agent verification: no v2.0.0 tag anywhere; only 3 CI runs ever recorded (all failures, last 2026-05-21); 146 local commits unpushed since remote 41bdf3c; ROADMAP.md:393-394 marks launch-01/launch-02 '[x] completed 2026-07-03' though launch never executed (security sweep PARTIAL/Step B deferred, no LAUNCH-LOG, no launch SUMMARY.md); repo already public without the pre-flip sweep Step B."
   severity: major
   test: 9
