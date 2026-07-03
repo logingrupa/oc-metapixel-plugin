@@ -30,6 +30,8 @@ final class ThemeAjaxHandlerAllowlistTest extends MetapixelTestCase
     {
         parent::setUp();
         Request::shouldReceive('input')->andReturnNull()->byDefault();
+        Request::shouldReceive('userAgent')->andReturnNull()->byDefault();
+        Request::shouldReceive('cookie')->andReturnNull()->byDefault();
         $this->app->singleton(AdapterRegistry::class);
         App::make(AdapterRegistry::class)->register(
             ThemeActionEvent::class,

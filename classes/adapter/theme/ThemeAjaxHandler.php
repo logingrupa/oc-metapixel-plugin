@@ -7,6 +7,7 @@ use Illuminate\Cache\RateLimiter;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\App;
+use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
@@ -23,6 +24,7 @@ use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
+use October\Rain\Support\Facades\Site;
 use Ramsey\Uuid\Uuid;
 use Throwable;
 
@@ -104,8 +106,16 @@ final class ThemeAjaxHandler
                 return $this->dispatchViaAdapter($arData, $mSubjectType);
             }
 
+            // Identity firewall: the client controls ONLY the event name and
+            // action_key. Every Meta CAPI identity field (em, ph, external_id,
+            // …), secret_key, and site_id is server-derived — otherwise any
+            // visitor could inject arbitrary identities into server-signed
+            // CAPI events or select another site's pixel credentials.
+            $arSafe = array_intersect_key($arData, ['name' => true, 'action_key' => true]);
+            $arSafe = array_merge($arSafe, $this->collectServerUserData());
+
             try {
-                $obEvent = ThemeActionEvent::fromArray($arData);
+                $obEvent = ThemeActionEvent::fromArray($arSafe);
             } catch (InvalidArgumentException $obException) {
                 return new JsonResponse(
                     ['error' => 'invalid event payload: '.$obException->getMessage()],
@@ -292,6 +302,34 @@ final class ThemeAjaxHandler
         $sScript = FbqScriptBuilder::build($sName, [], $sEventId, $sTestCode);
 
         return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
+    }
+
+    /**
+     * Server-derived Meta CAPI user_data + site context for the theme-action
+     * path. Mirrors PixelHead::collectRequestUserData — without at least one
+     * customer-info parameter Meta rejects the event (HTTP 400 subcode
+     * 2804050). site_id is baked in-request so queue-side ThemeActionAdapter
+     * getSiteId never falls back to the worker's CLI site context.
+     * classes/adapter/theme/ is the documented D-16 exclusion zone for the
+     * Request/Site disallowed-calls ban, so request capture is permitted here.
+     *
+     * @return array<string, mixed>
+     */
+    private function collectServerUserData(): array
+    {
+        $sClientIp = (string) Request::ip();
+        $sClientUa = (string) Request::userAgent();
+        $mFbp = Cookie::get('_fbp');
+        $mFbc = Cookie::get('_fbc');
+        $mSiteId = Site::getSiteIdFromContext();
+
+        return [
+            'client_ip_address' => $sClientIp !== '' ? $sClientIp : null,
+            'client_user_agent' => $sClientUa !== '' ? $sClientUa : null,
+            'fbp' => is_string($mFbp) && $mFbp !== '' ? $mFbp : null,
+            'fbc' => is_string($mFbc) && $mFbc !== '' ? $mFbc : null,
+            'site_id' => is_int($mSiteId) && $mSiteId > 0 ? $mSiteId : null,
+        ];
     }
 
     /** Resolve Settings.test_event_code as a non-empty string, or null. */
