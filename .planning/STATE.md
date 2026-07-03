@@ -5,13 +5,13 @@ milestone_name: — Generic-event-tracking marketplace plugin
 current_phase: 05
 current_phase_name: documentation-marketplace-launch
 status: executing
-stopped_at: Milestone complete (Phase 06 was final phase)
-last_updated: "2026-07-03T17:21:39.604Z"
+stopped_at: Completed 05-22-PLAN.md (UAT test 7 gap-closure)
+last_updated: "2026-07-03T20:19:15.596Z"
 progress:
   total_phases: 6
   completed_phases: 5
-  total_plans: 53
-  completed_plans: 52
+  total_plans: 54
+  completed_plans: 53
   percent: 83
 ---
 
@@ -28,7 +28,7 @@ See `.planning/REQUIREMENTS.md` for 61 v2 requirements + traceability table.
 ## Current Position
 
 Phase: 05 (documentation-marketplace-launch) — EXECUTING
-Plan: 5 of 14
+Plan: 2 of 18
 Phase 5: PARTIAL (8/10 closed). 05-08 + 05-09 block on Phase 6 ViewContent shipping. 05-13 + 05-14 split out to **Launch Milestone**.
 Resume file: `.planning/phases/06-viewcontent-funnel-shopaholic-pdp/06-CONTEXT.md`
 Status: Ready to execute
@@ -176,9 +176,9 @@ Anchored CRITICALs:
 
 ## Session Continuity
 
-Last session: 2026-07-03T17:20:48.378Z
+Last session: 2026-07-03T20:19:15.584Z
 
-Stopped at: Phase 5 context gathered
+Stopped at: Completed 05-22-PLAN.md (UAT test 7 gap-closure)
 
 Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 
@@ -215,6 +215,7 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 | Phase 05 P19 | ~6min | 2 tasks | 2 files |
 | Phase 05 P20 | ~3 min | 1 tasks | 1 files |
 | Phase 05 P21 | 2h | 3 tasks | 38 files |
+| Phase 05 P22 | 9min | 3 tasks | 3 files |
 
 ## Decisions
 
@@ -228,3 +229,4 @@ Resume file: .planning/phases/05-documentation-marketplace-launch/05-CONTEXT.md
 - [Phase ?]: 05-21: CI mirrors local-dev topology — qa toolchain in host October app vendor, gates via ../../../vendor/bin/*; larastan app discovery via plugin-vendor symlink into host vendor
 - [Phase ?]: 05-21: composer deps gate dropped from CI — shipmonk analyser structurally inoperable for October plugins; onboarding deferred
 - [Phase ?]: 05-21: security-sweep Step B executed pre-push (REDACT-FIRST); plain push justified — no live token in unpushed range, no new exposure class
+- [Phase 05]: 05-22: UAT test 7 gap-closure — README october:up→october:migrate (October 4.3 deprecation), [pixelHead] INI declaration documented as mandatory alongside the Twig mount (tag alone is a silent no-op), :dev-master -W pre-release install fallback for the tagless remote (primary -W retained, doc-gate asserts it); launch-02 Step F.2/F.3 schedule the post-tag verbatim re-verify + note removal
