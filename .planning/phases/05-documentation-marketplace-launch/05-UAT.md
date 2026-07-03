@@ -1,5 +1,5 @@
 ---
-status: complete
+status: testing
 phase: 05-documentation-marketplace-launch
 source:
   - 05-00-SUMMARY.md
@@ -7,13 +7,20 @@ source:
   - 05-02-RESPAWN-SUMMARY.md
   - 05-10-SUMMARY.md
   - 05-11-SUMMARY.md
+  - 05-VERIFICATION.md
 started: 2026-05-22T12:28:52Z
-updated: 2026-05-22T12:50:00Z
+updated: 2026-07-03T12:45:00Z
 ---
 
 ## Current Test
 
-[testing complete]
+number: 7
+name: Timed clean-room README dry-run (SC1/DOCS-01)
+expected: |
+  Fresh OctoberCMS 4.x install, following only the README:
+  composer require → Settings configuration → first CAPI event verified
+  in Meta Test Events. Under 10 minutes end to end, stopwatched.
+awaiting: user response
 
 ## Tests
 
@@ -87,12 +94,37 @@ verified_by: |
   - NoV1xReferencesTest: 5 passed (281 assertions), 0.31s — all 4 surfaces clean
     (Plugin.php, classes/, lang/en/lang.php, lang/lv/lang.php).
 
+### 7. Timed clean-room README dry-run (SC1/DOCS-01)
+expected: |
+  Fresh OctoberCMS 4.x install (no cart plugin), following only the README:
+  `composer require logingrupa/oc-metapixel-plugin` → Settings configuration →
+  first CAPI event verified in Meta Test Events. Completes in under 10 minutes,
+  stopwatched. This is the launch acceptance gate.
+result: [pending]
+
+### 8. Clean-install composer require smoke (MKT-01)
+expected: |
+  From a genuinely clean, network-connected OctoberCMS 4.x install with a VCS
+  repository entry: `composer require logingrupa/oc-metapixel-plugin` completes
+  without errors on BOTH configs — (a) no cart plugin, (b) Shopaholic +
+  OrdersShopaholic + Buddies. Deferred to Launch Milestone (launch-02-PLAN.md).
+result: [pending]
+
+### 9. v2.0.0 annotated tag + CI green on tag commit (MKT-04)
+expected: |
+  `v2.0.0` annotated tag exists locally AND on the remote; CI matrix
+  (Run A full-Lovata + Run B minimal, both PHP 8.3/8.4) green on that exact
+  tag commit. As of 2026-07-03 only `v2.0.0-rc.1` exists — ROADMAP claims the
+  Launch Milestone "completed 2026-07-03" but no launch SUMMARY.md corroborates
+  it and the tag state contradicts it. Resolve the discrepancy.
+result: [pending]
+
 ## Summary
 
-total: 6
+total: 9
 passed: 6
 issues: 0
-pending: 0
+pending: 3
 skipped: 0
 blocked: 0
 note: "Test 3 initially failed (blocker: HostIndexResolver DI). Root cause = stale OPcache. Fixed via FPM reload. Re-verified pass after user successfully saved plugin Settings."
