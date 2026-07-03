@@ -71,16 +71,18 @@ result: pass
 ## Summary
 
 total: 8
-passed: 7
-issues: 1
+passed: 8
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
 
 ## Gaps
 
+(none open — the test-9 gap below was resolved 2026-07-03 by plans 05-15/05-16/05-17 + live-UAT hotfixes; kept for history)
+
 - truth: "AddToCart browser pixel fires with server event_id + full custom_data (event_id dedup, not fbp fallback)"
-  status: failed
+  status: resolved
   reason: "User reported 2026-07-02: browser AddToCart had no event_id, only value/currency/cs_est; server capi c6c2517d-1aa3-4d3b-be9e-8b368c22da83 carried full custom_data. Diagnosis: plugin emits NO browser AddToCart by design (D-07 deferred to post-launch); EventLog has zero channel=pixel AddToCart rows ever; observed browser event is Meta-generated (cs_est = client-side estimate) even though auto-events toggle is OFF; dedup currently relies on fragile fbp fallback. Operator pulled D-07 into scope: build browser AddToCart wire with server event_id for true event_id dedup (better ad pricing)."
   severity: major
   test: 9
@@ -105,14 +107,29 @@ expected: |
   server CAPI event_id and full custom_data (content_ids, contents, num_items,
   value, currency). Test Events shows Browser + Server pair deduplicated BY EVENT ID,
   not by fbp fallback.
-result: issue
+result: pass
 reported: |
-  2026-07-02 operator: browser AddToCart had NO event_id, params only value/currency/
-  cs_est, no content_ids. Server capi event c6c2517d-1aa3-4d3b-be9e-8b368c22da83 had
-  full custom_data. Dedup happened only via fbp fallback. Meta "Track events
-  automatically without code" is OFF, yet a browser AddToCart still appeared
-  (cs_est=true → Meta client-side estimate; stray source needs re-check after fix).
-severity: major
+  2026-07-03 operator approved after live re-test. Browser + Server AddToCart pair
+  deduplicated BY EVENT ID (observed d87dc505-2e56-4bd0-a6a4-aff7c493a9a9 on both
+  channels) with full custom_data (content_ids, contents, num_items, value,
+  currency) byte-identical both sides; exactly one channel=capi + one channel=pixel
+  EventLog row per cart_position, idempotent on re-add. Purchase regression pass
+  (680225a6 pair, full hashed match keys server-side). PDP funnel re-verified:
+  one PageView pair + one ViewContent pair per render, no unpaired events;
+  offer-switch fires one ViewContent pair per variant change with offer-level
+  content_name/value. Stray no-event_id browser AddToCart: emitter identified as
+  Meta client-side estimation inside fbevents.js (es=automatic,
+  est_source=602085151677479) — not plugin code, not autoConfig (disabled via
+  fbq('set','autoConfig',false) in 36b7244, which killed SubscribedButtonClick);
+  no client-side kill switch exists, Meta support ticket if operator wants it gone.
+  Live UAT surfaced + fixed en route: $.request transport shape for
+  onMarkAddToCart (867bb3c) and onFireEvent (e72ed42); AJAX-postback ViewContent/
+  PageView leaks — view predicate RequestKind::isPageRender (16672d8, eda6d9c,
+  f2f8a20); duplicate product.open emission guard (1891a5b); empty-site_list
+  loadSubject rejection (fa4679a); offer-switch content_name/value from switched
+  offer (27a460c); theme: native change re-dispatch on swatch radios (theme repo
+  7b35352), browser AddToCart follow-up wire rebuild (ec0bd99).
+severity: major (resolved)
 
 ### 7. Open debug sessions — need fixes (not blocking UAT closure)
 result: pass
