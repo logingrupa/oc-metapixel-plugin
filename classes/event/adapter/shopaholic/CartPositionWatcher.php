@@ -6,7 +6,6 @@ use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionAdapter;
-use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionValueResolver;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Helper\EventLogWriter;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
@@ -76,7 +75,6 @@ class CartPositionWatcher
         }
 
         $obAdapter = new ShopaholicCartPositionAdapter;
-        $obResolver = new ShopaholicCartPositionValueResolver;
         $obBuilder = new PayloadBuilder(new UserDataHasher);
 
         $sEventId = Uuid::uuid4()->toString();
@@ -85,7 +83,7 @@ class CartPositionWatcher
             'AddToCart',
             $obAdapter,
             $obCartPosition,
-            $obResolver,
+            $obAdapter->getValueResolver($obCartPosition),
             $sEventId,
             $iEventTime,
             [],

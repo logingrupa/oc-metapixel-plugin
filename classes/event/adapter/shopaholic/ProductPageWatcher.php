@@ -6,10 +6,10 @@ use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
-use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductValueResolver;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
+use Logingrupa\Metapixel\Classes\Adapter\ValueResolver;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Helper\RequestKind;
@@ -88,7 +88,7 @@ class ProductPageWatcher
             self::$arEmittedProductIds[$iGuardProductId] = true;
 
             $obAdapter = new ShopaholicProductAdapter;
-            $obResolver = new ShopaholicProductValueResolver;
+            $obResolver = $obAdapter->getValueResolver($obProduct);
             $obBuilder = new PayloadBuilder(new UserDataHasher);
 
             $sEventId = Uuid::uuid4()->toString();
@@ -172,7 +172,6 @@ class ProductPageWatcher
         }
 
         $obAdapter = new ShopaholicProductAdapter;
-        $obResolver = new ShopaholicProductValueResolver;
         $obBuilder = new PayloadBuilder(new UserDataHasher);
 
         $obProduct = $obAdapter->loadSubject($iProductId, ['offer_id' => $iOfferId]);
@@ -181,6 +180,8 @@ class ProductPageWatcher
                 'ProductPageWatcher::dispatchForOfferSwitch: product not found or inactive',
             );
         }
+
+        $obResolver = $obAdapter->getValueResolver($obProduct);
 
         $sEventId = Uuid::uuid4()->toString();
         $iEventTime = time();
@@ -248,7 +249,7 @@ class ProductPageWatcher
      *
      * @return array<string, mixed>
      */
-    private function resolveOfferContentData(Product $obProduct, int $iProductId, int $iOfferId, ShopaholicProductValueResolver $obResolver): array
+    private function resolveOfferContentData(Product $obProduct, int $iProductId, int $iOfferId, ValueResolver $obResolver): array
     {
         $obOffer = $this->findOffer($obProduct, $iOfferId);
         if ($obOffer === null) {

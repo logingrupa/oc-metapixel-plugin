@@ -5,7 +5,6 @@ namespace Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic;
 use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
-use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
@@ -45,14 +44,13 @@ final class OrderStatusWatcher
             }
 
             $obAdapter = new ShopaholicOrderAdapter;
-            $obResolver = new ShopaholicOrderValueResolver;
             $obBuilder = new PayloadBuilder(new UserDataHasher);
 
             $arPayload = $obBuilder->buildEventPayload(
                 'Purchase',
                 $obAdapter,
                 $obOrder,
-                $obResolver,
+                $obAdapter->getValueResolver($obOrder),
                 Uuid::uuid4()->toString(),
                 time(),
                 [],
