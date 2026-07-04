@@ -14,3 +14,5 @@
 1.0.4:
     - Add adapter_type, subject_type, subject_id columns to failed_events — covers v1.x deploys where the edit-in-place to CreateMetapixelFailedEventsTable was invisible to October's migration tracker.
     - AddSubjectColumnsToFailedEvents.php
+2.0.0:
+    - v2.0.0 marketplace launch — generic-event-tracking adapter architecture, Shopaholic decoupled to suggest, Multisite credentials, TrustedHosts PSL allowlist, FailedEvents replay UI, ViewContent funnel at offer grain, MIT license.
