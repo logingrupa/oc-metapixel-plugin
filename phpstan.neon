@@ -119,6 +119,30 @@ parameters:
             allowIn:
                 - 'classes/adapter/shopaholic/ShopaholicCartPositionAdapter.php'
                 - 'classes/adapter/shopaholic/ShopaholicProductAdapter.php'
+        # RFAC-01 / D-03 — watchers MUST obtain their resolver via
+        # $obAdapter->getValueResolver($obSubject), the single resolver swap point
+        # (Phase 8 makes Order/CartPosition adapters Settings-aware). Banning the
+        # resolver constructors inside classes/event/* fails composer qa if any
+        # future watcher re-instantiates a resolver. Adapters in
+        # classes/adapter/shopaholic/* remain free to new resolvers — their job.
+        -
+            method: 'Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver::__construct()'
+            message: 'metapixel: watchers MUST use $obAdapter->getValueResolver($obSubject) — never new a resolver (RFAC-01/D-03).'
+            disallowIn:
+                - 'classes/event/*'
+                - 'classes/event/adapter/shopaholic/*'
+        -
+            method: 'Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionValueResolver::__construct()'
+            message: 'metapixel: watchers MUST use $obAdapter->getValueResolver($obSubject) — never new a resolver (RFAC-01/D-03).'
+            disallowIn:
+                - 'classes/event/*'
+                - 'classes/event/adapter/shopaholic/*'
+        -
+            method: 'Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductValueResolver::__construct()'
+            message: 'metapixel: watchers MUST use $obAdapter->getValueResolver($obSubject) — never new a resolver (RFAC-01/D-03).'
+            disallowIn:
+                - 'classes/event/*'
+                - 'classes/event/adapter/shopaholic/*'
     disallowedStaticCalls:
         -
             # D-02 / MULT-02 lock — direct Settings::get('pixel_id'|'capi_access_token')
