@@ -16,3 +16,5 @@
     - AddSubjectColumnsToFailedEvents.php
 2.0.0:
     - v2.0.0 marketplace launch — generic-event-tracking adapter architecture, Shopaholic decoupled to suggest, Multisite credentials, TrustedHosts PSL allowlist, FailedEvents replay UI, ViewContent funnel at offer grain, MIT license.
+2.0.1:
+    - Release the 2.0.0 version.yaml entry in a tagged version - composer installs of v2.0.0 shipped version.yaml stuck at 1.0.4, making October report the db ahead of files.
