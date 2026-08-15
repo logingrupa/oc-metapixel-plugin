@@ -311,6 +311,29 @@ MUST NOT mutate `event_id` or `event_time` — Meta dedup contract anchor. The
 job snapshots and restores both fields after the hook runs to enforce this.
 Returning `false` vetoes the dispatch.
 
+### `pixel.before_render` — keep the browser twin in sync
+
+`before_dispatch` runs in the CAPI queue job and never sees the custom_data a
+request-time fbq() block renders. A listener that mutates CAPI values (a
+margin rewrite, for example) must mirror the mutation on the browser side or
+the two channels desync on the same `event_id`:
+
+```php
+Event::listen('metapixel.pixel.before_render',
+    function (string $sEventName, array &$arCustomData): void {
+        // mutate $arCustomData['value'] etc. — same math as before_dispatch
+    }
+);
+```
+
+Fires from `PixelRenderHook::apply` at every content-carrying browser block
+(page-load collector blocks, the AddToCart mark, the offer-switch
+ViewContent). `event_id` is not exposed, contentless blocks skip the hook,
+and a throwing listener abstains (the block renders unmutated). Note the
+Purchase browser twin renders from the frozen EventLog payload, which already
+carries any `before_dispatch` mutation — listeners typically skip Purchase
+here.
+
 ### `after_dispatch` — mirror to analytics dashboard
 
 ```php

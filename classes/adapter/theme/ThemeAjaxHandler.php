@@ -20,6 +20,7 @@ use Logingrupa\Metapixel\Classes\Exception\UnknownSubjectTypeException;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
 use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
+use Logingrupa\Metapixel\Classes\Meta\PixelRenderHook;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
@@ -182,7 +183,7 @@ final class ThemeAjaxHandler
 
             $sScript = FbqScriptBuilder::build(
                 'AddToCart',
-                $obResult->arCustomData,
+                PixelRenderHook::apply('AddToCart', $obResult->arCustomData),
                 $obResult->sEventId,
                 $this->resolveTestEventCode(),
             );
@@ -285,7 +286,7 @@ final class ThemeAjaxHandler
         /** @var OfferSwitchResult $obResult */
         $obResult = App::make(ProductPageWatcher::class)->dispatchForOfferSwitch($iSubjectId, $iOfferId);
         $sEventId = $obResult->sEventId;
-        $sScript = FbqScriptBuilder::build($sName, $obResult->arCustomData, $sEventId, $sTestCode);
+        $sScript = FbqScriptBuilder::build($sName, PixelRenderHook::apply($sName, $obResult->arCustomData), $sEventId, $sTestCode);
 
         return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
     }

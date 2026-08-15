@@ -17,6 +17,7 @@ use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Helper\RequestKind;
 use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
+use Logingrupa\Metapixel\Classes\Meta\PixelRenderHook;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
@@ -240,7 +241,7 @@ class PixelHead extends ComponentBase
         $arCustomData = self::extractCustomData($arEvent);
         $mEventId = $arEvent['event_id'] ?? null;
         $sEventId = is_string($mEventId) && $mEventId !== '' ? $mEventId : null;
-        $sBlock = FbqScriptBuilder::build($sName, $arCustomData, $sEventId, $sTestCode);
+        $sBlock = FbqScriptBuilder::build($sName, PixelRenderHook::apply($sName, $arCustomData), $sEventId, $sTestCode);
         if ((bool) ($arEvent['also_dispatch_capi'] ?? false)) {
             try {
                 self::dispatchCapiMirror($sName, $arEvent);
