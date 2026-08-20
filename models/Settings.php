@@ -3,7 +3,6 @@
 namespace Logingrupa\Metapixel\Models;
 
 use Flash;
-use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\MessageBag;
@@ -61,7 +60,8 @@ class Settings extends CommonSettings
      */
     public static function lookupForSite(?int $iSiteId): array
     {
-        [$sDefaultPixel, $sDefaultToken] = self::readCredentialsInGlobalContext();
+        $arRowList = self::readCredentialRows();
+        [$sDefaultPixel, $sDefaultToken] = self::resolveDefaultCredentials($arRowList);
 
         if ($iSiteId === null) {
             return [
@@ -70,7 +70,7 @@ class Settings extends CommonSettings
             ];
         }
 
-        [$sSitePixel, $sSiteToken] = self::readCredentialsForSiteContext($iSiteId);
+        [$sSitePixel, $sSiteToken] = $arRowList[(string) $iSiteId] ?? ['', ''];
 
         return [
             'pixel_id' => $sSitePixel !== '' ? $sSitePixel : $sDefaultPixel,
@@ -79,62 +79,64 @@ class Settings extends CommonSettings
     }
 
     /**
-     * Read the default-row credentials via a direct DB query. Prefers a row
-     * with site_id IS NULL (explicitly seeded inside Site::withGlobalContext
-     * by an operator who wants a shared fallback); when no such row exists
-     * (single-site installs that always save under the active site), falls
-     * back to the first row matching the settings code so credentials still
-     * route correctly. Bypasses the SettingModel cache layer (static
-     * $instances + Cache::remember) so context-aware reads inside
-     * lookupForSite are not confused by getCacheKey() sharing across
+     * Read all rows for this settings code in one direct DB query, keyed by
+     * site_id ('' for the site_id IS NULL row, first row wins per key).
+     * Bypasses the SettingModel cache layer (static $instances +
+     * Cache::remember), whose getCacheKey() is shared across
      * Site::withGlobalContext / Site::withContext switches.
      *
+     * @return array<string, array{0: string, 1: string}>
+     */
+    private static function readCredentialRows(): array
+    {
+        $obRowList = DB::table('system_settings')
+            ->where('item', (new self)->settingsCode)
+            ->orderBy('id')
+            ->get();
+
+        $arRowList = [];
+        foreach ($obRowList as $obRow) {
+            $sKey = $obRow->site_id === null ? '' : (string) $obRow->site_id;
+            if (array_key_exists($sKey, $arRowList)) {
+                continue;
+            }
+            $arRowList[$sKey] = self::decodeCredentials($obRow->value ?? null);
+        }
+
+        return $arRowList;
+    }
+
+    /**
+     * Resolve the default-row credentials. Prefers the site_id IS NULL row
+     * (seeded inside Site::withGlobalContext); falls back to the first row
+     * for single-site installs, which save under the active site.
+     *
+     * @param  array<string, array{0: string, 1: string}>  $arRowList
      * @return array{0: string, 1: string}
      */
-    private static function readCredentialsInGlobalContext(): array
+    private static function resolveDefaultCredentials(array $arRowList): array
     {
-        $arNullSite = self::readCredentialsFromRow(static fn ($obQuery) => $obQuery->whereNull('site_id'));
+        $arNullSite = $arRowList[''] ?? ['', ''];
         if ($arNullSite[0] !== '' || $arNullSite[1] !== '') {
             return $arNullSite;
         }
 
-        // No explicit default row — fall back to the first row for this
-        // settings code so single-site installs (which save under the active
-        // site, not in withGlobalContext) still resolve credentials.
-        return self::readCredentialsFromRow(static fn ($obQuery) => $obQuery);
+        $arFirst = reset($arRowList);
+
+        return $arFirst === false ? ['', ''] : $arFirst;
     }
 
     /**
-     * Read per-site row credentials by direct DB query. Same rationale as
-     * readCredentialsInGlobalContext — bypass the SettingModel cache. The
-     * cache leak across context switches makes credential routing unsafe
-     * for marketplace operators running multiple sites (P-10).
+     * Shared decoder for the system_settings JSON expando column.
      *
      * @return array{0: string, 1: string}
      */
-    private static function readCredentialsForSiteContext(int $iSiteId): array
+    private static function decodeCredentials(?string $sValue): array
     {
-        return self::readCredentialsFromRow(static fn ($obQuery) => $obQuery->where('site_id', $iSiteId));
-    }
-
-    /**
-     * Shared decoder for the system_settings JSON expando column. $fnFilter
-     * narrows the row scope (whereNull('site_id') for default, where('site_id', $iSiteId)
-     * for per-site).
-     *
-     * @param  callable(Builder): Builder  $fnFilter
-     * @return array{0: string, 1: string}
-     */
-    private static function readCredentialsFromRow(callable $fnFilter): array
-    {
-        $obQuery = DB::table('system_settings')
-            ->where('item', (new self)->settingsCode);
-        $obQuery = $fnFilter($obQuery);
-        $obRow = $obQuery->first();
-        if ($obRow === null || ! is_string($obRow->value ?? null)) {
+        if ($sValue === null) {
             return ['', ''];
         }
-        $mDecoded = json_decode($obRow->value, true);
+        $mDecoded = json_decode($sValue, true);
         if (! is_array($mDecoded)) {
             return ['', ''];
         }

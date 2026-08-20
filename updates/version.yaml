@@ -20,3 +20,5 @@
     - Release the 2.0.0 version.yaml entry in a tagged version - composer installs of v2.0.0 shipped version.yaml stuck at 1.0.4, making October report the db ahead of files.
 2.0.2:
     - 'New metapixel.pixel.before_render hook - the request-time browser-twin counterpart of metapixel.event.before_dispatch. That hook fires in the CAPI queue job and never sees the custom_data a request-time fbq() block renders, so a listener mutating CAPI values (a margin rewrite, for example) desynced the browser twin on the same event_id. PixelRenderHook::apply now wraps the three content-carrying FbqScriptBuilder call sites (page-load collector blocks, the AddToCart mark, the offer-switch ViewContent); listeners receive the event name and custom_data by reference, event_id stays unexposed, contentless blocks skip the hook, and a throwing listener abstains with the unmutated block rendered.'
+2.0.3:
+  - 'Settings::lookupForSite reads all credential rows in one query keyed by site_id instead of three separate reads (default row, fallback, per-site). Same fresh-per-call semantics, two fewer queries on every page view.'
