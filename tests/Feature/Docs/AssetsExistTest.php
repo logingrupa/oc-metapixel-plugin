@@ -16,7 +16,9 @@ final class AssetsExistTest extends MetapixelTestCase
      */
     private function loadChangelog(): string
     {
-        return (string) file_get_contents(dirname(__DIR__, 3).'/CHANGELOG.md');
+        // Normalized to LF: a CRLF working copy (Windows autocrlf checkout) puts
+        // \r before the newline, which the $/m anchors in the assertions never match
+        return str_replace("\r\n", "\n", (string) file_get_contents(dirname(__DIR__, 3).'/CHANGELOG.md'));
     }
 
     public function test_five_screenshots_present_with_padded_prefix(): void
