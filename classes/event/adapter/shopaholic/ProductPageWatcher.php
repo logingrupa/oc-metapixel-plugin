@@ -157,9 +157,12 @@ class ProductPageWatcher
      * throw into a 422/404/500 JsonResponse — page render is not involved
      * here so we surface failures to the JS soft-gate instead of swallowing.
      *
+     * @param  object|null  $obSubject  subject already loaded through the
+     *                                   adapter's loadSubject (same guards); anything
+     *                                   but a matching Product is reloaded here
      * @return OfferSwitchResult server event_id + browser ViewContent custom_data
      */
-    public function dispatchForOfferSwitch(int $iProductId, int $iOfferId): OfferSwitchResult
+    public function dispatchForOfferSwitch(int $iProductId, int $iOfferId, ?object $obSubject = null): OfferSwitchResult
     {
         if ($iProductId <= 0 || $iOfferId <= 0) {
             throw new \InvalidArgumentException(
@@ -175,7 +178,9 @@ class ProductPageWatcher
         $obResolver = new ShopaholicProductValueResolver;
         $obBuilder = new PayloadBuilder(new UserDataHasher);
 
-        $obProduct = $obAdapter->loadSubject($iProductId, ['offer_id' => $iOfferId]);
+        $obProduct = $obSubject instanceof Product && (int) $obSubject->id === $iProductId
+            ? $obSubject
+            : $obAdapter->loadSubject($iProductId, ['offer_id' => $iOfferId]);
         if (! $obProduct instanceof Product) {
             throw new \RuntimeException(
                 'ProductPageWatcher::dispatchForOfferSwitch: product not found or inactive',

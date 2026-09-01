@@ -202,7 +202,9 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         $obFakeWatcher = Mockery::mock(ProductPageWatcher::class);
         $obFakeWatcher->shouldReceive('dispatchForOfferSwitch')
             ->once()
-            ->with(42, 100)
+            // the handler forwards the loadSubject result; the watcher itself
+            // decides whether it is a usable Product or needs a reload
+            ->with(42, 100, $obFakeProduct)
             ->andReturn(new OfferSwitchResult($sFakeEventId, [
                 'content_ids' => ['SKU-42-100'],
                 'content_name' => 'Test Product',

@@ -257,7 +257,7 @@ final class ThemeAjaxHandler
 
         $sTestCode = $this->resolveTestEventCode();
         if ($sAdapterClass === ShopaholicProductAdapter::class) {
-            return $this->dispatchShopaholicOfferSwitch($sName, $iSubjectId, $arData, $sTestCode);
+            return $this->dispatchShopaholicOfferSwitch($sName, $iSubjectId, $arData, $sTestCode, $obSubject);
         }
 
         return $this->dispatchGenericAdapter($sName, $obAdapter, $obSubject, $sAdapterClass, $arData, $sTestCode);
@@ -268,9 +268,13 @@ final class ThemeAjaxHandler
      * ProductPageWatcher::dispatchForOfferSwitch which owns the canonical
      * viewcontent:{pid}:{oid}:{eid} action_key shape.
      *
+     * The pre-validated $obSubject from dispatchViaAdapter rides along so the
+     * delegate does not run the same loadSubject (product + site_list reads)
+     * a second time.
+     *
      * @param  array<string, mixed>  $arData
      */
-    private function dispatchShopaholicOfferSwitch(string $sName, int $iSubjectId, array $arData, ?string $sTestCode): JsonResponse
+    private function dispatchShopaholicOfferSwitch(string $sName, int $iSubjectId, array $arData, ?string $sTestCode, object $obSubject): JsonResponse
     {
         // The delegate always dispatches CAPI 'ViewContent'. Echoing any other
         // client-chosen name into the returned fbq script would mint an
@@ -284,7 +288,7 @@ final class ThemeAjaxHandler
             return new JsonResponse(['error' => 'invalid offer_id'], 422);
         }
         /** @var OfferSwitchResult $obResult */
-        $obResult = App::make(ProductPageWatcher::class)->dispatchForOfferSwitch($iSubjectId, $iOfferId);
+        $obResult = App::make(ProductPageWatcher::class)->dispatchForOfferSwitch($iSubjectId, $iOfferId, $obSubject);
         $sEventId = $obResult->sEventId;
         $sScript = FbqScriptBuilder::build($sName, PixelRenderHook::apply($sName, $obResult->arCustomData), $sEventId, $sTestCode);
 
