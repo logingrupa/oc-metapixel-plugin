@@ -26,3 +26,6 @@
   - 'Changelog doc tests normalize CRLF before matching: a Windows autocrlf checkout puts \r ahead of the newline, which the $/m regex anchors never match, so the suite ran red on Windows and green on the servers for months. Test-only change.'
 2.0.5:
   - 'The hybrid AJAX offer-switch path loaded its Product twice: dispatchViaAdapter runs loadSubject for the 404 guard, then dispatchForOfferSwitch discarded that subject and ran the identical loadSubject again - two active-product reads plus two site_list pivot reads per family or shade switch beacon. The handler now forwards the validated subject and the watcher reuses it when it is the matching Product, reloading only for foreign callers. The adapter boundary is untouched: the theme handler stays free of Lovata imports, the instanceof check lives in the shopaholic watcher directory.'
+
+2.0.6:
+  - 'TOOL-10 user plugin decoupling guard: a test scans runtime sources and asserts no hard reference to Lovata.Buddies or RainLab.User classes. The plugin ships to shops running either user plugin and guarantees it by referencing neither - the CI matrix installs Buddies to prove the integration, this test pins the source-level decoupling on every host. Test-only, no runtime change.'
