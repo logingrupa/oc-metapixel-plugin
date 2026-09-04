@@ -105,7 +105,7 @@ final class AccountIdentityHandlerUserPluginTest extends MetapixelTestCase
         $arPassword = ['password' => 'Probe12345', 'password_confirmation' => 'Probe12345'];
         $arAllowed = array_merge($obUser->getFillable(), array_keys($arPassword));
         $obUser->fill(array_intersect_key(array_merge($arProfile, $arPassword), array_flip($arAllowed)));
-        $obUser->save();
+        // One save: a second one re-validates the purged password confirmation.
         $obUser->forceFill(['phone' => $arProfile['phone']])->save();
         if (method_exists($obUser, 'activate') && ! $obUser->getAttribute('is_activated')) {
             $obUser->activate();
