@@ -49,8 +49,11 @@ final class ShopaholicOrderAdapter implements EventSubjectAdapter
     }
 
     /**
-     * Raw Meta CAPI user_data — Order columns only. fbp/fbc/client_ip/UA stay
-     * null (theme-side per D-15+D-16). external_id derives from Order.secret_key.
+     * Raw Meta CAPI user_data — Order columns plus the Lovata shipping address
+     * keys of the property JSON (shipping_city, shipping_state, shipping_postcode,
+     * shipping_country). fbp/fbc/client_ip/UA stay null (theme-side per D-15+D-16).
+     * external_id derives from Order.secret_key. country passes through raw;
+     * UserDataHasher keeps only ISO 3166-1 alpha-2 codes.
      *
      * @return array<string, ?string>
      */
@@ -63,7 +66,10 @@ final class ShopaholicOrderAdapter implements EventSubjectAdapter
             'ph' => $this->stringAttr($obOrder, 'phone'),
             'fn' => $this->stringAttr($obOrder, 'name'),
             'ln' => $this->stringAttr($obOrder, 'last_name'),
-            'ct' => null, 'st' => null, 'zp' => null, 'country' => null,
+            'ct' => $this->stringAttr($obOrder, 'shipping_city'),
+            'st' => $this->stringAttr($obOrder, 'shipping_state'),
+            'zp' => $this->stringAttr($obOrder, 'shipping_postcode'),
+            'country' => $this->stringAttr($obOrder, 'shipping_country'),
             'external_id' => $this->stringAttr($obOrder, 'secret_key'),
             'fbp' => null, 'fbc' => null,
             'client_ip_address' => null, 'client_user_agent' => null,
