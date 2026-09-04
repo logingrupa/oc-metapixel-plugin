@@ -5,7 +5,9 @@ use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Event\AccountIdentityHandler;
 use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use Logingrupa\Metapixel\Models\Settings;
+use Logingrupa\Metapixel\Tests\Concerns\RegistersActiveUserPlugin;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use Lovata\Toolbox\Classes\Helper\UserHelper;
 
 /**
  * Built-in account identity listener: maps a user model to the raw identity
@@ -14,9 +16,13 @@ use Logingrupa\Metapixel\Tests\MetapixelTestCase;
  */
 final class AccountIdentityHandlerTest extends MetapixelTestCase
 {
+    use RegistersActiveUserPlugin;
+
     protected function setUp(): void
     {
         parent::setUp();
+        // The subscribed listener reads the guest through the host's user plugin.
+        $this->registerActiveUserPlugin();
         Settings::clearInternalCache();
         Settings::set(['account_identity_enabled' => false, 'account_phone_dial_code' => '371']);
     }
@@ -24,6 +30,7 @@ final class AccountIdentityHandlerTest extends MetapixelTestCase
     protected function tearDown(): void
     {
         Event::forget(UserDataResolveHook::HOOK_RESOLVE);
+        UserHelper::forgetInstance();
         parent::tearDown();
     }
 

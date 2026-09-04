@@ -3,15 +3,14 @@
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Event;
-use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Event\AccountIdentityHandler;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use Logingrupa\Metapixel\Models\Settings;
+use Logingrupa\Metapixel\Tests\Concerns\RegistersActiveUserPlugin;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Lovata\Toolbox\Classes\Helper\UserHelper;
-use System\Classes\PluginManager;
 use System\Classes\UpdateManager;
 
 /**
@@ -21,22 +20,18 @@ use System\Classes\UpdateManager;
  */
 final class AccountIdentityHandlerUserPluginTest extends MetapixelTestCase
 {
+    use RegistersActiveUserPlugin;
+
     private string $sUserPluginName = '';
 
     protected function setUp(): void
     {
         parent::setUp();
-        UserHelper::forgetInstance();
-        $sPluginName = UserHelper::instance()->getPluginName();
-        if ($sPluginName === null || $sPluginName === '') {
+        $sPluginName = $this->registerActiveUserPlugin();
+        if ($sPluginName === null) {
             $this->markTestSkipped('No user plugin Toolbox supports is installed; the built-in account identity listener has nothing to read.');
         }
         $this->sUserPluginName = $sPluginName;
-
-        // MetapixelTestCase pins the backend auth manager on "auth"; the user
-        // plugin's register() puts its own frontend auth manager back.
-        PluginManager::instance()->findByIdentifier($this->sUserPluginName)->register();
-        Facade::clearResolvedInstances();
 
         $this->loadPlugins([$this->sUserPluginName]);
         // The base case pre-creates these two stubs; the module migrations own them here.
@@ -45,8 +40,10 @@ final class AccountIdentityHandlerUserPluginTest extends MetapixelTestCase
         $this->migrateModules();
         UpdateManager::instance()->migratePlugin('Lovata.Toolbox');
         UpdateManager::instance()->migratePlugin($this->sUserPluginName);
-        if (! Schema::hasColumn('users', 'phone')) {
-            Schema::table('users', function ($obTable): void {
+        $sUserModelClass = UserHelper::instance()->getUserModel();
+        $sUserTable = (new $sUserModelClass)->getTable();
+        if (! Schema::hasColumn($sUserTable, 'phone')) {
+            Schema::table($sUserTable, function ($obTable): void {
                 $obTable->string('phone')->nullable();
             });
         }
