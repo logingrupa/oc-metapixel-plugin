@@ -141,6 +141,7 @@ final class ThemeAjaxHandler
                 time(),
                 [],
             );
+            $arPayload = $this->obRequestReader->injectServerUserData($arPayload);
             SendCapiEvent::dispatch($obEvent->sEventName, $arPayload, $obEvent, ThemeActionAdapter::class);
 
             $sScript = FbqScriptBuilder::build($obEvent->sEventName, [], $sEventId, $this->resolveTestEventCode());

@@ -12,11 +12,13 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionValueResolver;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
+use Logingrupa\Metapixel\Classes\Helper\EventSourceUrl;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Helper\RequestKind;
 use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
+use Logingrupa\Metapixel\Classes\Meta\PayloadRequestContext;
 use Logingrupa\Metapixel\Classes\Meta\PixelRenderHook;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
@@ -109,7 +111,7 @@ class PixelHead extends ComponentBase
             // not silently drop every row after the first via INSERT IGNORE.
             // The event_id (UUIDv4) makes crc32 per-request unique.
             $sActionKey = self::BASE_ACTION_KEY_PREFIX.':'.($iSiteId ?? 0).':'.$sEventId;
-            $arUserData = $this->collectRequestUserData();
+            $arUserData = self::collectRequestUserData();
             $obEvent = ThemeActionEvent::fromArray(array_merge($arUserData, [
                 'name' => 'PageView',
                 'action_key' => $sActionKey,
@@ -159,7 +161,7 @@ class PixelHead extends ComponentBase
      *
      * @return array<string, ?string>
      */
-    protected function collectRequestUserData(): array
+    protected static function collectRequestUserData(): array
     {
         $sClientIp = (string) Request::ip();
         $sClientUa = (string) Request::userAgent();
@@ -187,6 +189,7 @@ class PixelHead extends ComponentBase
         $obResolver = new ThemeActionValueResolver;
         $obBuilder = new PayloadBuilder(new UserDataHasher);
         $arPayload = $obBuilder->buildEventPayload('PageView', $obAdapter, $obEvent, $obResolver, $sEventId, $iEventTime, []);
+        $arPayload = PayloadRequestContext::merge($arPayload, [], EventSourceUrl::current());
         SendCapiEvent::dispatch('PageView', $arPayload, $obEvent, ThemeActionAdapter::class);
     }
 
@@ -318,6 +321,7 @@ class PixelHead extends ComponentBase
         $obBuilder = new PayloadBuilder(new UserDataHasher);
         $sEventId = Uuid::uuid4()->toString();
         $arPayload = $obBuilder->buildEventPayload($sName, $obAdapter, $obEvent, $obResolver, $sEventId, time(), []);
+        $arPayload = PayloadRequestContext::merge($arPayload, self::collectRequestUserData(), EventSourceUrl::current());
         SendCapiEvent::dispatch($sName, $arPayload, $obEvent, ThemeActionAdapter::class);
     }
 }

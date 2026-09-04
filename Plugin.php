@@ -7,6 +7,7 @@ use Cms\Classes\Controller as CmsController;
 use Cms\Classes\ThisVariable;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Contracts\Http\Kernel;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Event;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
@@ -113,6 +114,9 @@ class Plugin extends PluginBase
         );
         Event::subscribe(ThemeAjaxHandler::class);
 
+        // The browser pixel writes _fbp / _fbc as plain values; the encrypting
+        // cookie middleware nulls any cookie it cannot decrypt.
+        EncryptCookies::except([EnsureFbpFbcCookies::COOKIE_FBP, EnsureFbpFbcCookies::COOKIE_FBC]);
         $this->app[Kernel::class]->pushMiddleware(EnsureFbpFbcCookies::class);
     }
 

@@ -134,7 +134,7 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
         $this->assertNotNull($this->extractCookie($obResponse, '_fbc'));
     }
 
-    public function test_existing_fbc_cookie_not_overwritten(): void
+    public function test_new_fbclid_replaces_existing_fbc_cookie(): void
     {
         $obResponse = $this->dispatchRequest(
             'example.com',
@@ -142,8 +142,76 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
             ['_fbc' => 'fb.1.1700000000.PREVIOUSFBCLID']
         );
 
-        // _fbc was already on the request → middleware must NOT add a new one.
+        $obCookie = $this->extractCookie($obResponse, '_fbc');
+        $this->assertNotNull($obCookie);
+        $this->assertMatchesRegularExpression('/^fb\.1\.\d{13}\.IwAR1validfbclid_123$/', (string) $obCookie->getValue());
+    }
+
+    public function test_repeated_fbclid_keeps_existing_fbc_cookie(): void
+    {
+        $obResponse = $this->dispatchRequest(
+            'example.com',
+            'SAMECLICK_123',
+            ['_fbc' => 'fb.1.1700000000000.SAMECLICK_123']
+        );
+
         $this->assertNull($this->extractCookie($obResponse, '_fbc'));
+    }
+
+    public function test_repeated_fbclid_with_appendix_keeps_existing_fbc_cookie(): void
+    {
+        $obResponse = $this->dispatchRequest(
+            'example.com',
+            'SAMECLICK_123',
+            ['_fbc' => 'fb.1.1700000000000.SAMECLICK_123.AbCdEfGh']
+        );
+
+        $this->assertNull($this->extractCookie($obResponse, '_fbc'));
+    }
+
+    public function test_invalid_fbclid_keeps_existing_fbc_cookie(): void
+    {
+        $obResponse = $this->dispatchRequest(
+            'example.com',
+            'bad<script>',
+            ['_fbc' => 'fb.1.1700000000000.PREVIOUSFBCLID']
+        );
+
+        $this->assertNull($this->extractCookie($obResponse, '_fbc'));
+    }
+
+    public function test_landing_request_sees_fresh_cookies_before_page_runs(): void
+    {
+        unset($_COOKIE['_fbp'], $_COOKIE['_fbc']);
+        $arSeen = [];
+        $this->dispatchRequest('example.com', 'LANDING_click1', [], function (Request $obRequest) use (&$arSeen): void {
+            $arSeen = [
+                'bag_fbp' => $obRequest->cookies->get('_fbp'),
+                'bag_fbc' => $obRequest->cookies->get('_fbc'),
+                'global_fbp' => $_COOKIE['_fbp'] ?? null,
+                'global_fbc' => $_COOKIE['_fbc'] ?? null,
+            ];
+        });
+        unset($_COOKIE['_fbp'], $_COOKIE['_fbc']);
+
+        $this->assertMatchesRegularExpression('/^fb\.1\.\d{13}\.[0-9a-f]{16}$/', (string) $arSeen['bag_fbp']);
+        $this->assertMatchesRegularExpression('/^fb\.1\.\d{13}\.LANDING_click1$/', (string) $arSeen['bag_fbc']);
+        $this->assertSame($arSeen['bag_fbp'], $arSeen['global_fbp']);
+        $this->assertSame($arSeen['bag_fbc'], $arSeen['global_fbc']);
+    }
+
+    public function test_untrusted_host_primes_nothing_into_the_request(): void
+    {
+        unset($_COOKIE['_fbp'], $_COOKIE['_fbc']);
+        $arSeen = ['set' => true];
+        $this->dispatchRequest('evil.example.net', 'LANDING_click1', [], function (Request $obRequest) use (&$arSeen): void {
+            $arSeen = [
+                'bag_fbc' => $obRequest->cookies->get('_fbc'),
+                'global_fbc' => $_COOKIE['_fbc'] ?? null,
+            ];
+        });
+
+        $this->assertSame(['bag_fbc' => null, 'global_fbc' => null], $arSeen);
     }
 
     public function test_no_fbclid_query_skips_fbc_but_still_writes_fbp(): void
@@ -265,13 +333,15 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
     /**
      * Build a Request, resolve the middleware from the container, invoke
      * handle($obRequest, fn() => new Response('ok')), and return the response.
+     * $fnInner observes the request as the page would see it.
      *
      * @param  array<string, string>  $arExistingCookies
      */
     private function dispatchRequest(
         string $sHost,
         ?string $sFbclidQuery = null,
-        array $arExistingCookies = []
+        array $arExistingCookies = [],
+        ?Closure $fnInner = null
     ): Response {
         $arServer = [
             'HTTP_HOST' => $sHost,
@@ -293,7 +363,13 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
 
         return $obMiddleware->handle(
             $obRequest,
-            static fn (): Response => new Response('ok', 200)
+            static function (Request $obInnerRequest) use ($fnInner): Response {
+                if ($fnInner !== null) {
+                    $fnInner($obInnerRequest);
+                }
+
+                return new Response('ok', 200);
+            }
         );
     }
 

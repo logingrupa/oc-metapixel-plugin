@@ -213,6 +213,26 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         });
     }
 
+    public function test_event_source_url_populated_from_server(): void
+    {
+        $arSaved = array_intersect_key($_SERVER, ['HTTP_HOST' => 1, 'REQUEST_URI' => 1, 'HTTPS' => 1]);
+        $_SERVER['HTTP_HOST'] = 'shop.example.com';
+        $_SERVER['REQUEST_URI'] = '/lv/product/gel?fbclid=IwAR1click';
+        $_SERVER['HTTPS'] = 'on';
+
+        try {
+            $obProduct = $this->makeProduct(42, [[100, 9.99, 0, true]]);
+            (new ProductPageWatcher)->handle($obProduct);
+        } finally {
+            unset($_SERVER['HTTP_HOST'], $_SERVER['REQUEST_URI'], $_SERVER['HTTPS']);
+            $_SERVER = array_merge($_SERVER, $arSaved);
+        }
+
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob): bool {
+            return ($obJob->arPayload['data'][0]['event_source_url'] ?? null) === 'https://shop.example.com/lv/product/gel?fbclid=IwAR1click';
+        });
+    }
+
     public function test_test_event_code_appears_in_capi_payload_and_collector_event(): void
     {
         // Settings::test_event_code is injected into the outgoing CAPI payload

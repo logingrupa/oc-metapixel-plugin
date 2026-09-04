@@ -2,11 +2,14 @@
 
 namespace Logingrupa\Metapixel\Classes\Event;
 
+use Logingrupa\Metapixel\Classes\Helper\EventSourceUrl;
+use Logingrupa\Metapixel\Classes\Meta\PayloadRequestContext;
+
 /**
  * Trait used by in-request event watchers (CartPositionWatcher,
  * OrderStatusWatcher) to merge Meta CAPI passthrough user_data fields
- * (client_ip_address, client_user_agent, fbp, fbc) into the PayloadBuilder
- * output before SendCapiEvent::dispatch.
+ * (client_ip_address, client_user_agent, fbp, fbc) and the event_source_url
+ * into the PayloadBuilder output before SendCapiEvent::dispatch.
  *
  * Watchers run inside the originating HTTP request (eloquent.created /
  * eloquent.updated listeners fire synchronously), so request context is
@@ -35,9 +38,8 @@ namespace Logingrupa\Metapixel\Classes\Event;
 trait CapturesRequestUserData
 {
     /**
-     * Merge request-derived passthrough fields into the existing user_data
-     * envelope inside a PayloadBuilder result. Returns the new payload.
-     * Existing non-null values in the payload's user_data win over the
+     * Merge request-derived passthrough fields and the event_source_url into
+     * a PayloadBuilder result. Existing non-null user_data values win over the
      * request values — caller may have a more specific source.
      *
      * @param  array<string, mixed>  $arPayload  output of PayloadBuilder::buildEventPayload
@@ -45,29 +47,7 @@ trait CapturesRequestUserData
      */
     protected function injectRequestUserData(array $arPayload): array
     {
-        $arRequestFields = $this->collectRequestUserData();
-        $mData = $arPayload['data'] ?? null;
-        if (! is_array($mData) || ! isset($mData[0]) || ! is_array($mData[0])) {
-            return $arPayload;
-        }
-        $mEnvelope = $mData[0];
-        $mUserData = $mEnvelope['user_data'] ?? null;
-        $arUserData = is_array($mUserData) ? $mUserData : [];
-
-        foreach ($arRequestFields as $sKey => $mValue) {
-            if ($mValue === null) {
-                continue;
-            }
-            $mExisting = $arUserData[$sKey] ?? null;
-            if ($mExisting === null || $mExisting === '') {
-                $arUserData[$sKey] = $mValue;
-            }
-        }
-        $mEnvelope['user_data'] = $arUserData;
-        $mData[0] = $mEnvelope;
-        $arPayload['data'] = $mData;
-
-        return $arPayload;
+        return PayloadRequestContext::merge($arPayload, $this->collectRequestUserData(), EventSourceUrl::current());
     }
 
     /**

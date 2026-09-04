@@ -87,7 +87,7 @@ All configuration lives in the backend — you never place a Pixel ID or access 
    * **Custom theme event names** — operator-supplied event names your theme is allowed to send through the Twig API, one per line. Standard Meta events (PageView, ViewContent, AddToCart, Purchase, Lead) are always allowed and do not need to be listed.
 4. On the **Hosts & Cookies** tab, fill in:
    * **Trusted Hosts** — one host per line; the plugin sets `_fbp` / `_fbc` cookies only on these hosts. Sub-domains resolve through the bundled Public Suffix List.
-   * **Set _fbp / _fbc cookies server-side** — turn this off if your theme already writes these cookies, or if a consent banner must gate them until opt-in.
+   * **Set _fbp / _fbc cookies server-side** — turn this off if your theme already writes these cookies, or if a consent banner must gate them until opt-in. `_fbc` is built from `?fbclid` on the click landing request itself, so that request's CAPI events already carry it, and every new click id replaces the stored value.
 5. Click **Save**. A confirmation flash appears and the values persist across reloads.
 
 ![Settings](docs/screenshots/01-settings.png)
