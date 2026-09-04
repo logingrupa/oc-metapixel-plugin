@@ -6,12 +6,14 @@ use ArrayAccess;
 use Cms\Classes\Controller;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Components\PixelHead;
 use Logingrupa\Metapixel\Models\Settings;
@@ -164,6 +166,58 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         $arBlocks = App::make(PixelHeadDeferredFlushBuffer::class)->getBlocks();
         $this->assertCount(1, $arBlocks, 'Collector flush still runs at deferred phase');
         $this->assertStringContainsString('"ViewContent"', $arBlocks[0]);
+    }
+
+    public function test_advanced_matching_object_renders_from_resolved_identity_and_capi_pageview_carries_it(): void
+    {
+        Bus::fake();
+        Settings::clearInternalCache();
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::clearInternalCache();
+        PluginGuard::reset();
+        App::singleton(UserDataResolveHook::class);
+        $iCalls = 0;
+        Event::listen(UserDataResolveHook::HOOK_RESOLVE, function (array &$arUserData, array $arContext) use (&$iCalls): void {
+            $iCalls++;
+            $this->assertSame(['event_name' => 'PageView', 'subject_type' => 'theme.action'], $arContext);
+            $arUserData['em'] = 'Anna@Example.com';
+            $arUserData['external_id'] = '42';
+        });
+
+        try {
+            $arPage = $this->runComponent(new PixelHead);
+        } finally {
+            Event::forget(UserDataResolveHook::HOOK_RESOLVE);
+            App::forgetInstance(UserDataResolveHook::class);
+        }
+
+        $sEmailHash = hash('sha256', 'anna@example.com');
+        $sIdHash = hash('sha256', '42');
+        $this->assertSame(
+            '{"em":"'.$sEmailHash.'","external_id":"'.$sIdHash.'"}',
+            $arPage['pixelHeadBase']['advanced_matching_js'],
+            'fbq init receives the hashed identity as its Advanced Matching object',
+        );
+        $this->assertSame(1, $iCalls, 'the base pixel and its CAPI twin share one identity resolution');
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob) use ($sEmailHash, $sIdHash): bool {
+            $arUserData = $obJob->arPayload['data'][0]['user_data'] ?? [];
+
+            return ($arUserData['em'] ?? null) === $sEmailHash
+                && ($arUserData['external_id'] ?? null) === $sIdHash;
+        });
+    }
+
+    public function test_no_advanced_matching_object_without_identity(): void
+    {
+        Bus::fake();
+        Settings::clearInternalCache();
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::clearInternalCache();
+        PluginGuard::reset();
+
+        $arPage = $this->runComponent(new PixelHead);
+
+        $this->assertNull($arPage['pixelHeadBase']['advanced_matching_js'], 'anonymous visitors get a plain fbq init');
     }
 
     public function test_dispatch_failure_does_not_break_page_render(): void

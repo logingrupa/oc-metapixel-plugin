@@ -6,6 +6,7 @@ use Illuminate\Events\Dispatcher;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicProductAdapter;
@@ -16,6 +17,7 @@ use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
 use Logingrupa\Metapixel\Classes\Helper\EventLogWriter;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
+use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\ShopaholicAdapterTestCase;
@@ -210,6 +212,31 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
                 && ($arUserData['client_ip_address'] ?? null) === '203.0.113.1'
                 && ($arUserData['fbp'] ?? null) === 'fb.1.123.456'
                 && ($arUserData['fbc'] ?? null) === 'fb.1.789.abc';
+        });
+    }
+
+    public function test_resolved_identity_reaches_viewcontent_user_data(): void
+    {
+        Event::listen(UserDataResolveHook::HOOK_RESOLVE, function (array &$arUserData, array $arContext): void {
+            $this->assertSame(['event_name' => 'ViewContent', 'subject_type' => 'shopaholic.product'], $arContext);
+            $arUserData['em'] = 'Anna@Example.com';
+            $arUserData['ph'] = '+371 26111222';
+            $arUserData['external_id'] = '42';
+        });
+
+        try {
+            (new ProductPageWatcher)->handle($this->makeProduct(42, [[100, 9.99, 0, true]]));
+        } finally {
+            Event::forget(UserDataResolveHook::HOOK_RESOLVE);
+        }
+
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob): bool {
+            $arUserData = $obJob->arPayload['data'][0]['user_data'] ?? [];
+
+            return ($arUserData['em'] ?? null) === hash('sha256', 'anna@example.com')
+                && ($arUserData['ph'] ?? null) === hash('sha256', '37126111222')
+                && ($arUserData['external_id'] ?? null) === hash('sha256', '42')
+                && ($arUserData['fn'] ?? null) === null;
         });
     }
 

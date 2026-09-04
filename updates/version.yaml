@@ -38,3 +38,6 @@
 
 2.0.9:
   - 'Check dedup reads Meta''s Dataset Quality API (GET /dataset_quality?dataset_id=...&fields=web{event_name,event_match_quality,event_coverage}) instead of the pixel node, which every Events Manager token answers with "(#100) Missing Permission". EMQ comes from composite_score, the Dedup column from event coverage (the share of browser events matched with a server twin), since the API exposes no deduplication field. The unused test-event-code and event-id parameters are gone.'
+
+2.1.0:
+  - 'Customer identity on every event: the new metapixel.user_data.resolve hook fires once per request so the host supplies the visitor''s raw email, phone, name, city, zip, country and user id; the plugin hashes them into ViewContent, AddToCart, PageView and Search (adapter values win, so Purchase keeps the order data) and renders the same hashes as the browser pixel''s Advanced Matching object. Hasher normalisation now follows Meta''s per-field rules (phone digits without leading zeros, names without punctuation, compact city/zip, ISO alpha-2 country).'

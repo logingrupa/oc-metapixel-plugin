@@ -132,16 +132,18 @@ final class ThemeAjaxHandler
             }
 
             $sEventId = Uuid::uuid4()->toString();
+            /** @var ThemeActionAdapter $obAdapter */
+            $obAdapter = App::make(ThemeActionAdapter::class);
             $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
                 $obEvent->sEventName,
-                App::make(ThemeActionAdapter::class),
+                $obAdapter,
                 $obEvent,
                 new ThemeActionValueResolver,
                 $sEventId,
                 time(),
                 [],
             );
-            $arPayload = $this->obRequestReader->injectServerUserData($arPayload);
+            $arPayload = $this->obRequestReader->injectServerUserData($obEvent->sEventName, $obAdapter->getSubjectType($obEvent), $arPayload);
             SendCapiEvent::dispatch($obEvent->sEventName, $arPayload, $obEvent, ThemeActionAdapter::class);
 
             $sScript = FbqScriptBuilder::build($obEvent->sEventName, [], $sEventId, $this->resolveTestEventCode());
@@ -328,7 +330,7 @@ final class ThemeAjaxHandler
             $iEventTime,
             $sWireActionKey !== '' ? ['action_key' => $sWireActionKey.':'.$sEventId] : [],
         );
-        $arPayload = $this->obRequestReader->injectServerUserData($arPayload);
+        $arPayload = $this->obRequestReader->injectServerUserData($sName, $obAdapter->getSubjectType($obSubject), $arPayload);
         SendCapiEvent::dispatch($sName, $arPayload, $obSubject, $sAdapterClass);
 
         $sScript = FbqScriptBuilder::build($sName, [], $sEventId, $sTestCode);

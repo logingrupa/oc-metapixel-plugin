@@ -9,7 +9,7 @@ behavior lives behind two interfaces — `EventSubjectAdapter` and
 `ValueResolver` — and a single registry call.
 
 This guide walks the contract, the minimum register snippet, a fully-worked
-inline example, the three `Event::fire` hook constants, and the contract-test
+inline example, the five `Event::fire` hook constants, and the contract-test
 harness you should run against your adapter before publishing.
 
 ## The contract: EventSubjectAdapter + ValueResolver
@@ -289,10 +289,11 @@ Three runtime contracts to know:
 
 ## Hook patterns
 
-Three `Event::fire` hooks are exposed for marketplace extensibility. The hook
+Five `Event::fire` hooks are exposed for marketplace extensibility. The hook
 constant strings are stable contract surface and match
-`SendCapiEvent::HOOK_BEFORE_DISPATCH`, `HOOK_AFTER_DISPATCH`, and
-`HOOK_DEAD_LETTER` verbatim.
+`SendCapiEvent::HOOK_BEFORE_DISPATCH`, `HOOK_AFTER_DISPATCH`,
+`HOOK_DEAD_LETTER`, `PixelRenderHook::HOOK_BEFORE_RENDER` and
+`UserDataResolveHook::HOOK_RESOLVE` verbatim.
 
 ### `before_dispatch` — inject test_event_code for staging
 
@@ -333,6 +334,42 @@ and a throwing listener abstains (the block renders unmutated). Note the
 Purchase browser twin renders from the frozen EventLog payload, which already
 carries any `before_dispatch` mutation — listeners typically skip Purchase
 here.
+
+### `user_data.resolve` - customer identity for every event
+
+Adapters know their subject, not the visitor. Purchase carries email, phone
+and name from the order row, but ViewContent, AddToCart, PageView and Search
+have no customer keys of their own, which caps Meta's Event Match Quality.
+`metapixel.user_data.resolve` fires once per request, before any payload is
+merged, so the host can supply the current visitor's raw identity from its
+own user plugin:
+
+```php
+Event::listen('metapixel.user_data.resolve',
+    function (array &$arUserData, array $arContext): void {
+        $obUser = Auth::user();
+        if ($obUser === null) {
+            return;
+        }
+        $arUserData['em'] = $obUser->email;
+        $arUserData['ph'] = '371'.$obUser->phone_national;   // with country code
+        $arUserData['fn'] = $obUser->first_name;
+        $arUserData['ln'] = $obUser->last_name;
+        $arUserData['external_id'] = (string) $obUser->id;
+    }
+);
+```
+
+Supply RAW values. The plugin normalises and sha256-hashes them
+(`UserDataHasher`), memoises the result for the request, merges it into
+every in-request CAPI dispatch and renders the same hashes as the browser
+pixel's Advanced Matching object in `fbq('init', ...)`. Keys: `em`, `ph`,
+`fn`, `ln`, `ct`, `st`, `zp`, `country`, `external_id`; anything else is
+ignored. `$arContext` carries `event_name` and `subject_type` of the first
+event that asked. Adapter-supplied values win at merge time, so a Purchase
+keeps its order data. A throwing listener abstains and the event still
+ships with ip, user agent, fbp and fbc. Only send identity the visitor gave
+you (a login or data typed into checkout); never guess from the session.
 
 ### `after_dispatch` — mirror to analytics dashboard
 
@@ -414,7 +451,7 @@ satisfies the marketplace contract. The 10 invariants enforce:
 ## Anti-patterns
 
 Prefer `Event::fire` hooks (`before_dispatch`, `after_dispatch`,
-`dead_letter`) for cross-cutting concerns. They are stable contract surface,
+`dead_letter`, `pixel.before_render`, `user_data.resolve`) for cross-cutting concerns. They are stable contract surface,
 documented signatures, and exception-safe — a misbehaving listener cannot
 break dispatch.
 

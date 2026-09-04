@@ -103,7 +103,7 @@ class ProductPageWatcher
                 $iEventTime,
                 [],
             );
-            $arPayload = $this->injectRequestUserData($arPayload);
+            $arPayload = $this->injectRequestUserData('ViewContent', $obAdapter->getSubjectType($obProduct), $arPayload);
 
             $iProductId = $this->intAttr($obProduct, 'id');
             $sActionKey = 'viewcontent:'.$iProductId.':'.$sEventId;
@@ -203,7 +203,7 @@ class ProductPageWatcher
         $arOfferData = $this->resolveOfferContentData($obProduct, $iProductId, $iOfferId, $obResolver);
 
         $arPayload = $this->applyOfferCustomDataToPayload($arPayload, $arOfferData);
-        $arPayload = $this->injectRequestUserData($arPayload);
+        $arPayload = $this->injectRequestUserData('ViewContent', $obAdapter->getSubjectType($obProduct), $arPayload);
 
         $arCustomData = $arOfferData;
         unset($arCustomData['contents']);

@@ -7,6 +7,7 @@ use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Support\Facades\Session;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
@@ -14,6 +15,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
@@ -129,6 +131,38 @@ final class ThemeAjaxHandlerServerUserDataTest extends MetapixelTestCase
                 && ($arUserData['client_user_agent'] ?? null) === 'Honest/2.0'
                 && ($arUserData['fbp'] ?? null) === 'fb.1.111.222'
                 && ($arUserData['fbc'] ?? null) === 'fb.1.333.444';
+        });
+    }
+
+    public function test_resolved_identity_reaches_theme_action_capi_payload(): void
+    {
+        Event::listen(UserDataResolveHook::HOOK_RESOLVE, function (array &$arUserData, array $arContext): void {
+            $this->assertSame(['event_name' => 'Search', 'subject_type' => 'theme.action'], $arContext);
+            $arUserData['em'] = 'anna@example.com';
+            $arUserData['external_id'] = '42';
+        });
+        Request::shouldReceive('input')->with('data', [])->andReturn([
+            'name' => 'Search',
+            'action_key' => 'search:gel',
+        ]);
+
+        try {
+            $mResponse = (new ThemeAjaxHandler)->onBeforeRun(
+                Mockery::mock(Controller::class),
+                'Metapixel::onFireEvent',
+            );
+        } finally {
+            Event::forget(UserDataResolveHook::HOOK_RESOLVE);
+        }
+
+        $this->assertInstanceOf(JsonResponse::class, $mResponse);
+        $this->assertSame(200, $mResponse->getStatusCode());
+        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob): bool {
+            $arUserData = $obJob->arPayload['data'][0]['user_data'] ?? [];
+
+            return ($arUserData['em'] ?? null) === hash('sha256', 'anna@example.com')
+                && ($arUserData['external_id'] ?? null) === hash('sha256', '42')
+                && ($arUserData['client_ip_address'] ?? null) === '203.0.113.9';
         });
     }
 }

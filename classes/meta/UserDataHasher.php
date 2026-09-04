@@ -5,19 +5,17 @@ namespace Logingrupa\Metapixel\Classes\Meta;
 use Logingrupa\Metapixel\Classes\Adapter\EventSubjectAdapter;
 
 /**
- * Hashes adapter-supplied raw user_data per Meta Conversions API spec. Stateless —
- * forSubject computes the result on every call. Hashable fields (em/ph/fn/ln/ct/st/
- * zp/country/external_id) are trimmed, lowercased, sha256-ed. Passthrough fields
- * (fbp/fbc/client_ip_address/client_user_agent) are returned as-is. Null/empty
- * input returns null — never the sha256 of an empty string (would collide across
- * unrelated senders).
+ * Normalises and sha256-hashes raw user_data per the Meta Conversions API
+ * customer-information rules, one normaliser per field. Passthrough fields
+ * (fbp/fbc/client_ip_address/client_user_agent) are returned as-is. Null or
+ * empty input returns null, never the hash of an empty string.
  */
 final class UserDataHasher
 {
-    /** Fields Meta expects pre-hashed (sha256 lowercase). Lowercased before hash. */
-    private const HASHABLE_FIELDS = ['em', 'ph', 'fn', 'ln', 'ct', 'st', 'zp', 'country', 'external_id'];
+    /** Fields Meta expects sha256-hashed, in the order the payload lists them. */
+    public const IDENTITY_FIELDS = ['em', 'ph', 'fn', 'ln', 'ct', 'st', 'zp', 'country', 'external_id'];
 
-    /** Fields Meta expects raw (not hashed). Pass-through. */
+    /** Fields Meta expects raw (not hashed). */
     private const PASSTHROUGH_FIELDS = ['fbp', 'fbc', 'client_ip_address', 'client_user_agent'];
 
     /**
@@ -25,25 +23,101 @@ final class UserDataHasher
      */
     public function forSubject(EventSubjectAdapter $obAdapter, object $obSubject): array
     {
-        $arRaw = $obAdapter->getUserData($obSubject);
-        $arResult = [];
+        return $this->hashRaw($obAdapter->getUserData($obSubject));
+    }
 
-        foreach (self::HASHABLE_FIELDS as $sField) {
-            $arResult[$sField] = $this->hashField($arRaw[$sField] ?? null);
+    /**
+     * All thirteen user_data keys: hashed identity plus raw passthrough.
+     *
+     * @param  array<string, mixed>  $arRaw
+     * @return array<string, ?string>
+     */
+    public function hashRaw(array $arRaw): array
+    {
+        $arResult = [];
+        foreach (self::IDENTITY_FIELDS as $sField) {
+            $arResult[$sField] = $this->hashField($sField, $arRaw[$sField] ?? null);
         }
         foreach (self::PASSTHROUGH_FIELDS as $sField) {
-            $arResult[$sField] = $arRaw[$sField] ?? null;
+            $mValue = $arRaw[$sField] ?? null;
+            $arResult[$sField] = is_string($mValue) ? $mValue : null;
         }
 
         return $arResult;
     }
 
-    private function hashField(?string $sValue): ?string
+    /**
+     * Identity fields only, empty ones dropped. Shared by the request
+     * identity hook and the browser Advanced Matching init object.
+     *
+     * @param  array<string, mixed>  $arRaw
+     * @return array<string, string>
+     */
+    public function hashIdentity(array $arRaw): array
     {
-        if ($sValue === null || $sValue === '') {
+        $arResult = [];
+        foreach (self::IDENTITY_FIELDS as $sField) {
+            $sHash = $this->hashField($sField, $arRaw[$sField] ?? null);
+            if ($sHash !== null) {
+                $arResult[$sField] = $sHash;
+            }
+        }
+
+        return $arResult;
+    }
+
+    private function hashField(string $sField, mixed $mValue): ?string
+    {
+        if (! is_string($mValue)) {
+            return null;
+        }
+        $sNormalized = match ($sField) {
+            'em' => $this->normalizeEmail($mValue),
+            'ph' => $this->normalizePhone($mValue),
+            'fn', 'ln' => $this->normalizeName($mValue),
+            'ct', 'st', 'zp' => $this->normalizeCompact($mValue),
+            'country' => $this->normalizeCountry($mValue),
+            'external_id' => trim($mValue),
+            default => '',
+        };
+        if ($sNormalized === '') {
             return null;
         }
 
-        return hash('sha256', strtolower(trim($sValue)));
+        return hash('sha256', $sNormalized);
+    }
+
+    /** Lowercase, trimmed. */
+    private function normalizeEmail(string $sValue): string
+    {
+        return mb_strtolower(trim($sValue));
+    }
+
+    /** Digits only (drops "+", spaces, dashes), no leading zeros. The country code must already be present. */
+    private function normalizePhone(string $sValue): string
+    {
+        return ltrim((string) preg_replace('/\D+/', '', $sValue), '0');
+    }
+
+    /** Lowercase, no punctuation or symbols, single spaces; UTF-8 letters stay. */
+    private function normalizeName(string $sValue): string
+    {
+        $sLetters = (string) preg_replace('/[\p{P}\p{S}]+/u', '', mb_strtolower(trim($sValue)));
+
+        return trim((string) preg_replace('/\s+/u', ' ', $sLetters));
+    }
+
+    /** City, state, zip: lowercase, no spaces, no punctuation. */
+    private function normalizeCompact(string $sValue): string
+    {
+        return (string) preg_replace('/[\s\p{P}\p{S}]+/u', '', mb_strtolower($sValue));
+    }
+
+    /** ISO 3166-1 alpha-2, lowercase; anything else is not a country code. */
+    private function normalizeCountry(string $sValue): string
+    {
+        $sCode = strtolower(trim($sValue));
+
+        return preg_match('/^[a-z]{2}$/', $sCode) === 1 ? $sCode : '';
     }
 }

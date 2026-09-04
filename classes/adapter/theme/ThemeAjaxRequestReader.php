@@ -2,10 +2,10 @@
 
 namespace Logingrupa\Metapixel\Classes\Adapter\Theme;
 
+use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Cookie;
 use Illuminate\Support\Facades\Request;
-use Logingrupa\Metapixel\Classes\Helper\EventSourceUrl;
-use Logingrupa\Metapixel\Classes\Meta\PayloadRequestContext;
+use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use October\Rain\Support\Facades\Site;
 
 /**
@@ -46,24 +46,27 @@ final class ThemeAjaxRequestReader
     }
 
     /**
-     * Merge server-captured passthrough user_data and the event_source_url
-     * into a built CAPI payload. An anonymous subject (the documented
-     * guest-order adapter pattern) yields all-null user_data from the hasher;
-     * without the request-context bridge Meta rejects the event with HTTP 400
-     * subcode 2804050 and it permanently dead-letters. site_id is excluded —
-     * hybrid subjects are adapter-loaded and getSiteId reads from the subject,
-     * never from request context. Adapter-supplied non-null values win,
-     * mirroring CapturesRequestUserData::injectRequestUserData.
+     * Merge server-captured passthrough user_data, the hashed identity from
+     * metapixel.user_data.resolve and the event_source_url into a built CAPI
+     * payload. An anonymous subject (the documented guest-order adapter
+     * pattern) yields all-null user_data from the hasher; without the
+     * request-context bridge Meta rejects the event with HTTP 400 subcode
+     * 2804050 and it permanently dead-letters. site_id is excluded: hybrid
+     * subjects are adapter-loaded and getSiteId reads from the subject, never
+     * from request context. Adapter-supplied non-null values win, mirroring
+     * CapturesRequestUserData::injectRequestUserData.
      *
      * @param  array<string, mixed>  $arPayload  output of PayloadBuilder::buildEventPayload
      * @return array<string, mixed>
      */
-    public function injectServerUserData(array $arPayload): array
+    public function injectServerUserData(string $sEventName, string $sSubjectType, array $arPayload): array
     {
         $arServerData = $this->collectServerUserData();
         unset($arServerData['site_id']);
+        /** @var UserDataResolveHook $obResolveHook */
+        $obResolveHook = App::make(UserDataResolveHook::class);
 
-        return PayloadRequestContext::merge($arPayload, $arServerData, EventSourceUrl::current());
+        return $obResolveHook->mergeIntoPayload($sEventName, $sSubjectType, $arPayload, $arServerData);
     }
 
     /**

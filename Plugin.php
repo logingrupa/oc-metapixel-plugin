@@ -23,6 +23,7 @@ use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
+use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use Logingrupa\Metapixel\Components\EventPixel;
 use Logingrupa\Metapixel\Components\PixelHead;
 use Logingrupa\Metapixel\Components\ProductPixel;
@@ -73,6 +74,7 @@ class Plugin extends PluginBase
             )
         );
         $this->app->singleton(PixelHeadDeferredFlushBuffer::class);
+        $this->app->singleton(UserDataResolveHook::class);
         $this->registerConsoleCommand('metapixel:purge-event-log', PurgeEventLog::class);
         $this->registerConsoleCommand('metapixel:refresh-psl', RefreshPsl::class);
     }

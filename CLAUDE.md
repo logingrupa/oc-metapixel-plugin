@@ -70,9 +70,10 @@ Third parties hook the plugin via, in order of preference:
 3. **`Event::listen('metapixel.event.after_dispatch', ...)`** — observe-only successful-dispatch tap.
 4. **`Event::listen('metapixel.event.dead_letter', ...)`** — observe-only permanent-failure alert hook.
 5. **`App::bind(MetaClientInterface::class, ...)`** — HTTP client swap (testing or alternative transport).
-6. **`Component::extend(PixelHead::class, ...)` + `addDynamicMethod(...)`** — LAST RESORT. Use ONLY when an Event::fire hook does not exist for your use case. Unbounded surface (every method can be replaced) — third parties must scope dynamic methods with an `onMetapixel*` prefix to avoid collisions.
+6. **`Event::listen('metapixel.user_data.resolve', ...)`** for request-boundary identity supply (raw em/ph/fn/ln/ct/st/zp/country/external_id, hashed by the plugin, memoised per request, adapter values win). `Event::listen('metapixel.pixel.before_render', ...)` mirrors before_dispatch mutations onto the browser twin.
+7. **`Component::extend(PixelHead::class, ...)` + `addDynamicMethod(...)`** — LAST RESORT. Use ONLY when an Event::fire hook does not exist for your use case. Unbounded surface (every method can be replaced) — third parties must scope dynamic methods with an `onMetapixel*` prefix to avoid collisions.
 
-Additional 5 `Event::fire` hooks deferred to v2.1 (adapter.resolve, value.resolve, user_data.resolve, pixel.before_render, settings.lookup). Add when a real third-party use case surfaces.
+Remaining deferred `Event::fire` hooks (adapter.resolve, value.resolve, settings.lookup): add when a real third-party use case surfaces.
 
 ## Tooling (composer qa)
 

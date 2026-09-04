@@ -90,7 +90,7 @@ class CartPositionWatcher
             $iEventTime,
             [],
         );
-        $arPayload = $this->injectRequestUserData($arPayload);
+        $arPayload = $this->injectRequestUserData('AddToCart', $obAdapter->getSubjectType($obCartPosition), $arPayload);
 
         // Reserve the browser-pixel twin IN-REQUEST: the theme JS calls
         // Metapixel::onMarkAddToCart milliseconds after Cart::onAdd, so the

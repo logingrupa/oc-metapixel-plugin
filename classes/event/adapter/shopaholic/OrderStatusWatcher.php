@@ -57,7 +57,7 @@ final class OrderStatusWatcher
                 time(),
                 [],
             );
-            $arPayload = $this->injectRequestUserData($arPayload);
+            $arPayload = $this->injectRequestUserData('Purchase', $obAdapter->getSubjectType($obOrder), $arPayload);
 
             SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class);
         } catch (Throwable $obException) {

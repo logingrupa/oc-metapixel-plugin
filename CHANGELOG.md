@@ -5,6 +5,21 @@ All notable changes to `logingrupa/oc-metapixel-plugin` are documented in this f
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-09-04
+
+Customer identity on every event. Until now only Purchase carried em, ph, fn and ln (from the Order row); ViewContent, AddToCart, PageView and Search shipped ip, user agent, fbp and fbc alone, and the browser pixel initialised without Advanced Matching.
+
+### Added
+
+- **`metapixel.user_data.resolve` hook.** Fires once per request at the request boundary, before any payload is merged. Listeners receive `array &$arUserData` (raw `em`, `ph`, `fn`, `ln`, `ct`, `st`, `zp`, `country`, `external_id`) and a context array (`event_name`, `subject_type`). The plugin hashes the values, memoises them for the request and merges them into every in-request dispatch path: base PageView and the deferred collector mirror (`PixelHead`), AddToCart, ViewContent and the offer switch (watchers), Search and other theme beacons (`ThemeAjaxHandler`). Adapter-supplied values win, so Purchase keeps the Order data. A throwing listener abstains.
+- **Browser Advanced Matching.** `PixelHead` renders `fbq('init', id, {em, ph, ...})` from the same hashed identity, only for keys that are present; anonymous visitors keep the plain init.
+- **`UserDataHasher::hashRaw` / `hashIdentity`.** Public entry points over the per-field normalisers.
+
+### Changed
+
+- **Hasher normalisation follows Meta's customer-information rules per field.** Phone keeps digits only and drops leading zeros (the country code must be supplied by the caller). Names are lowercased with punctuation removed and UTF-8 letters kept. City, state and zip are lowercased with spaces and punctuation removed. Country must be a two-letter ISO 3166-1 alpha-2 code or it is dropped. External id is trimmed with its case preserved. Email is unchanged (lowercase, trimmed).
+- `CapturesRequestUserData::injectRequestUserData` and `ThemeAjaxRequestReader::injectServerUserData` take the event name and subject type ahead of the payload.
+
 ## [2.0.0] - 2026-05-27
 
 Initial public release. Generic-event-tracking marketplace plugin for OctoberCMS 4.x — Meta Pixel + Conversions API behind a Lovata-style extensible adapter pattern. Tracks any subject (Shopaholic Order, theme action, third-party cart) through one pipeline; third parties register custom adapters from their own plugin without modifying core.

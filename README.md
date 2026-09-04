@@ -112,6 +112,14 @@ All configuration lives in the backend — you never place a Pixel ID or access 
 
 ![Settings](docs/screenshots/01-settings.png)
 
+### Customer identity and Advanced Matching
+
+Out of the box every event carries the visitor's IP address, user agent and the `_fbp` / `_fbc` cookies, and a Purchase adds the email, phone and name from the order. Meta's Event Match Quality climbs further when ViewContent, AddToCart, PageView and Search carry the customer's email, phone, name and your own user id too, and when the browser pixel initialises with the same hashed values (Advanced Matching).
+
+The plugin does not know your user plugin, so it asks for that identity through the `metapixel.user_data.resolve` hook (see [Extend with a custom adapter](#extend-with-a-custom-adapter)). Your listener supplies raw values; the plugin normalises and sha256-hashes them, sends them in `user_data` and renders them into `fbq('init', ...)`. Plain-text identity never reaches the HTML or the Graph API.
+
+Consent: send identity only for visitors who gave it to you, that is a logged-in account or the details typed into your checkout. Do not infer anything from the session. If your consent banner gates tracking, gate the listener the same way.
+
 ### Per-site setup
 
 On a multi-site install, pick the target site from the backend top-bar site picker **before** you open the settings panel. The **Pixel ID** and **CAPI Access Token** you enter are scoped to the selected site; every other field is shared. See [Multi-site routing](#multi-site-routing) below for the isolation guarantee.
@@ -246,7 +254,15 @@ The pipeline is subject-agnostic. To track a model the plugin does not know abou
 
 3. **Observe successful dispatches** with `metapixel.event.after_dispatch`, or **permanent failures** with `metapixel.event.dead_letter` — both are observe-only taps, useful for your own alerting.
 
-4. **Swap the HTTP transport** for testing or an alternative backend by binding `MetaClientInterface` in the service container.
+4. **Supply the visitor's identity** with `metapixel.user_data.resolve`. It fires once per request; fill the raw `em`, `ph` (with country code), `fn`, `ln`, `ct`, `st`, `zp`, `country` (ISO alpha-2) and `external_id` keys and the plugin hashes them for every event of that request and for the browser pixel's Advanced Matching:
+
+   ```php
+   Event::listen('metapixel.user_data.resolve', function (array &$arUserData, array $arContext) {
+       // fill $arUserData from your logged-in user; adapter values win on merge
+   });
+   ```
+
+5. **Swap the HTTP transport** for testing or an alternative backend by binding `MetaClientInterface` in the service container.
 
 Register only what you need; the plugin ships with the Shopaholic order adapter and the theme-action adapter already wired.
 

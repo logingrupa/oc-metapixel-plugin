@@ -12,15 +12,14 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionValueResolver;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
-use Logingrupa\Metapixel\Classes\Helper\EventSourceUrl;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Helper\RequestKind;
 use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
-use Logingrupa\Metapixel\Classes\Meta\PayloadRequestContext;
 use Logingrupa\Metapixel\Classes\Meta\PixelRenderHook;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
+use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
 use Ramsey\Uuid\Uuid;
@@ -103,6 +102,12 @@ class PixelHead extends ComponentBase
                 return;
             }
 
+            // Browser Advanced Matching: the same hashed identity the CAPI
+            // twin carries, so Meta matches both channels on one person.
+            /** @var UserDataResolveHook $obResolveHook */
+            $obResolveHook = App::make(UserDataResolveHook::class);
+            $arAdvancedMatching = $obResolveHook->hashedIdentity('PageView', $obAdapter->getSubjectType($obProbeEvent));
+
             $sEventId = Uuid::uuid4()->toString();
             $iEventTime = time();
             // PageView is per-pageload, not per-subject. action_key MUST be
@@ -126,6 +131,7 @@ class PixelHead extends ComponentBase
             $this->page['pixelHeadBase'] = [
                 'pixel_id' => $sPixelId,
                 'pixel_id_js' => (string) json_encode($sPixelId, self::JS),
+                'advanced_matching_js' => $arAdvancedMatching === [] ? null : (string) json_encode($arAdvancedMatching, self::JS),
                 'event_name_js' => (string) json_encode('PageView', self::JS),
                 'event_id_js' => (string) json_encode($sEventId, self::JS),
                 'event_time_js' => (string) json_encode($iEventTime, self::JS),
@@ -189,7 +195,9 @@ class PixelHead extends ComponentBase
         $obResolver = new ThemeActionValueResolver;
         $obBuilder = new PayloadBuilder(new UserDataHasher);
         $arPayload = $obBuilder->buildEventPayload('PageView', $obAdapter, $obEvent, $obResolver, $sEventId, $iEventTime, []);
-        $arPayload = PayloadRequestContext::merge($arPayload, [], EventSourceUrl::current());
+        /** @var UserDataResolveHook $obResolveHook */
+        $obResolveHook = App::make(UserDataResolveHook::class);
+        $arPayload = $obResolveHook->mergeIntoPayload('PageView', $obAdapter->getSubjectType($obEvent), $arPayload, []);
         SendCapiEvent::dispatch('PageView', $arPayload, $obEvent, ThemeActionAdapter::class);
     }
 
@@ -321,7 +329,9 @@ class PixelHead extends ComponentBase
         $obBuilder = new PayloadBuilder(new UserDataHasher);
         $sEventId = Uuid::uuid4()->toString();
         $arPayload = $obBuilder->buildEventPayload($sName, $obAdapter, $obEvent, $obResolver, $sEventId, time(), []);
-        $arPayload = PayloadRequestContext::merge($arPayload, self::collectRequestUserData(), EventSourceUrl::current());
+        /** @var UserDataResolveHook $obResolveHook */
+        $obResolveHook = App::make(UserDataResolveHook::class);
+        $arPayload = $obResolveHook->mergeIntoPayload($sName, $obAdapter->getSubjectType($obEvent), $arPayload, self::collectRequestUserData());
         SendCapiEvent::dispatch($sName, $arPayload, $obEvent, ThemeActionAdapter::class);
     }
 }
