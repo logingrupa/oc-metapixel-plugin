@@ -120,12 +120,16 @@ final class AccountIdentityHandlerUserPluginTest extends MetapixelTestCase
     }
 
     /**
-     * Drop every in-memory copy of the logged-in user: the Laravel guards, and
-     * a facade root that keeps itself as a singleton plus its container binding.
+     * Drop every in-memory copy of the logged-in user: the Laravel guards when
+     * the auth manager keeps any, and a facade root that keeps itself as a
+     * singleton plus its container binding.
      */
     private function forgetLoadedUser(): void
     {
-        App::make('auth')->forgetGuards();
+        $obAuthManager = App::make('auth');
+        if (method_exists($obAuthManager, 'forgetGuards')) {
+            $obAuthManager->forgetGuards();
+        }
         $sAuthFacade = UserHelper::instance()->getAuthFacade();
         $obRoot = $sAuthFacade::getFacadeRoot();
         if (! is_object($obRoot) || ! method_exists($obRoot, 'forgetInstance')) {
