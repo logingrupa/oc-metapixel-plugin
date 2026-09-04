@@ -11,7 +11,8 @@ This plugin lets you:
 * **track any theme action** on a Lovata-free install through a single Twig API call, with no cart plugin required;
 * **replay failed CAPI events** from a backend admin list, and check the deduplication rate reported by Meta;
 * **run multi-site** with a separate Pixel ID and access token per site, isolated so a token never leaks across sites;
-* **register custom adapters** from your own plugin to track any model through the same pipeline, without editing plugin core.
+* **register custom adapters** from your own plugin to track any model through the same pipeline, without editing plugin core;
+* **skip crawlers automatically** — requests from Googlebot, bingbot, DotBot, MJ12bot, Facebook's own fetcher, headless browsers and CLI tools never produce server events, because the browser pixel never runs for them and Meta would count the twin as an unmatched event.
 
 ## Requirements
 
@@ -57,6 +58,25 @@ The `-W` (with-all-dependencies) flag is required because a fresh October lockfi
 If **Settings → Marketing → Meta Pixel + CAPI** is not visible after install, run `php artisan october:migrate` to apply the plugin migrations — the settings panel and the failed-events table are created by that step.
 
 Install the exact package name `logingrupa/oc-metapixel-plugin` from the VCS URL `https://github.com/logingrupa/oc-metapixel-plugin`. Do not install a similarly named package.
+
+### Queue worker (recommended)
+
+Server events are dispatched as the `SendCapiEvent` queue job. With the default `QUEUE_CONNECTION=sync` every Conversions API call runs inside the visitor's request: a product page waits for two Graph API round trips, a dead DNS lookup stalls it for the connect timeout, and a failed send is written to **Failed events** without ever being retried. The **Failed events** screen shows a warning while the queue is synchronous.
+
+Run the job on a real queue instead:
+
+```bash
+# .env
+QUEUE_CONNECTION=redis   # or database, then: php artisan queue:table && php artisan october:migrate
+```
+
+```bash
+php artisan queue:work redis --tries=3 --sleep=3 --max-time=3600
+```
+
+Keep the worker alive with a process manager (Laravel Forge daemon, Supervisor, systemd) and add `php artisan queue:restart` to your deploy script so workers pick up new code. Transient Graph API failures (connect errors, HTTP 408, 429, 5xx) are retried three times with 1s, 4s and 16s backoff; only the final failure lands in **Failed events**.
+
+The server needs a reliable outbound DNS resolver: on a host without a local cache, a few percent of lookups can time out under load and show up as `graph API connect failure`. Point `/etc/resolv.conf` at a caching stub (`systemd-resolved` on `127.0.0.53`, or `unbound`).
 
 ### Quick start — first event in 10 minutes
 
@@ -193,6 +213,8 @@ Grep the OctoberCMS runtime log at `storage/logs/system.log` for these signature
 | ViewContent does not fire on a product page | `metapixel: ProductPageWatcher emission failed` | Confirm the product resolves an offer and a currency; check the surrounding log context for the failing field. |
 | A theme `pushEvent` call is rejected | `metapixel: ThemeAjaxHandler failed` | Add the event name to **Custom theme event names** (one per line) if it is not a standard Meta event. |
 | `_fbp` / `_fbc` cookies stop refreshing | `PSL snapshot is <N> days old — run php artisan metapixel:refresh-psl` | Run `php artisan metapixel:refresh-psl` to refresh the bundled Public Suffix List. |
+| Failed events pile up with `graph API connect failure: cURL error 28: Resolving timed out` | `metapixel: graph API connect failure: <curl cause>` | Outbound DNS on the host drops queries. Use a local caching resolver (see **Queue worker** under Install) and run the queue worker so the retries absorb the rest. Replay the rows afterwards. |
+| Page views from crawlers never appear in the event log | none — by design | Crawler and tooling user agents are skipped before any send or log write; the browser pixel never fires for them, so no twin is needed. |
 
 ## Multi-site routing
 

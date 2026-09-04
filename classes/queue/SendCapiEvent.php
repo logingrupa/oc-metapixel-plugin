@@ -17,6 +17,7 @@ use Logingrupa\Metapixel\Classes\Exception\MetaApiTransientException;
 use Logingrupa\Metapixel\Classes\Exception\MetaPixelException;
 use Logingrupa\Metapixel\Classes\Exception\MissingCapiTokenException;
 use Logingrupa\Metapixel\Classes\Exception\MissingPixelConfigException;
+use Logingrupa\Metapixel\Classes\Helper\CrawlerUserAgent;
 use Logingrupa\Metapixel\Classes\Helper\EventLogWriter;
 use Logingrupa\Metapixel\Classes\Helper\SiteResolver;
 use Logingrupa\Metapixel\Classes\Meta\MetaClient;
@@ -88,6 +89,10 @@ final class SendCapiEvent implements ShouldQueue
             ]);
             $this->writeFailedEvent($obException, null, null);
 
+            return;
+        }
+
+        if (CrawlerUserAgent::isCrawler($this->readUserAgent())) {
             return;
         }
 
@@ -304,6 +309,14 @@ final class SendCapiEvent implements ShouldQueue
                 'meta_pixel.exception' => get_class($obDbException),
             ]);
         }
+    }
+
+    private function readUserAgent(): ?string
+    {
+        $mUserData = $this->firstEventRecord()['user_data'] ?? null;
+        $mUserAgent = is_array($mUserData) ? ($mUserData['client_user_agent'] ?? null) : null;
+
+        return is_string($mUserAgent) ? $mUserAgent : null;
     }
 
     private function readEventId(): string

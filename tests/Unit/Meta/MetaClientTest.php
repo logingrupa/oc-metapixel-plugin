@@ -116,7 +116,30 @@ final class MetaClientTest extends MetapixelTestCase
         } catch (MetaApiTransientException $obException) {
             $this->assertSame($obConnect, $obException->getPrevious(), 'original ConnectException MUST be carried as previous');
             $this->assertNull($obException->getHttpStatus(), 'connect failure has no HTTP status');
+            $this->assertSame('metapixel: graph API connect failure: cURL: timeout', $obException->getMessage(), 'the curl cause travels in the message');
         }
+    }
+
+    public function test_connect_failure_message_drops_guzzle_docs_link_and_url(): void
+    {
+        $obConnect = new ConnectException(
+            'cURL error 28: Resolving timed out after 5001 milliseconds (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://graph.facebook.com/v23.0/PIXEL-42/events',
+            new Request('POST', 'https://graph.facebook.com'),
+        );
+        $obClient = new Client(['handler' => HandlerStack::create(new MockHandler([$obConnect]))]);
+
+        try {
+            (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN', ['data' => []]);
+            $this->fail('expected MetaApiTransientException on ConnectException');
+        } catch (MetaApiTransientException $obException) {
+            $this->assertSame('metapixel: graph API connect failure: cURL error 28: Resolving timed out after 5001 milliseconds', $obException->getMessage());
+        }
+    }
+
+    public function test_default_client_bounds_connect_time_separately(): void
+    {
+        $this->assertSame(2, MetaClient::CLIENT_OPTIONS['connect_timeout']);
+        $this->assertSame(5, MetaClient::CLIENT_OPTIONS['timeout']);
     }
 
     public function test_url_contains_graph_version_and_pixel_id_and_token_lives_in_body(): void

@@ -1,1 +1,10 @@
+<?php if (!empty($bQueueIsSync)): ?>
+<div class="callout callout-warning">
+    <div class="header">
+        <i class="icon-warning"></i>
+        <h3><?= e(trans('logingrupa.metapixel::lang.failed_events.sync_queue_title')) ?></h3>
+        <p><?= e(trans('logingrupa.metapixel::lang.failed_events.sync_queue_hint')) ?></p>
+    </div>
+</div>
+<?php endif ?>
 <?= $this->listRender() ?>

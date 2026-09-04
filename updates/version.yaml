@@ -32,3 +32,6 @@
 
 2.0.7:
   - 'The cookie middleware resolves _fbp / _fbc before the page runs and primes them into the request, so the ViewContent, PageView and AddToCart of the ad-click landing request send fbc instead of null, and a new fbclid replaces the stored _fbc like the browser pixel does. Both cookies are exempt from cookie encryption, which had nulled every Cookie facade read (PageView, Search and InitiateCheckout carried no fbp or fbc at all). Every CAPI event now carries event_source_url.'
+
+2.0.8:
+  - 'Crawler user agents (Googlebot, bingbot, DotBot, MJ12bot, facebookexternalhit, headless browsers, CLI tools) skip the CAPI pipeline before any send or log write; on a live shop they were 35 percent of all server events and never had a browser twin. The Graph client bounds connect time at 2 seconds and carries the curl cause in the error, so a failed event now says why (for example "Resolving timed out after 5001 milliseconds"). The Failed events screen warns while QUEUE_CONNECTION is sync, and the README documents the queue worker and the DNS resolver requirement.'

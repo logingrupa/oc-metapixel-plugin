@@ -70,6 +70,8 @@ return [
         'flash_dedup_error' => 'Dedublēšanas pārbaude neizdevās — :error',
         'flash_delete_success' => 'Dzēsti :count nesekmīgie notikumi',
         'flash_row_missing' => 'Nesekmīgais notikums vairs neeksistē — atjauniniet sarakstu.',
+        'sync_queue_title' => 'Rinda darbojas sinhroni (QUEUE_CONNECTION=sync)',
+        'sync_queue_hint' => 'Katrs Conversions API sūtījums notiek apmeklētāja pieprasījuma laikā, un neizdevies sūtījums netiek atkārtots. Konfigurējiet rindas savienojumu (redis vai database) un palaidiet worker procesu; skatiet spraudņa README sadaļu Install.',
     ],
     'exception' => [
         'missing_pixel_config' => 'Meta Pixel ID nav konfigurēts. Iestatiet to sadaļā Iestatījumi > Meta Pixel + CAPI > Pixel & CAPI cilne.',

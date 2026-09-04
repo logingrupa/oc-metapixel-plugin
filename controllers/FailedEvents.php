@@ -2,11 +2,13 @@
 
 namespace Logingrupa\Metapixel\Controllers;
 
+use Backend\Behaviors\ListController;
 use Backend\Classes\Controller;
 use BackendMenu;
 use Flash;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\App;
+use LogicException;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Exception\MetaPixelException;
 use Logingrupa\Metapixel\Classes\Meta\MetaClient;
@@ -53,6 +55,20 @@ class FailedEvents extends Controller
         parent::__construct();
         BackendMenu::setContext('October.System', 'system', 'settings');
         SettingsManager::setContext('Logingrupa.Metapixel', 'failed_events');
+    }
+
+    /**
+     * List page. Flags a synchronous queue: every CAPI send then runs inside
+     * the visitor's request and the retry schedule never executes.
+     */
+    public function index(): void
+    {
+        $this->vars['bQueueIsSync'] = config('queue.default') === 'sync';
+        $obListBehavior = $this->asExtension('ListController');
+        if (! $obListBehavior instanceof ListController) {
+            throw new LogicException('metapixel: FailedEvents requires the ListController behavior');
+        }
+        $obListBehavior->index();
     }
 
     /**

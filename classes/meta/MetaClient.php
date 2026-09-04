@@ -28,7 +28,13 @@ class MetaClient
 
     private const META_GRAPH_API_BASE = 'https://graph.facebook.com';
 
-    private const DEFAULT_TIMEOUT_SECONDS = 5;
+    /**
+     * connect_timeout bounds DNS + TCP + TLS setup; a dead lookup costs 2s, not
+     * the full 5s request budget.
+     *
+     * @var array<string, int>
+     */
+    public const CLIENT_OPTIONS = ['timeout' => 5, 'connect_timeout' => 2];
 
     /** @var list<int> */
     private const TRANSIENT_STATUS_CODES = [408, 429, 500, 502, 503, 504];
@@ -60,16 +66,14 @@ class MetaClient
             $sPixelId,
         );
 
-        $obClient = $this->obClient ?? new Client(['timeout' => self::DEFAULT_TIMEOUT_SECONDS]);
-
         try {
-            $obResponse = $obClient->request('POST', $sUrl, [
+            $obResponse = $this->client()->request('POST', $sUrl, [
                 'json' => array_merge($arPayload, ['access_token' => $sToken]),
                 'http_errors' => false,
             ]);
         } catch (ConnectException $obException) {
             throw new MetaApiTransientException(
-                'metapixel: graph API connect failure',
+                $this->connectFailureMessage('metapixel: graph API connect failure', $obException),
                 null,
                 $obException,
                 ['url' => $sUrl],
@@ -130,19 +134,17 @@ class MetaClient
             $sPixelId,
         );
 
-        $obClient = $this->obClient ?? new Client(['timeout' => self::DEFAULT_TIMEOUT_SECONDS]);
-
         try {
             // Token in Authorization header — class docblock policy: NEVER in URL
             // query string (webserver access logs leak the URL). Matches the
             // sendForPixel POST-body transport choice (DRY rationale).
-            $obResponse = $obClient->request('GET', $sUrl, [
+            $obResponse = $this->client()->request('GET', $sUrl, [
                 'http_errors' => false,
                 'headers' => ['Authorization' => 'Bearer '.$sToken],
             ]);
         } catch (ConnectException $obException) {
             throw new MetaApiTransientException(
-                'metapixel: dataset quality fetch connect failure',
+                $this->connectFailureMessage('metapixel: dataset quality fetch connect failure', $obException),
                 null,
                 $obException,
                 ['url' => $sUrl],
@@ -175,6 +177,26 @@ class MetaClient
             null,
             ['response' => $arDecoded],
         );
+    }
+
+    private function client(): ClientInterface
+    {
+        return $this->obClient ?? new Client(self::CLIENT_OPTIONS);
+    }
+
+    /**
+     * Prefix plus the curl cause ("cURL error 28: Resolving timed out after
+     * 5001 milliseconds"), without Guzzle's trailing docs link and URL.
+     */
+    private function connectFailureMessage(string $sPrefix, ConnectException $obException): string
+    {
+        $sCause = $obException->getMessage();
+        $mTrimmed = strstr($sCause, ' (see ', true);
+        if (is_string($mTrimmed) && $mTrimmed !== '') {
+            $sCause = $mTrimmed;
+        }
+
+        return $sCause === '' ? $sPrefix : $sPrefix.': '.$sCause;
     }
 
     /**
