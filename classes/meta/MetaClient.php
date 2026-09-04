@@ -106,19 +106,21 @@ class MetaClient
     }
 
     /**
-     * Meta Dataset Quality endpoint — GET /{pixel_id}/?fields=event_match_quality,deduplication_rate.
-     * Tolerant parser: every field read uses `?? null` so schema drift on the
-     * Meta side surfaces as null values, not exceptions. Returns the raw decoded
-     * body alongside the two named fields for debugging.
+     * Meta Dataset Quality API — GET /dataset_quality?dataset_id={pixel_id}
+     * &fields=web{event_name,event_match_quality,event_coverage}. Returns two
+     * event-name keyed maps: composite EMQ score (0-10) and event coverage, the
+     * percentage of browser Pixel events Meta matched with a server twin. The
+     * API exposes no separate deduplication metric. Events Meta has no data
+     * for are absent from the maps; the raw decoded body rides along.
      *
-     * @return array{event_match_quality: mixed, deduplication_rate: mixed, raw: array<string, mixed>}
+     * @return array{event_match_quality: array<string, float>, event_coverage: array<string, float>, raw: array<string, mixed>}
      *
      * @throws MissingPixelConfigException
      * @throws MissingCapiTokenException
      * @throws MetaApiTransientException
      * @throws MetaApiPermanentException
      */
-    public function fetchTestEventsStatus(string $sPixelId, string $sToken, string $sTestEventCode = '', string $sEventId = ''): array
+    public function fetchDatasetQuality(string $sPixelId, string $sToken): array
     {
         if ($sPixelId === '') {
             throw new MissingPixelConfigException('metapixel: pixel_id is empty at dataset quality fetch');
@@ -128,10 +130,11 @@ class MetaClient
         }
 
         $sUrl = sprintf(
-            '%s/%s/%s/?fields=name,event_match_quality,deduplication_rate',
+            '%s/%s/dataset_quality?dataset_id=%s&fields=%s',
             self::META_GRAPH_API_BASE,
             self::META_GRAPH_API_VERSION,
-            $sPixelId,
+            rawurlencode($sPixelId),
+            rawurlencode('web{event_name,event_match_quality,event_coverage}'),
         );
 
         try {
@@ -156,8 +159,8 @@ class MetaClient
 
         if ($iStatus >= 200 && $iStatus < 300) {
             return [
-                'event_match_quality' => $arDecoded['event_match_quality'] ?? null,
-                'deduplication_rate' => $arDecoded['deduplication_rate'] ?? null,
+                'event_match_quality' => $this->indexWebMetric($arDecoded, 'event_match_quality', 'composite_score'),
+                'event_coverage' => $this->indexWebMetric($arDecoded, 'event_coverage', 'percentage'),
                 'raw' => $arDecoded,
             ];
         }
@@ -177,6 +180,36 @@ class MetaClient
             null,
             ['response' => $arDecoded],
         );
+    }
+
+    /**
+     * event_name => numeric value of $sMetric.$sKey across the "web" list of a
+     * Dataset Quality response. Entries without the metric are skipped.
+     *
+     * @param  array<string, mixed>  $arDecoded
+     * @return array<string, float>
+     */
+    private function indexWebMetric(array $arDecoded, string $sMetric, string $sKey): array
+    {
+        $mWeb = $arDecoded['web'] ?? null;
+        if (! is_array($mWeb)) {
+            return [];
+        }
+
+        $arResult = [];
+        foreach ($mWeb as $mEntry) {
+            if (! is_array($mEntry)) {
+                continue;
+            }
+            $mName = $mEntry['event_name'] ?? null;
+            $mMetric = $mEntry[$sMetric] ?? null;
+            $mValue = is_array($mMetric) ? ($mMetric[$sKey] ?? null) : null;
+            if (is_string($mName) && $mName !== '' && is_numeric($mValue)) {
+                $arResult[$mName] = (float) $mValue;
+            }
+        }
+
+        return $arResult;
     }
 
     private function client(): ClientInterface

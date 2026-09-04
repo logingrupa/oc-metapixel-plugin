@@ -35,3 +35,6 @@
 
 2.0.8:
   - 'Crawler user agents (Googlebot, bingbot, DotBot, MJ12bot, facebookexternalhit, headless browsers, CLI tools) skip the CAPI pipeline before any send or log write; on a live shop they were 35 percent of all server events and never had a browser twin. The Graph client bounds connect time at 2 seconds and carries the curl cause in the error, so a failed event now says why (for example "Resolving timed out after 5001 milliseconds"). The Failed events screen warns while QUEUE_CONNECTION is sync, and the README documents the queue worker and the DNS resolver requirement.'
+
+2.0.9:
+  - 'Check dedup reads Meta''s Dataset Quality API (GET /dataset_quality?dataset_id=...&fields=web{event_name,event_match_quality,event_coverage}) instead of the pixel node, which every Events Manager token answers with "(#100) Missing Permission". EMQ comes from composite_score, the Dedup column from event coverage (the share of browser events matched with a server twin), since the API exposes no deduplication field. The unused test-event-code and event-id parameters are gone.'

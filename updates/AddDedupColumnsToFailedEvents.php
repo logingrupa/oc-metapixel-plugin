@@ -10,7 +10,7 @@ use Schema;
  * Additive migration adding dedup-status columns to the FailedEvents table:
  * dedup_pct DECIMAL(5,2), emq DECIMAL(4,2), dedup_checked_at DATETIME — all
  * nullable. Populated by Controllers\FailedEvents::onCheckDedup which calls
- * MetaClient::fetchTestEventsStatus against the Meta Dataset Quality endpoint.
+ * MetaClient::fetchDatasetQuality against the Meta Dataset Quality endpoint.
  *
  * up() + down() are idempotent — re-running either is a no-op when the
  * columns are already in/out of the table.

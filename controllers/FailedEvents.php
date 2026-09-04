@@ -267,20 +267,11 @@ class FailedEvents extends Controller
         $arEmpty = ['dedup_pct' => null, 'emq' => null, 'checked_at' => null];
 
         $arCreds = Settings::lookupForSite(null);
-        // Settings::get on test_event_code is permitted — D-02 disallowed
-        // rule bans pixel_id / capi_access_token only.
-        $mTestEventCode = Settings::get('test_event_code', '');
-        $sTestEventCode = is_string($mTestEventCode) ? $mTestEventCode : '';
 
         try {
             /** @var MetaClient $obClient */
             $obClient = App::make(MetaClient::class);
-            $arResponse = $obClient->fetchTestEventsStatus(
-                $arCreds['pixel_id'],
-                $arCreds['capi_access_token'],
-                $sTestEventCode,
-                $obRow->event_id,
-            );
+            $arResponse = $obClient->fetchDatasetQuality($arCreds['pixel_id'], $arCreds['capi_access_token']);
         } catch (Throwable $obException) {
             // silent: dataset quality fetch is best-effort; existing row
             // dedup_pct / emq / dedup_checked_at MUST NOT be overwritten on
@@ -293,9 +284,11 @@ class FailedEvents extends Controller
             return $arEmpty;
         }
 
+        // Dedup % = Meta's event coverage: the share of browser Pixel events
+        // matched with a server twin. Already a percentage.
         $fEmq = $this->extractMetricForEventName($arResponse['event_match_quality'], $obRow->event_name);
-        $fDedupRate = $this->extractMetricForEventName($arResponse['deduplication_rate'], $obRow->event_name);
-        $fDedupPct = $fDedupRate === null ? null : round($fDedupRate * 100.0, 2);
+        $fCoverage = $this->extractMetricForEventName($arResponse['event_coverage'], $obRow->event_name);
+        $fDedupPct = $fCoverage === null ? null : round($fCoverage, 2);
 
         $sCheckedAt = Carbon::now()->toDateTimeString();
         $obRow->update([

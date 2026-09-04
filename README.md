@@ -189,7 +189,7 @@ When a CAPI dispatch exhausts its retries — for example, an invalid access tok
 Each row records the event ID, event name, adapter, HTTP status, attempt count, and the Graph error. Two toolbar actions operate on a selected row:
 
 * **Replay** re-dispatches the event through Meta CAPI. On success the attempt count increments and the HTTP status and Graph error clear; the row is kept as an audit record rather than deleted.
-* **Check dedup** asks Meta for the deduplication rate and event match quality for the Pixel. This call needs an access token with `ads_read` on the Pixel's ad account; without that scope Meta returns a permission error and the plugin fails safe — it shows the error and leaves the stored dedup values untouched.
+* **Check dedup** asks Meta's Dataset Quality API for the Pixel's event match quality (EMQ, 0 to 10) and event coverage, the share of browser Pixel events Meta matched with a server twin; that coverage fills the **Dedup %** column. The call works with a Conversions API access token generated in Events Manager after July 2025; older tokens need the Events Manager opt-in or a system user token with `ads_read`. Without access Meta returns a permission error and the plugin fails safe — it shows the error and leaves the stored values untouched.
 
 ![FailedEvents](docs/screenshots/02-failed-events-list.png)
 

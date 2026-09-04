@@ -188,13 +188,13 @@ final class FailedEventsBatchTest extends MetapixelTestCase
                 parent::__construct(null);
             }
 
-            public function fetchTestEventsStatus(string $sPixelId, string $sToken, string $sTestEventCode = '', string $sEventId = ''): array
+            public function fetchDatasetQuality(string $sPixelId, string $sToken): array
             {
                 $this->iCallCount++;
 
                 return [
                     'event_match_quality' => ['Purchase' => 9.0],
-                    'deduplication_rate' => ['Purchase' => 0.75],
+                    'event_coverage' => ['Purchase' => 75.0],
                     'raw' => [],
                 ];
             }
@@ -230,13 +230,13 @@ final class FailedEventsBatchTest extends MetapixelTestCase
                 parent::__construct(null);
             }
 
-            public function fetchTestEventsStatus(string $sPixelId, string $sToken, string $sTestEventCode = '', string $sEventId = ''): array
+            public function fetchDatasetQuality(string $sPixelId, string $sToken): array
             {
                 $this->iCallCount++;
 
                 return [
                     'event_match_quality' => ['Purchase' => 7.0],
-                    'deduplication_rate' => ['Purchase' => 0.6],
+                    'event_coverage' => ['Purchase' => 60.0],
                     'raw' => [],
                 ];
             }
@@ -262,11 +262,11 @@ final class FailedEventsBatchTest extends MetapixelTestCase
                 parent::__construct(null);
             }
 
-            public function fetchTestEventsStatus(string $sPixelId, string $sToken, string $sTestEventCode = '', string $sEventId = ''): array
+            public function fetchDatasetQuality(string $sPixelId, string $sToken): array
             {
                 $this->iCallCount++;
 
-                return ['event_match_quality' => null, 'deduplication_rate' => null, 'raw' => []];
+                return ['event_match_quality' => null, 'event_coverage' => null, 'raw' => []];
             }
         };
         $this->app->instance(MetaClient::class, $obFakeClient);

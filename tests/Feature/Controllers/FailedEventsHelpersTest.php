@@ -192,7 +192,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
 
         $obController = $this->makeDedupController([
             'event_match_quality' => 'not-an-array',
-            'deduplication_rate' => 'also-not-an-array',
+            'event_coverage' => 'also-not-an-array',
             'raw' => [],
         ]);
 
@@ -200,7 +200,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
 
         $obFresh = FailedEvent::find($obRow->id);
         $this->assertNull($obFresh->emq, 'non-array event_match_quality → null');
-        $this->assertNull($obFresh->dedup_pct, 'non-array deduplication_rate → null');
+        $this->assertNull($obFresh->dedup_pct, 'non-array event_coverage → null');
     }
 
     public function test_extract_metric_returns_null_when_event_name_key_absent(): void
@@ -212,7 +212,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
 
         $obController = $this->makeDedupController([
             'event_match_quality' => ['Lead' => 4.4],
-            'deduplication_rate' => ['Lead' => 0.4],
+            'event_coverage' => ['Lead' => 40.0],
             'raw' => [],
         ]);
 
@@ -232,7 +232,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
 
         $obController = $this->makeDedupController([
             'event_match_quality' => ['Purchase' => 'not-a-number'],
-            'deduplication_rate' => ['Purchase' => ['nested-array']],
+            'event_coverage' => ['Purchase' => ['nested-array']],
             'raw' => [],
         ]);
 
@@ -260,7 +260,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
 
         $obController = $this->makeDedupController([
             'event_match_quality' => ['Purchase' => 9.5],
-            'deduplication_rate' => ['Purchase' => 0.95],
+            'event_coverage' => ['Purchase' => 95.0],
             'raw' => [],
         ]);
 
@@ -301,7 +301,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
 
         $obController = $this->makeDedupController([
             'event_match_quality' => null,
-            'deduplication_rate' => null,
+            'event_coverage' => null,
             'raw' => [],
         ]);
 
@@ -325,7 +325,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
                 parent::__construct(null);
             }
 
-            public function fetchTestEventsStatus(string $sPixelId, string $sToken, string $sTestEventCode = '', string $sEventId = ''): array
+            public function fetchDatasetQuality(string $sPixelId, string $sToken): array
             {
                 return $this->arResponse;
             }

@@ -15,7 +15,7 @@ use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
  * Wave 0 RED — fails until plan 04-04 production code ships.
  *
  * FAIL-03 — Controllers\FailedEvents::onCheckDedup calls
- * MetaClient::fetchTestEventsStatus, parses the (Meta Graph) JSON response
+ * MetaClient::fetchDatasetQuality, parses the (Meta Graph) JSON response
  * tolerantly (?? null on every field read), and writes 3 inline columns
  * (dedup_pct, emq, dedup_checked_at) onto the FailedEvent row. Returns the
  * 3 values + the list-refresh partial for live JSON refresh. Tolerates
@@ -81,7 +81,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
                 parent::__construct(null);
             }
 
-            public function fetchTestEventsStatus(string $sPixelId, string $sToken, string $sTestEventCode = '', string $sEventId = ''): array
+            public function fetchDatasetQuality(string $sPixelId, string $sToken): array
             {
                 if ($this->bThrow && $this->obException !== null) {
                     throw $this->obException;
@@ -107,7 +107,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
 
         $obController = $this->makeController([
             'event_match_quality' => ['Purchase' => 8.4],
-            'deduplication_rate' => ['Purchase' => 0.83],
+            'event_coverage' => ['Purchase' => 83.0],
             'raw' => ['id' => 'PIXEL-DEDUP'],
         ]);
 
@@ -128,7 +128,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
 
         $obController = $this->makeController([
             'event_match_quality' => null,
-            'deduplication_rate' => ['Purchase' => 0.5],
+            'event_coverage' => ['Purchase' => 50.0],
             'raw' => [],
         ]);
 
@@ -147,7 +147,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
 
         $obController = $this->makeController([
             'event_match_quality' => null,
-            'deduplication_rate' => null,
+            'event_coverage' => null,
             'raw' => [],
         ]);
 
@@ -166,7 +166,7 @@ final class FailedEventsCheckDedupTest extends MetapixelTestCase
 
         $obController = $this->makeController([
             'event_match_quality' => ['Purchase' => 9.1],
-            'deduplication_rate' => ['Purchase' => 0.91],
+            'event_coverage' => ['Purchase' => 91.0],
             'raw' => [],
         ]);
 
