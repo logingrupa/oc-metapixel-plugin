@@ -41,3 +41,6 @@
 
 2.1.0:
   - 'Customer identity on every event: the new metapixel.user_data.resolve hook fires once per request so the host supplies the visitor''s raw email, phone, name, city, zip, country and user id; the plugin hashes them into ViewContent, AddToCart, PageView and Search (adapter values win, so Purchase keeps the order data) and renders the same hashes as the browser pixel''s Advanced Matching object. Hasher normalisation now follows Meta''s per-field rules (phone digits without leading zeros, names without punctuation, compact city/zip, ISO alpha-2 country).'
+
+2.1.1:
+  - 'Built-in account identity listener: with the new Advanced setting on, the logged-in customer''s email, phone, name and user id are read through Lovata Toolbox UserHelper (RainLab.User or Lovata.Buddies) and hashed into every event, no host listener needed; a host listener still wins on the keys it fills. A phone country calling code setting prefixes 8-digit national numbers. The user_data.resolve hook no longer fires while the plugin is disabled or for a crawler user agent.'

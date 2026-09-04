@@ -159,6 +159,17 @@ class Settings extends CommonSettings
     {
         $this->beforeSaveTrustedHosts();
         $this->beforeSaveThemeCustomEventNames();
+        $this->beforeSaveAccountPhoneDialCode();
+    }
+
+    /** Keep digits only: "+371" and "371 " both persist as "371". */
+    private function beforeSaveAccountPhoneDialCode(): void
+    {
+        $mValue = $this->getAttribute('account_phone_dial_code');
+        if (! is_string($mValue)) {
+            return;
+        }
+        $this->setAttribute('account_phone_dial_code', (string) preg_replace('/\D+/', '', $mValue));
     }
 
     /**

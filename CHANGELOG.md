@@ -5,6 +5,19 @@ All notable changes to `logingrupa/oc-metapixel-plugin` are documented in this f
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-09-04
+
+The logged-in account becomes the event identity without a host listener.
+
+### Added
+
+- **Built-in account identity listener.** `AccountIdentityHandler` subscribes to `metapixel.user_data.resolve` and reads the logged-in customer through Lovata Toolbox `UserHelper`, so RainLab.User and Lovata.Buddies both work with no code in the host. It fills `em`, `ph`, `fn`, `ln` and `external_id`, and only the keys a host listener left empty (the first listener wins).
+- **Advanced settings.** `Send the logged-in account as the event identity` (off by default) switches the listener on. `Phone country calling code` (digits, for example `371`) is prefixed to phone numbers stored as exactly 8 national digits; without it those phones are not sent. The first entry of a comma-separated phone field is used.
+
+### Changed
+
+- **The hook does not fire while the plugin is disabled or for a crawler user agent.** No CAPI event ships for those requests, so `UserDataResolveHook` returns an empty identity without asking any listener for a user lookup.
+
 ## [2.1.0] - 2026-09-04
 
 Customer identity on every event. Until now only Purchase carried em, ph, fn and ln (from the Order row); ViewContent, AddToCart, PageView and Search shipped ip, user agent, fbp and fbc alone, and the browser pixel initialised without Advanced Matching.

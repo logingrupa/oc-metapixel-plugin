@@ -54,3 +54,15 @@ tabs:
             type: textarea
             size: small
             span: full
+        account_identity_enabled:
+            tab: logingrupa.metapixel::lang.tab.advanced
+            label: logingrupa.metapixel::lang.field.account_identity_enabled_label
+            commentAbove: logingrupa.metapixel::lang.field.account_identity_enabled_comment
+            type: switch
+            default: false
+        account_phone_dial_code:
+            tab: logingrupa.metapixel::lang.tab.advanced
+            label: logingrupa.metapixel::lang.field.account_phone_dial_code_label
+            commentAbove: logingrupa.metapixel::lang.field.account_phone_dial_code_comment
+            type: text
+            span: auto

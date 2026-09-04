@@ -108,7 +108,10 @@ All configuration lives in the backend — you never place a Pixel ID or access 
 4. On the **Hosts & Cookies** tab, fill in:
    * **Trusted Hosts** — one host per line; the plugin sets `_fbp` / `_fbc` cookies only on these hosts. Sub-domains resolve through the bundled Public Suffix List.
    * **Set _fbp / _fbc cookies server-side** — turn this off if your theme already writes these cookies, or if a consent banner must gate them until opt-in. `_fbc` is built from `?fbclid` on the click landing request itself, so that request's CAPI events already carry it, and every new click id replaces the stored value.
-5. Click **Save**. A confirmation flash appears and the values persist across reloads.
+5. On the **Advanced** tab, optionally fill in:
+   * **Send the logged-in account as the event identity** - off by default. When on, the built-in listener reads the logged-in customer through Lovata Toolbox `UserHelper` (RainLab.User and Lovata.Buddies both work) and sends the hashed email, phone, first and last name and user id with every event of that visitor. See [Customer identity and Advanced Matching](#customer-identity-and-advanced-matching) before switching it on.
+   * **Phone country calling code** - digits without the plus, for example `371`. Prefixed to phone numbers stored as exactly 8 national digits; when empty, those phones are not sent. Numbers stored with a country code pass through as they are.
+6. Click **Save**. A confirmation flash appears and the values persist across reloads.
 
 ![Settings](docs/screenshots/01-settings.png)
 
@@ -116,7 +119,13 @@ All configuration lives in the backend — you never place a Pixel ID or access 
 
 Out of the box every event carries the visitor's IP address, user agent and the `_fbp` / `_fbc` cookies, and a Purchase adds the email, phone and name from the order. Meta's Event Match Quality climbs further when ViewContent, AddToCart, PageView and Search carry the customer's email, phone, name and your own user id too, and when the browser pixel initialises with the same hashed values (Advanced Matching).
 
-The plugin does not know your user plugin, so it asks for that identity through the `metapixel.user_data.resolve` hook (see [Extend with a custom adapter](#extend-with-a-custom-adapter)). Your listener supplies raw values; the plugin normalises and sha256-hashes them, sends them in `user_data` and renders them into `fbq('init', ...)`. Plain-text identity never reaches the HTML or the Graph API.
+The plugin asks for that identity through the `metapixel.user_data.resolve` hook (see [Extend with a custom adapter](#extend-with-a-custom-adapter)). Listeners supply raw values; the plugin normalises and sha256-hashes them, sends them in `user_data` and renders them into `fbq('init', ...)`. Plain-text identity never reaches the HTML or the Graph API.
+
+A built-in listener covers the logged-in account. Switch on **Send the logged-in account as the event identity** on the Advanced tab and the plugin resolves the customer through Lovata Toolbox `UserHelper`, so RainLab.User and Lovata.Buddies both work with no code in your theme or plugin. It fills `em`, `ph`, `fn`, `ln` and `external_id` from the account (email, phone, first name or name, last name, user id). Set **Phone country calling code** when your accounts store national numbers: a phone of exactly 8 digits gets that code prefixed, a phone with no dial code configured is dropped, and a stored number that already carries the country code passes through. Only the first entry of a comma-separated phone field is used.
+
+Your own listener can still add keys (`ct`, `st`, `zp`, `country`, or anything the account lacks). The built-in listener fills empty keys only, so the first listener to set a key wins: a host listener that runs before it keeps its values, one that runs after it may overwrite them. Leave the toggle off to supply everything yourself.
+
+The hook does not fire while the plugin is disabled (empty Pixel ID) or for a crawler user agent. No event ships for those requests, so no listener spends a user lookup on them.
 
 Consent: send identity only for visitors who gave it to you, that is a logged-in account or the details typed into your checkout. Do not infer anything from the session. If your consent banner gates tracking, gate the listener the same way.
 
@@ -254,7 +263,7 @@ The pipeline is subject-agnostic. To track a model the plugin does not know abou
 
 3. **Observe successful dispatches** with `metapixel.event.after_dispatch`, or **permanent failures** with `metapixel.event.dead_letter` — both are observe-only taps, useful for your own alerting.
 
-4. **Supply the visitor's identity** with `metapixel.user_data.resolve`. It fires once per request; fill the raw `em`, `ph` (with country code), `fn`, `ln`, `ct`, `st`, `zp`, `country` (ISO alpha-2) and `external_id` keys and the plugin hashes them for every event of that request and for the browser pixel's Advanced Matching:
+4. **Supply the visitor's identity** with `metapixel.user_data.resolve`. It fires once per request (never while the plugin is disabled or for a crawler user agent); fill the raw `em`, `ph` (with country code), `fn`, `ln`, `ct`, `st`, `zp`, `country` (ISO alpha-2) and `external_id` keys and the plugin hashes them for every event of that request and for the browser pixel's Advanced Matching. The built-in account listener (Advanced tab) fills only the keys still empty when it runs, so your values survive:
 
    ```php
    Event::listen('metapixel.user_data.resolve', function (array &$arUserData, array $arContext) {

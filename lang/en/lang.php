@@ -33,6 +33,10 @@ return [
         'trusted_hosts_comment' => 'One host per line. The plugin sets _fbp / _fbc cookies only on these hosts. Sub-TLDs supported via the bundled Public Suffix List.',
         'ensure_fbp_fbc_label' => 'Set _fbp / _fbc cookies server-side',
         'ensure_fbp_fbc_comment' => 'Turn OFF if your theme already writes these cookies, or for GDPR consent banner integration where cookies must wait for opt-in.',
+        'account_identity_enabled_label' => 'Send the logged-in account as the event identity',
+        'account_identity_enabled_comment' => 'Reads the customer account through Lovata Toolbox (works with RainLab.User and Lovata.Buddies) and sends the hashed email, phone, first and last name and user id to Meta with every event of a logged-in visitor. Switch on only when the shop privacy terms cover it.',
+        'account_phone_dial_code_label' => 'Phone country calling code',
+        'account_phone_dial_code_comment' => 'Country calling code without plus, for example 371. Prefixed to phone numbers stored as exactly 8 national digits; when empty those phones are not sent.',
     ],
     'menu' => [
         'label' => 'Meta Pixel',

@@ -18,6 +18,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
+use Logingrupa\Metapixel\Classes\Event\AccountIdentityHandler;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
@@ -115,6 +116,7 @@ class Plugin extends PluginBase
             ThemeActionAdapter::class,
         );
         Event::subscribe(ThemeAjaxHandler::class);
+        Event::subscribe(AccountIdentityHandler::class);
 
         // The browser pixel writes _fbp / _fbc as plain values; the encrypting
         // cookie middleware nulls any cookie it cannot decrypt.

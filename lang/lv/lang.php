@@ -33,6 +33,10 @@ return [
         'trusted_hosts_comment' => 'Viens resursdators rindā. Spraudnis iestata _fbp / _fbc sīkfailus tikai šajos resursdatoros. Apakšdomēni tiek atbalstīti, izmantojot iekļauto Public Suffix List.',
         'ensure_fbp_fbc_label' => 'Iestatīt _fbp / _fbc sīkfailus servera pusē',
         'ensure_fbp_fbc_comment' => 'Izslēdziet, ja jūsu tēma jau raksta šos sīkfailus, vai GDPR piekrišanas joslas integrācijai, kur sīkfailiem jāgaida atļauja.',
+        'account_identity_enabled_label' => 'Sūtīt pieteikušos kontu kā notikuma identitāti',
+        'account_identity_enabled_comment' => 'Nolasa klienta kontu caur Lovata Toolbox (darbojas ar RainLab.User un Lovata.Buddies) un ar katru pieteikušās apmeklētāja notikumu sūta uz Meta jauktu e-pastu, tālruni, vārdu, uzvārdu un lietotāja ID. Ieslēdziet tikai tad, ja veikala privātuma noteikumi to paredz.',
+        'account_phone_dial_code_label' => 'Tālruņa valsts kods',
+        'account_phone_dial_code_comment' => 'Valsts zvanu kods bez plusa, piemēram 371. Tiek pievienots tālruņa numuriem, kas saglabāti tieši kā 8 nacionālie cipari; ja lauks ir tukšs, šādi numuri netiek sūtīti.',
     ],
     'menu' => [
         'label' => 'Meta Pixel',

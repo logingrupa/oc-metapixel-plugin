@@ -5,7 +5,9 @@ namespace Logingrupa\Metapixel\Classes\Meta;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use InvalidArgumentException;
+use Logingrupa\Metapixel\Classes\Helper\CrawlerUserAgent;
 use Logingrupa\Metapixel\Classes\Helper\EventSourceUrl;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Throwable;
 
 /**
@@ -19,6 +21,9 @@ use Throwable;
  * Listeners receive [array &$arUserData, array $arContext]; $arContext
  * carries event_name and subject_type of the first event that asked. A
  * throwing listener abstains: the request proceeds without identity.
+ * The event does not fire while the plugin is disabled or for a crawler user
+ * agent: no CAPI event ships for those requests, so no listener should spend
+ * a user lookup on them.
  *
  * Container singleton (Plugin::register), so the memo lives exactly one
  * request. Never called from the queue worker: the job payload already
@@ -44,7 +49,9 @@ final class UserDataResolveHook
             throw new InvalidArgumentException('UserDataResolveHook::hashedIdentity requires a non-empty event name and subject type');
         }
         if ($this->arHashedIdentity === null) {
-            $this->arHashedIdentity = $this->obHasher->hashIdentity($this->fireResolve($sEventName, $sSubjectType));
+            $this->arHashedIdentity = $this->isSuppressed()
+                ? []
+                : $this->obHasher->hashIdentity($this->fireResolve($sEventName, $sSubjectType));
         }
 
         return $this->arHashedIdentity;
@@ -70,6 +77,17 @@ final class UserDataResolveHook
     public function reset(): void
     {
         $this->arHashedIdentity = null;
+    }
+
+    /** Disabled plugin or crawler request: nothing ships, so nothing is resolved. */
+    private function isSuppressed(): bool
+    {
+        if (PluginGuard::isDisabled()) {
+            return true;
+        }
+        $mUserAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
+
+        return CrawlerUserAgent::isCrawler(is_string($mUserAgent) ? $mUserAgent : null);
     }
 
     /**

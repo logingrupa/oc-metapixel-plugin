@@ -2,21 +2,81 @@
 
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
+use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 
 /**
  * metapixel.user_data.resolve: listeners supply raw identity once per
  * request, the hook hashes it, memoises it, merges it under adapter-supplied
- * values, and a throwing listener abstains.
+ * values, a throwing listener abstains, and the event never fires for a
+ * disabled plugin or a crawler request.
  */
 final class UserDataResolveHookTest extends MetapixelTestCase
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        Settings::clearInternalCache();
+        Settings::set(['pixel_id' => '1234567890']);
+        PluginGuard::reset();
+    }
+
     protected function tearDown(): void
     {
         Event::forget(UserDataResolveHook::HOOK_RESOLVE);
+        PluginGuard::reset();
+        unset($_SERVER['HTTP_USER_AGENT']);
         parent::tearDown();
+    }
+
+    public function test_disabled_plugin_never_fires_the_event(): void
+    {
+        Settings::set(['pixel_id' => '']);
+        PluginGuard::reset();
+        Log::shouldReceive('warning')->once();
+        $iCalls = 0;
+        Event::listen(UserDataResolveHook::HOOK_RESOLVE, function (array &$arUserData) use (&$iCalls): void {
+            $iCalls++;
+            $arUserData['em'] = 'anna@example.com';
+        });
+
+        $arHashed = $this->makeHook()->hashedIdentity('PageView', 'theme.action');
+
+        $this->assertSame(0, $iCalls, 'no listener runs while the plugin is disabled');
+        $this->assertSame([], $arHashed);
+    }
+
+    public function test_crawler_user_agent_never_fires_the_event(): void
+    {
+        $_SERVER['HTTP_USER_AGENT'] = 'Googlebot/2.1';
+        $iCalls = 0;
+        Event::listen(UserDataResolveHook::HOOK_RESOLVE, function (array &$arUserData) use (&$iCalls): void {
+            $iCalls++;
+            $arUserData['em'] = 'anna@example.com';
+        });
+
+        $arHashed = $this->makeHook()->hashedIdentity('PageView', 'theme.action');
+
+        $this->assertSame(0, $iCalls, 'no listener runs for a crawler request');
+        $this->assertSame([], $arHashed);
+    }
+
+    public function test_browser_user_agent_on_enabled_plugin_fires_the_event_once(): void
+    {
+        $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36';
+        $iCalls = 0;
+        Event::listen(UserDataResolveHook::HOOK_RESOLVE, function (array &$arUserData) use (&$iCalls): void {
+            $iCalls++;
+            $arUserData['em'] = 'anna@example.com';
+        });
+
+        $arHashed = $this->makeHook()->hashedIdentity('PageView', 'theme.action');
+
+        $this->assertSame(1, $iCalls);
+        $this->assertSame(['em' => hash('sha256', 'anna@example.com')], $arHashed);
     }
 
     public function test_listener_supplied_identity_is_hashed_and_empty_keys_dropped(): void
