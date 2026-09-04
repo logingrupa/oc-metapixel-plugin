@@ -37,11 +37,7 @@ final class AccountIdentityHandler
         if (! Settings::get('account_identity_enabled', false)) {
             return;
         }
-        $obHelper = UserHelper::instance();
-        if (! $obHelper instanceof UserHelper) {
-            return;
-        }
-        $obUser = $obHelper->getUser();
+        $obUser = $this->currentUser();
         if (! $obUser instanceof Model) {
             return;
         }
@@ -91,6 +87,29 @@ final class AccountIdentityHandler
         $sDialDigits = (string) preg_replace('/\D+/', '', $sDialCode);
 
         return $sDialDigits === '' ? '' : $sDialDigits.$sDigits;
+    }
+
+    /**
+     * Logged-in user through the Toolbox auth facade. Toolbox getUser() only
+     * returns the guard's already-loaded user, so check() loads the session
+     * user first.
+     */
+    private function currentUser(): ?Model
+    {
+        $obHelper = UserHelper::instance();
+        if (! $obHelper instanceof UserHelper) {
+            return null;
+        }
+        $sAuthFacade = $obHelper->getAuthFacade();
+        if (! is_callable([$sAuthFacade, 'check'])) {
+            return null;
+        }
+        if (! call_user_func([$sAuthFacade, 'check'])) {
+            return null;
+        }
+        $obUser = $obHelper->getUser();
+
+        return $obUser instanceof Model ? $obUser : null;
     }
 
     private function stringAttribute(mixed $mValue): string

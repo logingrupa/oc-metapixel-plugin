@@ -44,3 +44,6 @@
 
 2.1.1:
   - 'Built-in account identity listener: with the new Advanced setting on, the logged-in customer''s email, phone, name and user id are read through Lovata Toolbox UserHelper (RainLab.User or Lovata.Buddies) and hashed into every event, no host listener needed; a host listener still wins on the keys it fills. A phone country calling code setting prefixes 8-digit national numbers. The user_data.resolve hook no longer fires while the plugin is disabled or for a crawler user agent.'
+
+2.1.2:
+  - 'The built-in account identity listener calls the auth facade''s check() before reading the user, so the session user is loaded on the first user_data.resolve call of the request. Toolbox UserHelper::getUser() only returns the user the Laravel session guard already holds in memory; on a product page the ViewContent watcher asked first, before anything touched the guard, so the empty identity was memoised and the browser Advanced Matching object and every in-request CAPI event lost the logged-in customer.'

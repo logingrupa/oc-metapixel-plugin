@@ -5,6 +5,12 @@ All notable changes to `logingrupa/oc-metapixel-plugin` are documented in this f
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.2] - 2026-09-04
+
+### Fixed
+
+- **The built-in account listener loads the session user before reading it.** Toolbox `UserHelper::getUser()` forwards to the auth facade's `getUser()`, which on the Laravel session guard returns only the user already loaded in this request and never reads the session. On a product page the first `metapixel.user_data.resolve` call comes from the ViewContent watcher before anything has touched the guard, so the listener saw no user and the empty result was memoised for the request: the browser Advanced Matching object and every in-request CAPI event lost the identity. The listener now calls the facade's `check()` first, which loads the session user.
+
 ## [2.1.1] - 2026-09-04
 
 The logged-in account becomes the event identity without a host listener.

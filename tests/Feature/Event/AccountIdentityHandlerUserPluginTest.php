@@ -96,6 +96,48 @@ final class AccountIdentityHandlerUserPluginTest extends MetapixelTestCase
     }
 
     /**
+     * The first resolve of a request comes before anything touched the guard:
+     * the user must be read from the session, not from the guard's memory.
+     */
+    public function test_session_user_is_loaded_when_the_guard_has_none_in_memory(): void
+    {
+        $obUser = $this->createLoggedInUser([
+            'email' => 'anna@example.com',
+            'first_name' => 'Anna',
+            'name' => 'Anna',
+            'last_name' => 'Berzina',
+            'phone' => '26 111-222',
+        ]);
+        $this->forgetLoadedUser();
+        Event::subscribe(AccountIdentityHandler::class);
+        $obHook = App::make(UserDataResolveHook::class);
+        $obHook->reset();
+
+        $arHashed = $obHook->hashedIdentity('ViewContent', 'shopaholic.product');
+
+        $this->assertSame(hash('sha256', 'anna@example.com'), $arHashed['em'] ?? null);
+        $this->assertSame(hash('sha256', (string) $obUser->getKey()), $arHashed['external_id'] ?? null);
+    }
+
+    /**
+     * Drop every in-memory copy of the logged-in user: the Laravel guards, and
+     * a facade root that keeps itself as a singleton plus its container binding.
+     */
+    private function forgetLoadedUser(): void
+    {
+        App::make('auth')->forgetGuards();
+        $sAuthFacade = UserHelper::instance()->getAuthFacade();
+        $obRoot = $sAuthFacade::getFacadeRoot();
+        if (! is_object($obRoot) || ! method_exists($obRoot, 'forgetInstance')) {
+            return;
+        }
+        $obRoot::forgetInstance();
+        $sAccessor = (new ReflectionMethod($sAuthFacade, 'getFacadeAccessor'))->invoke(null);
+        App::forgetInstance($sAccessor);
+        $sAuthFacade::clearResolvedInstance();
+    }
+
+    /**
      * @param  array<string, string>  $arProfile
      */
     private function createLoggedInUser(array $arProfile): Model
