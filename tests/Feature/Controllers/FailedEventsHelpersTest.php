@@ -9,15 +9,14 @@ use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\Doubles\FakeAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\SpyMetaClient;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
-use Logingrupa\Metapixel\Updates\AddDedupColumnsToFailedEvents;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
+use Logingrupa\Metapixel\Updates\ReplaceDedupColumnsWithReplayedAt;
 
 /**
- * Narrowing-helper coverage — postRecordId / postCheckedIds /
- * extractMetricForEventName / findRowOrFail stale path. The helpers are
- * private; exercise their branches indirectly through the public AJAX
- * handlers that wrap them (Tiger-Style: test through the public surface,
- * not via reflection-into-implementation).
+ * Narrowing-helper coverage — postRecordId / postCheckedIds / findRowOrFail
+ * stale path. The helpers are private; exercise their branches indirectly
+ * through the public AJAX handlers that wrap them (Tiger-Style: test through
+ * the public surface, not via reflection-into-implementation).
  */
 final class FailedEventsHelpersTest extends MetapixelTestCase
 {
@@ -26,7 +25,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
         (new CreateMetapixelFailedEventsTable)->up();
-        (new AddDedupColumnsToFailedEvents)->up();
+        (new ReplaceDedupColumnsWithReplayedAt)->up();
 
         Settings::clearInternalCache();
         Settings::set([
@@ -46,7 +45,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
     protected function tearDown(): void
     {
         Mockery::close();
-        (new AddDedupColumnsToFailedEvents)->down();
+        (new ReplaceDedupColumnsWithReplayedAt)->down();
         (new CreateMetapixelFailedEventsTable)->down();
         app()->forgetInstance(AdapterRegistry::class);
         parent::tearDown();
@@ -76,14 +75,13 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
     }
 
     // -----------------------------------------------------------------------
-    // postRecordId narrowing (L339-350)
+    // postRecordId narrowing
     // -----------------------------------------------------------------------
 
     public function test_post_record_id_accepts_digit_string_via_on_replay(): void
     {
         // Laravel's Request::create casts the array value to string at the
         // input layer — so a "real" backend POST always lands as a string here.
-        // This exercises the is_string + ctype_digit branch (L345-347).
         $obRow = $this->seedRow();
         $this->bindPostRequest(['record_id' => (string) $obRow->id]);
 
@@ -98,8 +96,8 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
 
     public function test_post_record_id_rejects_non_digit_string(): void
     {
-        // is_string but NOT ctype_digit ("abc") → fall-through to return 0
-        // (L349). The 0 then trips findRowOrFail's iRecordId <= 0 guard (L391-394).
+        // is_string but NOT ctype_digit ("abc") → return 0, which trips
+        // findRowOrFail's iRecordId <= 0 guard.
         $this->bindPostRequest(['record_id' => 'abc']);
 
         $obSpy = new SpyMetaClient;
@@ -131,7 +129,7 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
     public function test_post_record_id_rejects_non_scalar_array(): void
     {
         // post('record_id') returns an array → neither is_int nor is_string;
-        // falls through to return 0 (L349).
+        // falls through to return 0.
         $this->bindPostRequest(['record_id' => ['nested']]);
 
         $obSpy = new SpyMetaClient;
@@ -145,15 +143,14 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
     }
 
     // -----------------------------------------------------------------------
-    // postCheckedIds narrowing (L357-373)
+    // postCheckedIds narrowing
     // -----------------------------------------------------------------------
 
     public function test_post_checked_ids_skips_non_digit_string_entries(): void
     {
         $obRow = $this->seedRow();
         // Mixed array: valid digit-string + non-digit string + nested array.
-        // Only the valid digit-string id must coerce; the others get dropped
-        // by the elseif guard (L367-369) leaving the foreach loop's $arIds.
+        // Only the valid digit-string id must coerce; the others get dropped.
         $this->bindPostRequest(['checked' => [(string) $obRow->id, 'abc', ['nested']]]);
 
         $obSpy = new SpyMetaClient;
@@ -167,8 +164,8 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
 
     public function test_post_checked_ids_returns_empty_when_post_is_not_array(): void
     {
-        // post('checked') returns a string instead of array → ! is_array → []
-        // (L360-362). Batch handler runs with no dispatch.
+        // post('checked') returns a string instead of array → ! is_array → [].
+        // Batch handler runs with no dispatch.
         $this->bindPostRequest(['checked' => 'not-an-array']);
 
         $obSpy = new SpyMetaClient;
@@ -181,104 +178,13 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
     }
 
     // -----------------------------------------------------------------------
-    // extractMetricForEventName narrowing (L306-320)
-    // -----------------------------------------------------------------------
-
-    public function test_extract_metric_returns_null_when_field_is_not_array(): void
-    {
-        // event_match_quality NOT an array → ! is_array branch (L308) → null.
-        $obRow = $this->seedRow();
-        $this->bindPostRequest(['record_id' => (string) $obRow->id]);
-
-        $obController = $this->makeDedupController([
-            'event_match_quality' => 'not-an-array',
-            'event_coverage' => 'also-not-an-array',
-            'raw' => [],
-        ]);
-
-        $obController->onCheckDedup();
-
-        $obFresh = FailedEvent::find($obRow->id);
-        $this->assertNull($obFresh->emq, 'non-array event_match_quality → null');
-        $this->assertNull($obFresh->dedup_pct, 'non-array event_coverage → null');
-    }
-
-    public function test_extract_metric_returns_null_when_event_name_key_absent(): void
-    {
-        // event_match_quality has the wrong event-name key → array_key_exists
-        // false branch (L311-313) → null.
-        $obRow = $this->seedRow();
-        $this->bindPostRequest(['record_id' => (string) $obRow->id]);
-
-        $obController = $this->makeDedupController([
-            'event_match_quality' => ['Lead' => 4.4],
-            'event_coverage' => ['Lead' => 40.0],
-            'raw' => [],
-        ]);
-
-        $obController->onCheckDedup();
-
-        $obFresh = FailedEvent::find($obRow->id);
-        $this->assertNull($obFresh->emq, 'row event_name=Purchase but map has only Lead → null');
-        $this->assertNull($obFresh->dedup_pct);
-    }
-
-    public function test_extract_metric_returns_null_when_value_non_numeric(): void
-    {
-        // event_match_quality[Purchase] is a string → ! is_numeric branch
-        // (L315-317) → null.
-        $obRow = $this->seedRow();
-        $this->bindPostRequest(['record_id' => (string) $obRow->id]);
-
-        $obController = $this->makeDedupController([
-            'event_match_quality' => ['Purchase' => 'not-a-number'],
-            'event_coverage' => ['Purchase' => ['nested-array']],
-            'raw' => [],
-        ]);
-
-        $obController->onCheckDedup();
-
-        $obFresh = FailedEvent::find($obRow->id);
-        $this->assertNull($obFresh->emq);
-        $this->assertNull($obFresh->dedup_pct);
-    }
-
-    public function test_extract_metric_returns_null_when_event_name_empty(): void
-    {
-        // Seed a row whose event_name is empty string — the $sEventName === ''
-        // half of the L308 guard (! is_array || $sEventName === '') fires
-        // and short-circuits before the array_key_exists probe.
-        $obRow = new FailedEvent;
-        $obRow->event_id = 'event-empty-name';
-        $obRow->event_name = '';
-        $obRow->adapter_type = FakeAdapter::class;
-        $obRow->payload = ['data' => []];
-        $obRow->attempts = 1;
-        $obRow->save();
-
-        $this->bindPostRequest(['record_id' => (string) $obRow->id]);
-
-        $obController = $this->makeDedupController([
-            'event_match_quality' => ['Purchase' => 9.5],
-            'event_coverage' => ['Purchase' => 95.0],
-            'raw' => [],
-        ]);
-
-        $obController->onCheckDedup();
-
-        $obFresh = FailedEvent::find($obRow->id);
-        $this->assertNull($obFresh->emq, 'empty event_name short-circuits to null');
-        $this->assertNull($obFresh->dedup_pct);
-    }
-
-    // -----------------------------------------------------------------------
-    // findRowOrFail stale-id path (L397-400)
+    // findRowOrFail stale-id path
     // -----------------------------------------------------------------------
 
     public function test_find_row_or_fail_stale_positive_id_flashes_and_throws(): void
     {
-        // Positive id that never existed (skip the iRecordId <= 0 guard at
-        // L391-394 and hit the find-returns-null branch at L397-400 instead).
+        // Positive id that never existed (skip the iRecordId <= 0 guard and
+        // hit the find-returns-null branch instead).
         $this->bindPostRequest(['record_id' => '99999']);
 
         $obSpy = new SpyMetaClient;
@@ -291,54 +197,11 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
         $obController->onReplay();
         $this->assertSame(0, $obSpy->iCallCount);
     }
-
-    public function test_find_row_or_fail_stale_id_via_check_dedup_throws(): void
-    {
-        // Same stale-id branch exercised via onCheckDedup — both AJAX handlers
-        // share findRowOrFail so this asserts the helper is the single
-        // user-input-boundary throw point.
-        $this->bindPostRequest(['record_id' => '99998']);
-
-        $obController = $this->makeDedupController([
-            'event_match_quality' => null,
-            'event_coverage' => null,
-            'raw' => [],
-        ]);
-
-        $this->expectException(RuntimeException::class);
-        $this->expectExceptionMessageMatches('/failed event row 99998 not found/');
-        $obController->onCheckDedup();
-    }
-
-    /**
-     * @param  array<string, mixed>  $arDedupResponse
-     */
-    private function makeDedupController(array $arDedupResponse): TestableFailedEventsForHelpers
-    {
-        $obFakeClient = new class($arDedupResponse) extends MetaClient
-        {
-            /**
-             * @param  array<string, mixed>  $arResponse
-             */
-            public function __construct(private array $arResponse)
-            {
-                parent::__construct(null);
-            }
-
-            public function fetchDatasetQuality(string $sPixelId, string $sToken): array
-            {
-                return $this->arResponse;
-            }
-        };
-        $this->app->instance(MetaClient::class, $obFakeClient);
-
-        return new TestableFailedEventsForHelpers;
-    }
 }
 
 /**
- * Same test harness rationale as FailedEventsReplayTest / CheckDedupTest /
- * BatchTest — bypasses heavy backend Controller boot and stubs listRefresh().
+ * Same test harness rationale as FailedEventsReplayTest / BatchTest —
+ * bypasses heavy backend Controller boot and stubs listRefresh().
  */
 final class TestableFailedEventsForHelpers extends FailedEvents
 {

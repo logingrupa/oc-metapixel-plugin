@@ -1,0 +1,36 @@
+<?php
+/** @var list<array{event_name: string, emq: ?float, coverage: ?float}> $arRows */
+/** @var \Illuminate\Support\Carbon $obFetchedAt */
+?>
+<div class="callout callout-info no-subheader">
+    <div class="header">
+        <i class="icon-shield"></i>
+        <h3><?= e(trans('logingrupa.metapixel::lang.failed_events.dq_title')) ?></h3>
+        <p><?= e(trans('logingrupa.metapixel::lang.failed_events.dq_hint')) ?></p>
+    </div>
+    <div class="content">
+        <?php if ($arRows === []): ?>
+            <p class="text-muted"><?= e(trans('logingrupa.metapixel::lang.failed_events.dq_empty')) ?></p>
+        <?php else: ?>
+            <table class="table table-striped table-condensed" style="max-width: 640px;">
+                <thead>
+                    <tr>
+                        <th><?= e(trans('logingrupa.metapixel::lang.failed_events.dq_event_name')) ?></th>
+                        <th title="<?= e(trans('logingrupa.metapixel::lang.failed_events.dq_emq_tooltip')) ?>"><?= e(trans('logingrupa.metapixel::lang.failed_events.dq_emq')) ?></th>
+                        <th title="<?= e(trans('logingrupa.metapixel::lang.failed_events.dq_coverage_tooltip')) ?>"><?= e(trans('logingrupa.metapixel::lang.failed_events.dq_coverage')) ?></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach ($arRows as $arRow): ?>
+                        <tr>
+                            <td><?= e($arRow['event_name']) ?></td>
+                            <td><?= $arRow['emq'] === null ? '&mdash;' : e(number_format($arRow['emq'], 1)) ?></td>
+                            <td><?= $arRow['coverage'] === null ? '&mdash;' : e(number_format($arRow['coverage'], 1)).' %' ?></td>
+                        </tr>
+                    <?php endforeach ?>
+                </tbody>
+            </table>
+        <?php endif ?>
+        <p class="text-muted"><?= e(trans('logingrupa.metapixel::lang.failed_events.dq_fetched_at', ['time' => $obFetchedAt->toDateTimeString()])) ?></p>
+    </div>
+</div>

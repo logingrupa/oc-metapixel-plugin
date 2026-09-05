@@ -7,4 +7,19 @@
     </div>
 </div>
 <?php endif ?>
+<div class="callout callout-info no-subheader">
+    <div class="header">
+        <i class="icon-info"></i>
+        <h3><?= e(trans('logingrupa.metapixel::lang.failed_events.help_title')) ?></h3>
+    </div>
+    <div class="content">
+        <ul>
+            <li><?= e(trans('logingrupa.metapixel::lang.failed_events.help_replay')) ?></li>
+            <li><?= e(trans('logingrupa.metapixel::lang.failed_events.help_window')) ?></li>
+            <li><?= e(trans('logingrupa.metapixel::lang.failed_events.help_prune', ['days' => (string) $iRetentionDays])) ?></li>
+            <li><?= e(trans('logingrupa.metapixel::lang.failed_events.help_dedup')) ?></li>
+        </ul>
+    </div>
+</div>
+<div id="metapixelDatasetQuality"></div>
 <?= $this->listRender() ?>

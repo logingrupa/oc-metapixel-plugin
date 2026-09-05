@@ -1,6 +1,7 @@
-# ListController config for Controllers\FailedEvents. D-08 lock — read-only
-# audit UI; no recordUrl (no FormController), so row-click does nothing.
-# Replay / CheckDedup / Delete are toolbar batch actions only.
+# ListController config for Controllers\FailedEvents. Read-only audit UI; no
+# recordUrl (no FormController), so row-click does nothing. Replay / Delete
+# act on checked rows; Check dedup reads the whole pixel. The replayed_at
+# switch defaults to "off" so the list opens on rows that still need a replay.
 title: 'logingrupa.metapixel::lang.failed_events.list_title'
 modelClass: Logingrupa\Metapixel\Models\FailedEvent
 list: $/logingrupa/metapixel/models/failedevent/columns.yaml
@@ -15,8 +16,15 @@ toolbar:
     buttons: list_toolbar
     search:
         prompt: 'logingrupa.metapixel::lang.failed_events.search_prompt'
-filterConfig:
+filter:
     scopes:
+        replayed_at:
+            label: 'logingrupa.metapixel::lang.failed_events.filter_replayed'
+            type: switch
+            default: 1
+            conditions:
+                - replayed_at is null
+                - replayed_at is not null
         event_name:
             label: 'logingrupa.metapixel::lang.failed_events.filter_event_name'
             type: text

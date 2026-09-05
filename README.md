@@ -203,16 +203,17 @@ If you also run Shopaholic, the store theme wires the Pixel through the `pixelHe
 
 When a CAPI dispatch exhausts its retries — for example, an invalid access token returns a Graph API error — the plugin dead-letters the event to a backend list at **Settings → Marketing → Failed events** instead of losing it.
 
-Each row records the event ID, event name, adapter, HTTP status, attempt count, and the Graph error. Two toolbar actions operate on a selected row:
+Each row records the event ID, event name, adapter, HTTP status, attempt count, the Graph error and a **Status** badge: *Needs replay* while the server event has never reached Meta, *Replayed* once a replay succeeded. The list opens on the rows that still need a replay; the **Replayed** filter switch shows the replayed rows, and clearing it shows everything.
 
-* **Replay** re-dispatches the event through Meta CAPI. On success the attempt count increments and the HTTP status and Graph error clear; the row is kept as an audit record rather than deleted.
-* **Check dedup** asks Meta's Dataset Quality API for the Pixel's event match quality (EMQ, 0 to 10) and event coverage, the share of browser Pixel events Meta matched with a server twin; that coverage fills the **Dedup %** column. The call works with a Conversions API access token generated in Events Manager after July 2025; older tokens need the Events Manager opt-in or a system user token with `ads_read`. Without access Meta returns a permission error and the plugin fails safe — it shows the error and leaves the stored values untouched.
+* **Replay** re-dispatches the checked events through Meta CAPI. On success the attempt count increments, the HTTP status and Graph error clear and the row is stamped as replayed. Replay within 48 hours of the failure. Inside that window Meta matches the server event with its browser twin on the shared `event_id`, after it the replay counts as a new event.
+* **Delete** removes the checked rows. Rows older than 7 days are deleted by the daily `metapixel:purge-event-log` run anyway, since Meta rejects events with an `event_time` older than 7 days.
+* **Check dedup** reads Meta's Dataset Quality API once for the whole pixel and shows a panel above the list with one row per event name: event match quality (EMQ, 0 to 10) and event coverage, the share of browser Pixel events Meta matched with a server twin. The values describe the pixel over the last 7 days, not the checked rows. The call works with a Conversions API access token generated in Events Manager after July 2025; older tokens need the Events Manager opt-in or a system user token with `ads_read`. Without access Meta returns a permission error and the plugin fails safe. It shows the error and leaves the panel as it was.
 
 ![FailedEvents](docs/screenshots/02-failed-events-list.png)
 
 ![Replay flow](docs/screenshots/03-replay-flow.png)
 
-The screenshot below shows the fail-safe state when the token lacks `ads_read`: Meta returns a permission error and the plugin leaves the dedup values unchanged rather than overwriting them.
+The screenshot below shows the fail-safe state when the token lacks `ads_read`: Meta returns a permission error and the plugin leaves the dataset quality panel unchanged.
 
 ![Check dedup](docs/screenshots/04-check-dedup.png)
 

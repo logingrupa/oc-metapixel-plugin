@@ -3,6 +3,11 @@ columns:
         label: 'logingrupa.metapixel::lang.failed_events.column_id'
         searchable: false
         sortable: true
+    replayed_at:
+        label: 'logingrupa.metapixel::lang.failed_events.column_replayed_at'
+        type: partial
+        path: $/logingrupa/metapixel/models/failedevent/_replayed_at.htm
+        sortable: true
     event_id:
         label: 'logingrupa.metapixel::lang.failed_events.column_event_id'
         searchable: true
@@ -23,15 +28,6 @@ columns:
         label: 'logingrupa.metapixel::lang.failed_events.column_graph_error'
         type: partial
         path: $/logingrupa/metapixel/models/failedevent/_graph_error.htm
-    dedup_pct:
-        label: 'logingrupa.metapixel::lang.failed_events.column_dedup_pct'
-        sortable: true
-    emq:
-        label: 'logingrupa.metapixel::lang.failed_events.column_emq'
-        sortable: true
-    dedup_checked_at:
-        label: 'logingrupa.metapixel::lang.failed_events.column_dedup_checked_at'
-        type: datetime
     created_at:
         label: 'logingrupa.metapixel::lang.failed_events.column_created_at'
         type: datetime

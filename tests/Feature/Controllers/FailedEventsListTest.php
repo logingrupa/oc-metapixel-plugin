@@ -4,8 +4,8 @@ use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Controllers\FailedEvents;
 use Logingrupa\Metapixel\Models\FailedEvent;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
-use Logingrupa\Metapixel\Updates\AddDedupColumnsToFailedEvents;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
+use Logingrupa\Metapixel\Updates\ReplaceDedupColumnsWithReplayedAt;
 use Symfony\Component\Yaml\Yaml;
 
 /**
@@ -26,7 +26,7 @@ final class FailedEventsListTest extends MetapixelTestCase
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
         (new CreateMetapixelFailedEventsTable)->up();
-        (new AddDedupColumnsToFailedEvents)->up();
+        (new ReplaceDedupColumnsWithReplayedAt)->up();
 
         FailedEvent::insert([
             ['event_id' => 'uuid-a', 'event_name' => 'Purchase', 'adapter_type' => 'A', 'payload' => '{"data":[]}', 'attempts' => 1, 'created_at' => '2026-01-01 10:00:00', 'updated_at' => '2026-01-01 10:00:00'],
@@ -37,7 +37,7 @@ final class FailedEventsListTest extends MetapixelTestCase
 
     protected function tearDown(): void
     {
-        (new AddDedupColumnsToFailedEvents)->down();
+        (new ReplaceDedupColumnsWithReplayedAt)->down();
         (new CreateMetapixelFailedEventsTable)->down();
         app()->forgetInstance(AdapterRegistry::class);
         parent::tearDown();
@@ -88,7 +88,7 @@ final class FailedEventsListTest extends MetapixelTestCase
         $this->assertSame(FailedEvent::class, $arConfig['modelClass'] ?? null);
     }
 
-    public function test_columns_yaml_declares_all_eleven_columns_including_dedup(): void
+    public function test_columns_yaml_declares_the_nine_columns_without_per_row_dedup(): void
     {
         $sYamlPath = base_path('plugins/logingrupa/metapixel/models/failedevent/columns.yaml');
         $this->assertFileExists($sYamlPath);
@@ -97,34 +97,35 @@ final class FailedEventsListTest extends MetapixelTestCase
         $arColumns = $arConfig['columns'] ?? [];
         $arExpected = [
             'id',
+            'replayed_at',
             'event_id',
             'event_name',
             'adapter_type',
             'http_status',
             'attempts',
             'graph_error',
-            'dedup_pct',
-            'emq',
-            'dedup_checked_at',
             'created_at',
         ];
-        foreach ($arExpected as $sColumn) {
-            $this->assertArrayHasKey(
-                $sColumn,
-                $arColumns,
-                sprintf('columns.yaml must declare "%s"', $sColumn)
-            );
-        }
+        $this->assertSame($arExpected, array_keys($arColumns));
+        $this->assertSame('partial', $arColumns['replayed_at']['type'] ?? null);
     }
 
-    public function test_config_list_yaml_declares_three_filters(): void
+    public function test_config_list_yaml_replayed_filter_defaults_to_rows_needing_replay(): void
     {
         $sYamlPath = base_path('plugins/logingrupa/metapixel/controllers/failedevents/config_list.yaml');
         $arConfig = Yaml::parseFile($sYamlPath);
 
-        $arScopes = $arConfig['filterConfig']['scopes'] ?? [];
+        $arScopes = $arConfig['filter']['scopes'] ?? [];
         $this->assertArrayHasKey('event_name', $arScopes);
         $this->assertArrayHasKey('adapter_type', $arScopes);
         $this->assertArrayHasKey('created_at', $arScopes);
+
+        $arReplayed = $arScopes['replayed_at'] ?? [];
+        $this->assertSame('switch', $arReplayed['type'] ?? null);
+        $this->assertSame(1, $arReplayed['default'] ?? null, 'switch value 1 selects the first condition');
+        $this->assertSame(
+            ['replayed_at is null', 'replayed_at is not null'],
+            $arReplayed['conditions'] ?? null,
+        );
     }
 }

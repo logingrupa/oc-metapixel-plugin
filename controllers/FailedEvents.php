@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\App;
 use LogicException;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Exception\MetaPixelException;
+use Logingrupa\Metapixel\Classes\Meta\DatasetQualityRows;
 use Logingrupa\Metapixel\Classes\Meta\MetaClient;
 use Logingrupa\Metapixel\Models\FailedEvent;
 use Logingrupa\Metapixel\Models\Settings;
@@ -18,25 +19,21 @@ use System\Classes\SettingsManager;
 use Throwable;
 
 /**
- * Backend list controller for the FailedEvents dead-letter queue. D-08 lock —
- * read-only audit UI; rows are write-only sink. Three AJAX handlers + their
- * batch siblings: Replay re-fires the persisted payload through
- * MetaClient::sendForPixel synchronously (D-05); CheckDedup queries the
- * Meta Dataset Quality endpoint and writes 3 inline columns
- * (dedup_pct/emq/dedup_checked_at) per row (D-06); Delete truncates checked
- * rows. (int) post('record_id') + findOrFail validates the user-input
- * boundary in lieu of the Validation trait on the model (Pitfall 10).
+ * Backend list controller for the FailedEvents dead-letter queue. Read-only
+ * audit UI; rows are a write-only sink. Replay re-fires the persisted payload
+ * through MetaClient::sendForPixel synchronously and stamps replayed_at;
+ * Delete removes checked rows; Check dedup reads the Meta Dataset Quality
+ * endpoint once for the whole pixel and renders EMQ + coverage per event
+ * name above the list. (int) post('record_id') + findOrFail validates the
+ * user-input boundary in lieu of the Validation trait on the model.
  *
- * WARNING: Replay AND CheckDedup do NOT honour per-site credentials in v2.0.
- * Both call Settings::lookupForSite(null) — D-01 default-row fallback per
- * Open Question 1 Option A. FailedEvent rows carry no site_id column, the
- * adapter contract carries no subject-loader method, and re-hydrating the
- * subject from subject_type + subject_id to call EventSubjectAdapter::getSiteId
- * would require a contract expansion deferred to v2.1. On multi-site installs
- * (.no/.lv/.lt) operators MUST configure the default-row credentials as their
- * primary site's pixel — Replay through a non-primary-site row will dispatch
- * under the wrong pixel ID. Marketplace operators are warned via README
- * troubleshooting (DOCS-01).
+ * WARNING: Replay AND Check dedup do NOT honour per-site credentials.
+ * Both call Settings::lookupForSite(null). FailedEvent rows carry no site_id
+ * column, the adapter contract carries no subject-loader method, and
+ * re-hydrating the subject from subject_type + subject_id to call
+ * EventSubjectAdapter::getSiteId would require a contract expansion. On
+ * multi-site installs operators MUST configure the default-row credentials
+ * as their primary site's pixel.
  *
  * @method string listRefresh($definition = null) provided by Backend.Behaviors.ListController; PHPDoc tells PHPStan level 10 that the magic-__call method exists and returns a string-castable list-partial HTML fragment.
  */
@@ -64,6 +61,7 @@ class FailedEvents extends Controller
     public function index(): void
     {
         $this->vars['bQueueIsSync'] = config('queue.default') === 'sync';
+        $this->vars['iRetentionDays'] = FailedEvent::RETENTION_DAYS;
         $obListBehavior = $this->asExtension('ListController');
         if (! $obListBehavior instanceof ListController) {
             throw new LogicException('metapixel: FailedEvents requires the ListController behavior');
@@ -106,40 +104,37 @@ class FailedEvents extends Controller
     }
 
     /**
-     * Check Meta Dataset Quality for a single FailedEvent row. Writes
-     * dedup_pct + emq + dedup_checked_at inline (D-06). Returns the 3
-     * column values alongside the list-refresh partial for live JSON refresh.
-     *
-     * @return array<string, mixed>
-     */
-    public function onCheckDedup(): array
-    {
-        $obRow = $this->findRowOrFail($this->postRecordId());
-
-        $arUpdate = $this->checkDedupOne($obRow);
-
-        return array_merge(
-            $arUpdate,
-            ['#failedEventList' => $this->listRefresh()],
-        );
-    }
-
-    /**
-     * Batch CheckDedup for all checked rows.
+     * Fetch Meta Dataset Quality for the pixel once and render EMQ + coverage
+     * per event name into the panel above the list. On failure the panel is
+     * left as it was and the error is flashed.
      *
      * @return array<string, string>
      */
-    public function onCheckDedupBatch(): array
+    public function onCheckDatasetQuality(): array
     {
-        foreach ($this->postCheckedIds() as $iRecordId) {
-            $obRow = $this->findRow($iRecordId);
-            if ($obRow === null) {
-                continue;
-            }
-            $this->checkDedupOne($obRow);
+        $arCreds = Settings::lookupForSite(null);
+
+        try {
+            /** @var MetaClient $obClient */
+            $obClient = App::make(MetaClient::class);
+            $arResponse = $obClient->fetchDatasetQuality($arCreds['pixel_id'], $arCreds['capi_access_token']);
+        } catch (Throwable $obException) {
+            // silent: dataset quality fetch is best-effort; the operator sees
+            // the Graph error in the flash and keeps the previous panel.
+            Flash::error(trans(
+                'logingrupa.metapixel::lang.failed_events.flash_dedup_error',
+                ['error' => $obException->getMessage()],
+            ));
+
+            return [];
         }
 
-        return ['#failedEventList' => $this->listRefresh()];
+        return [
+            '#metapixelDatasetQuality' => $this->renderDatasetQuality(
+                DatasetQualityRows::fromResponse($arResponse),
+                Carbon::now(),
+            ),
+        ];
     }
 
     /**
@@ -167,9 +162,24 @@ class FailedEvents extends Controller
     }
 
     /**
-     * Shared per-row Replay body — used by onReplay (single) and
-     * onReplayBatch (loop). Updates the row in-place; flashes success or
-     * error to the operator. Adapter unresolvable → flash error + no
+     * Renders the dataset quality panel. Separate so tests can stub the
+     * view layer the same way they stub listRefresh().
+     *
+     * @param  list<array{event_name: string, emq: ?float, coverage: ?float}>  $arRows
+     */
+    protected function renderDatasetQuality(array $arRows, Carbon $obFetchedAt): string
+    {
+        $mHtml = $this->makePartial('dataset_quality', [
+            'arRows' => $arRows,
+            'obFetchedAt' => $obFetchedAt,
+        ]);
+
+        return is_string($mHtml) ? $mHtml : '';
+    }
+
+    /**
+     * Shared per-row Replay body. Updates the row in place; flashes success
+     * or error to the operator. Adapter unresolvable: flash error, no
      * dispatch. Every catch documents its reason (Tiger-Style fail-fast).
      */
     private function replayOne(FailedEvent $obRow): void
@@ -182,7 +192,7 @@ class FailedEvents extends Controller
             $obRegistry->resolveByClass($sAdapterType);
         } catch (Throwable $obException) {
             // silent: adapter no longer registered (operator removed it or
-            // the third-party plugin was uninstalled) — replay impossible.
+            // the third-party plugin was uninstalled), replay impossible.
             Flash::error(trans(
                 'logingrupa.metapixel::lang.failed_events.flash_replay_adapter_missing',
                 ['event_id' => (string) $obRow->event_id, 'adapter' => $sAdapterType],
@@ -191,9 +201,8 @@ class FailedEvents extends Controller
             return;
         }
 
-        // D-01 + Open Question 1 Option A — FailedEvent has no site_id column
-        // in v2.0; replay uses default-row credentials. Operators on multi-site
-        // setups should configure default-row as the primary site (README).
+        // FailedEvent has no site_id column; replay uses default-row
+        // credentials (see the class docblock).
         $iSiteId = null;
         $arCreds = Settings::lookupForSite($iSiteId);
 
@@ -207,14 +216,14 @@ class FailedEvents extends Controller
                 $arCreds['capi_access_token'],
                 $arPayload,
             );
-            // success: clear stale http_status from the previous failure so the
-            // audit column reflects the latest attempt outcome (the only
-            // honest signal — sendForPixel returns the decoded body, not a
-            // response status, so we cannot fabricate a "200" here).
+            // success: stamp replayed_at and clear the previous failure so the
+            // row reflects the latest attempt (sendForPixel returns the decoded
+            // body, not a response status, so no "200" is fabricated here).
             $obRow->update([
                 'attempts' => $obRow->attempts + 1,
                 'graph_error' => null,
                 'http_status' => null,
+                'replayed_at' => Carbon::now(),
             ]);
             Flash::success(trans(
                 'logingrupa.metapixel::lang.failed_events.flash_replay_success',
@@ -226,7 +235,7 @@ class FailedEvents extends Controller
             // Propagate the upstream HTTP status when the concrete exception
             // exposes it (MetaApiTransientException / MetaApiPermanentException
             // both carry getHttpStatus(); MissingPixelConfigException + the
-            // CapiToken sibling do not — fall through to null on absence).
+            // CapiToken sibling do not, fall through to null on absence).
             $iStatus = method_exists($obException, 'getHttpStatus')
                 ? $obException->getHttpStatus()
                 : null;
@@ -240,8 +249,8 @@ class FailedEvents extends Controller
                 ['error' => $obException->getMessage()],
             ));
         } catch (Throwable $obException) {
-            // log-and-persist: unknown failure (timeout, network, parser, …) —
-            // no HTTP status is available, clear stale value to avoid lying.
+            // log-and-persist: unknown failure (timeout, network, parser, ...),
+            // no HTTP status is available, clear the stale value to avoid lying.
             $obRow->update([
                 'attempts' => $obRow->attempts + 1,
                 'graph_error' => $obException->getMessage(),
@@ -255,85 +264,7 @@ class FailedEvents extends Controller
     }
 
     /**
-     * Shared per-row CheckDedup body — used by onCheckDedup and
-     * onCheckDedupBatch. Returns the 3 column values + checked_at for
-     * live JSON refresh of the single-row case; flashes error on failure
-     * without overwriting any existing column values.
-     *
-     * @return array{dedup_pct: ?float, emq: ?float, checked_at: ?string}
-     */
-    private function checkDedupOne(FailedEvent $obRow): array
-    {
-        $arEmpty = ['dedup_pct' => null, 'emq' => null, 'checked_at' => null];
-
-        $arCreds = Settings::lookupForSite(null);
-
-        try {
-            /** @var MetaClient $obClient */
-            $obClient = App::make(MetaClient::class);
-            $arResponse = $obClient->fetchDatasetQuality($arCreds['pixel_id'], $arCreds['capi_access_token']);
-        } catch (Throwable $obException) {
-            // silent: dataset quality fetch is best-effort; existing row
-            // dedup_pct / emq / dedup_checked_at MUST NOT be overwritten on
-            // failure so the operator keeps the last-known-good snapshot.
-            Flash::error(trans(
-                'logingrupa.metapixel::lang.failed_events.flash_dedup_error',
-                ['error' => $obException->getMessage()],
-            ));
-
-            return $arEmpty;
-        }
-
-        // Dedup % = Meta's event coverage: the share of browser Pixel events
-        // matched with a server twin. Already a percentage.
-        $fEmq = $this->extractMetricForEventName($arResponse['event_match_quality'], $obRow->event_name);
-        $fCoverage = $this->extractMetricForEventName($arResponse['event_coverage'], $obRow->event_name);
-        $fDedupPct = $fCoverage === null ? null : round($fCoverage, 2);
-
-        $sCheckedAt = Carbon::now()->toDateTimeString();
-        $obRow->update([
-            'dedup_pct' => $fDedupPct,
-            'emq' => $fEmq,
-            'dedup_checked_at' => $sCheckedAt,
-        ]);
-
-        Flash::success(trans(
-            'logingrupa.metapixel::lang.failed_events.flash_dedup_success',
-            ['event_id' => (string) $obRow->event_id],
-        ));
-
-        return [
-            'dedup_pct' => $fDedupPct,
-            'emq' => $fEmq,
-            'checked_at' => $sCheckedAt,
-        ];
-    }
-
-    /**
-     * Tolerant numeric extractor for the Meta Dataset Quality event-name-keyed
-     * map shape (`['Purchase' => 8.4, 'ViewContent' => 7.1]`). Returns null
-     * when the field is missing, null, or non-scalar — never throws.
-     */
-    private function extractMetricForEventName(mixed $mField, string $sEventName): ?float
-    {
-        if (! is_array($mField) || $sEventName === '') {
-            return null;
-        }
-        if (! array_key_exists($sEventName, $mField)) {
-            return null;
-        }
-        $mValue = $mField[$sEventName];
-        if (! is_numeric($mValue)) {
-            return null;
-        }
-
-        return (float) $mValue;
-    }
-
-    /**
      * Narrow the mixed return of post('record_id') to int at the boundary.
-     * Mirrors the Phase 2 helper-narrowing idiom (Settings::lookupForSite's
-     * is_string runtime guard, MetaClient::decodeBody's foreach cast).
      */
     private function postRecordId(): int
     {
@@ -380,10 +311,10 @@ class FailedEvents extends Controller
 
     /**
      * Locate a FailedEvent row by id at the user-input boundary. Soft-finds
-     * (no ModelNotFoundException → no backend AJAX 500) and emits a flash on
-     * stale-page-load scenarios (operator deleted the row in tab A then hit
-     * Replay in tab B). RuntimeException is thrown after the flash so the
-     * caller short-circuits before dispatching any Meta API traffic.
+     * (no ModelNotFoundException, so no backend AJAX 500) and emits a flash
+     * on stale-page-load scenarios (operator deleted the row in tab A then
+     * hit Replay in tab B). RuntimeException is thrown after the flash so
+     * the caller short-circuits before dispatching any Meta API traffic.
      */
     private function findRowOrFail(int $iRecordId): FailedEvent
     {
@@ -404,7 +335,6 @@ class FailedEvents extends Controller
     /**
      * Narrow array<mixed> from the FailedEvent->payload jsonable column to
      * the array<string, mixed> shape MetaClient::sendForPixel expects.
-     * Returns an empty envelope when keys are non-string.
      *
      * @param  array<mixed>  $arRaw
      * @return array<string, mixed>

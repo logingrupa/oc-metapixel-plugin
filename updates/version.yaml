@@ -53,3 +53,7 @@
 
 2.1.4:
   - 'The empty pixel_id warning is written once per day through the cache instead of once per request. A shop that runs without a pixel logged the same line for every page view, on one host 12,000 rows in the backend event log; the guard still disables the plugin softly and never throws.'
+
+2.1.5:
+  - 'Failed events list reworked. Rows that still need a replay are the default view, a Replayed switch filter shows the rest, a Status column replaces the three per-row dedup columns, Check dedup reads Meta Dataset Quality once for the pixel and shows EMQ and coverage per event name in a panel above the list, toolbar buttons carry tooltips and a help callout explains the 48 hour replay window. Rows are deleted after 7 days by the daily purge, since Meta rejects older events.'
+  - ReplaceDedupColumnsWithReplayedAt.php

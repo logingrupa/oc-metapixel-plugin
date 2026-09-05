@@ -22,9 +22,7 @@ use October\Rain\Database\Model;
  * @property ?int $http_status
  * @property ?string $graph_error
  * @property int $attempts
- * @property ?float $dedup_pct
- * @property ?float $emq
- * @property ?Carbon $dedup_checked_at
+ * @property ?Carbon $replayed_at
  * @property ?Carbon $created_at
  * @property ?Carbon $updated_at
  */
@@ -32,6 +30,9 @@ class FailedEvent extends Model
 {
     /** @var string */
     public $table = 'logingrupa_metapixel_failed_events';
+
+    /** @var int Meta rejects event_time older than this, so a row past it cannot be replayed. */
+    public const RETENTION_DAYS = 7;
 
     /** @var list<string> */
     protected $fillable = [
@@ -44,9 +45,7 @@ class FailedEvent extends Model
         'http_status',
         'graph_error',
         'attempts',
-        'dedup_pct',
-        'emq',
-        'dedup_checked_at',
+        'replayed_at',
     ];
 
     /** @var list<string> */
@@ -56,8 +55,6 @@ class FailedEvent extends Model
     protected $casts = [
         'attempts' => 'int',
         'http_status' => 'int',
-        'dedup_pct' => 'float',
-        'emq' => 'float',
-        'dedup_checked_at' => 'datetime',
+        'replayed_at' => 'datetime',
     ];
 }

@@ -10,8 +10,8 @@ use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\Doubles\FakeAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\SpyMetaClient;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
-use Logingrupa\Metapixel\Updates\AddDedupColumnsToFailedEvents;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
+use Logingrupa\Metapixel\Updates\ReplaceDedupColumnsWithReplayedAt;
 
 /**
  * Wave 0 RED — fails until plan 04-04 production code ships.
@@ -30,7 +30,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
         (new CreateMetapixelFailedEventsTable)->up();
-        (new AddDedupColumnsToFailedEvents)->up();
+        (new ReplaceDedupColumnsWithReplayedAt)->up();
 
         Settings::clearInternalCache();
         Settings::set([
@@ -54,7 +54,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
     protected function tearDown(): void
     {
         Mockery::close();
-        (new AddDedupColumnsToFailedEvents)->down();
+        (new ReplaceDedupColumnsWithReplayedAt)->down();
         (new CreateMetapixelFailedEventsTable)->down();
         app()->forgetInstance(AdapterRegistry::class);
         parent::tearDown();
@@ -110,6 +110,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         // sendForPixel returns the decoded body (NOT the HTTP code) so the
         // honest audit signal is "no failure on the latest attempt".
         $this->assertNull($obFresh->http_status);
+        $this->assertNotNull($obFresh->replayed_at, 'success stamps replayed_at');
     }
 
     public function test_on_replay_metapixel_exception_writes_graph_error(): void

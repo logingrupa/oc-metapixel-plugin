@@ -5,6 +5,25 @@ All notable changes to `logingrupa/oc-metapixel-plugin` are documented in this f
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.5] - 2026-09-05
+
+Failed events becomes an inbox. The list opens on the rows that still need a replay, and the per-row dedup numbers are gone.
+
+### Added
+
+- **Status column and Replayed filter.** Every row shows *Needs replay* or *Replayed* (with the replay time on hover). The filter switch defaults to rows that need a replay; switch it on to see replayed rows, clear it to see everything.
+- **Dataset quality panel.** *Check dedup* now reads Meta Dataset Quality once for the whole pixel and renders EMQ and coverage per event name above the list, with a fetched-at time. No row is touched.
+- **Tooltips and a help callout.** The toolbar buttons explain what they do, and the callout above the list states the 48 hour replay window, the 7 day retention and that dataset quality describes the pixel, not the rows.
+- **Daily purge covers failed events.** `metapixel:purge-event-log` deletes FailedEvent rows older than 7 days alongside the event log; Meta rejects events older than that, so those rows could never be replayed.
+
+### Changed
+
+- **Successful replays are stamped.** Replay writes `replayed_at` on the row in addition to clearing the HTTP status and Graph error.
+
+### Removed
+
+- **Per-row `dedup_pct`, `emq` and `dedup_checked_at` columns.** The Dataset Quality API reports per event name for the whole pixel, so every Purchase row carried the same pair of numbers and none of them said anything about that event. The migration drops the three columns, adds `replayed_at`, and backfills it from `updated_at` for rows that were replayed before the upgrade. The `onCheckDedup` and `onCheckDedupBatch` AJAX handlers are replaced by `onCheckDatasetQuality`.
+
 ## [2.1.4] - 2026-09-05
 
 ### Changed

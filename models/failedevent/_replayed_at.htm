@@ -1,0 +1,13 @@
+<?php $obReplayedAt = $record->replayed_at; ?>
+<?php if ($obReplayedAt === null): ?>
+    <span class="text-danger" title="<?= e(trans('logingrupa.metapixel::lang.failed_events.status_needs_replay_tooltip')) ?>">
+        <i class="icon-exclamation-triangle"></i>
+        <?= e(trans('logingrupa.metapixel::lang.failed_events.status_needs_replay')) ?>
+    </span>
+<?php else: ?>
+    <span class="text-success" title="<?= e($obReplayedAt->toDateTimeString()) ?>">
+        <i class="icon-check"></i>
+        <?= e(trans('logingrupa.metapixel::lang.failed_events.status_replayed')) ?>
+    </span>
+    <span class="text-muted"><?= e($obReplayedAt->diffForHumans()) ?></span>
+<?php endif; ?>

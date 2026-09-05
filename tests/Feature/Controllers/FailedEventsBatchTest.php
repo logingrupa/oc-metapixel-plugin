@@ -10,14 +10,14 @@ use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\Doubles\FakeAdapter;
 use Logingrupa\Metapixel\Tests\Doubles\SpyMetaClient;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
-use Logingrupa\Metapixel\Updates\AddDedupColumnsToFailedEvents;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
+use Logingrupa\Metapixel\Updates\ReplaceDedupColumnsWithReplayedAt;
 
 /**
- * Batch toolbar handlers — onReplayBatch / onCheckDedupBatch / onDeleteBatch.
+ * Batch toolbar handlers — onReplayBatch / onDeleteBatch.
  * Wire: data-request="onReplayBatch" + checked[] POST. Per-row replay /
- * dedup-check / delete iterates postCheckedIds() narrowed list<int> with a
- * findRow soft-find so a stale id mid-batch skips silently instead of 500.
+ * delete iterates postCheckedIds() narrowed list<int> with a findRow
+ * soft-find so a stale id mid-batch skips silently instead of 500.
  */
 final class FailedEventsBatchTest extends MetapixelTestCase
 {
@@ -26,7 +26,7 @@ final class FailedEventsBatchTest extends MetapixelTestCase
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
         (new CreateMetapixelFailedEventsTable)->up();
-        (new AddDedupColumnsToFailedEvents)->up();
+        (new ReplaceDedupColumnsWithReplayedAt)->up();
 
         Settings::clearInternalCache();
         Settings::set([
@@ -48,7 +48,7 @@ final class FailedEventsBatchTest extends MetapixelTestCase
     protected function tearDown(): void
     {
         Mockery::close();
-        (new AddDedupColumnsToFailedEvents)->down();
+        (new ReplaceDedupColumnsWithReplayedAt)->down();
         (new CreateMetapixelFailedEventsTable)->down();
         app()->forgetInstance(AdapterRegistry::class);
         parent::tearDown();
@@ -167,115 +167,6 @@ final class FailedEventsBatchTest extends MetapixelTestCase
         $obFresh = FailedEvent::find($obRow->id);
         $this->assertSame(422, (int) $obFresh->http_status);
         $this->assertStringContainsString('pixel rejected', (string) $obFresh->graph_error);
-    }
-
-    // -----------------------------------------------------------------------
-    // onCheckDedupBatch
-    // -----------------------------------------------------------------------
-
-    public function test_on_check_dedup_batch_writes_columns_for_every_checked_row(): void
-    {
-        $obRow1 = $this->seedRow('event-dedup-1');
-        $obRow2 = $this->seedRow('event-dedup-2');
-        $this->bindRequestWithCheckedIds([(int) $obRow1->id, (int) $obRow2->id]);
-
-        $obFakeClient = new class extends MetaClient
-        {
-            public int $iCallCount = 0;
-
-            public function __construct()
-            {
-                parent::__construct(null);
-            }
-
-            public function fetchDatasetQuality(string $sPixelId, string $sToken): array
-            {
-                $this->iCallCount++;
-
-                return [
-                    'event_match_quality' => ['Purchase' => 9.0],
-                    'event_coverage' => ['Purchase' => 75.0],
-                    'raw' => [],
-                ];
-            }
-        };
-        $this->app->instance(MetaClient::class, $obFakeClient);
-
-        $obController = new TestableFailedEventsForBatch;
-        $mResponse = $obController->onCheckDedupBatch();
-
-        $this->assertIsArray($mResponse);
-        $this->assertArrayHasKey('#failedEventList', $mResponse);
-        $this->assertSame(2, $obFakeClient->iCallCount);
-
-        $obFresh1 = FailedEvent::find($obRow1->id);
-        $obFresh2 = FailedEvent::find($obRow2->id);
-        $this->assertEqualsWithDelta(75.0, (float) $obFresh1->dedup_pct, 0.01);
-        $this->assertEqualsWithDelta(75.0, (float) $obFresh2->dedup_pct, 0.01);
-        $this->assertEqualsWithDelta(9.0, (float) $obFresh1->emq, 0.01);
-        $this->assertEqualsWithDelta(9.0, (float) $obFresh2->emq, 0.01);
-    }
-
-    public function test_on_check_dedup_batch_skips_stale_ids_silently(): void
-    {
-        $obRow = $this->seedRow('event-dedup-real');
-        $this->bindRequestWithCheckedIds([99998, (int) $obRow->id, 99999]);
-
-        $obFakeClient = new class extends MetaClient
-        {
-            public int $iCallCount = 0;
-
-            public function __construct()
-            {
-                parent::__construct(null);
-            }
-
-            public function fetchDatasetQuality(string $sPixelId, string $sToken): array
-            {
-                $this->iCallCount++;
-
-                return [
-                    'event_match_quality' => ['Purchase' => 7.0],
-                    'event_coverage' => ['Purchase' => 60.0],
-                    'raw' => [],
-                ];
-            }
-        };
-        $this->app->instance(MetaClient::class, $obFakeClient);
-
-        $obController = new TestableFailedEventsForBatch;
-        $obController->onCheckDedupBatch();
-
-        $this->assertSame(1, $obFakeClient->iCallCount, 'stale ids must be soft-skipped (no 500)');
-    }
-
-    public function test_on_check_dedup_batch_empty_checked_list_is_noop(): void
-    {
-        $this->bindRequestWithCheckedIds([]);
-
-        $obFakeClient = new class extends MetaClient
-        {
-            public int $iCallCount = 0;
-
-            public function __construct()
-            {
-                parent::__construct(null);
-            }
-
-            public function fetchDatasetQuality(string $sPixelId, string $sToken): array
-            {
-                $this->iCallCount++;
-
-                return ['event_match_quality' => null, 'event_coverage' => null, 'raw' => []];
-            }
-        };
-        $this->app->instance(MetaClient::class, $obFakeClient);
-
-        $obController = new TestableFailedEventsForBatch;
-        $mResponse = $obController->onCheckDedupBatch();
-
-        $this->assertIsArray($mResponse);
-        $this->assertSame(0, $obFakeClient->iCallCount);
     }
 
     // -----------------------------------------------------------------------

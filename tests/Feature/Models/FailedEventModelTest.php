@@ -17,14 +17,12 @@ final class FailedEventModelTest extends MetapixelTestCase
         $arExpected = [
             'adapter_type',
             'attempts',
-            'dedup_checked_at',
-            'dedup_pct',
-            'emq',
             'event_id',
             'event_name',
             'graph_error',
             'http_status',
             'payload',
+            'replayed_at',
             'subject_id',
             'subject_type',
         ];
