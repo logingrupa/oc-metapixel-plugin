@@ -75,6 +75,7 @@ return [
         'flash_replay_error' => 'Pārsūtīšana neizdevās — :error',
         'flash_replay_errored' => 'Pārsūtīšanas kļūda — :error',
         'flash_replay_adapter_missing' => 'Nevar pārsūtīt event_id :event_id — adapteris :adapter nav reģistrēts',
+        'flash_replay_too_old' => 'Nevar pārsūtīt event_id :event_id, tas neizdevās pirms vairāk nekā :days dienām, un Meta tik vecus notikumus noraida. Dzēsiet to.',
         'flash_dedup_error' => 'Dedublēšanas pārbaude neizdevās — :error',
         'dq_title' => 'Meta datu kopas kvalitāte',
         'dq_hint' => 'Vērtības visam pikselim par pēdējām 7 dienām, katram notikuma nosaukumam. Tās neapraksta atsevišķas rindas.',

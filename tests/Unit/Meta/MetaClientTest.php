@@ -138,8 +138,8 @@ final class MetaClientTest extends MetapixelTestCase
 
     public function test_default_client_bounds_connect_time_separately(): void
     {
-        $this->assertSame(2, MetaClient::CLIENT_OPTIONS['connect_timeout']);
-        $this->assertSame(5, MetaClient::CLIENT_OPTIONS['timeout']);
+        $this->assertSame(5, MetaClient::CLIENT_OPTIONS['connect_timeout']);
+        $this->assertSame(10, MetaClient::CLIENT_OPTIONS['timeout']);
     }
 
     public function test_dataset_quality_calls_the_dataset_quality_endpoint_with_bearer_token(): void

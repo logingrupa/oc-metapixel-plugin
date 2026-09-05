@@ -30,4 +30,26 @@ abstract class MetaPixelException extends RuntimeException
     {
         return $this->arContext;
     }
+
+    /**
+     * The human sentence Meta put in the Graph error body, when the context
+     * carries a decoded response. error_user_msg is the operator-facing text,
+     * message the generic one ("Invalid parameter").
+     */
+    public function metaReason(): ?string
+    {
+        $mResponse = $this->arContext['response'] ?? null;
+        $mError = is_array($mResponse) ? ($mResponse['error'] ?? null) : null;
+        if (! is_array($mError)) {
+            return null;
+        }
+        foreach (['error_user_msg', 'message'] as $sKey) {
+            $mText = $mError[$sKey] ?? null;
+            if (is_string($mText) && $mText !== '') {
+                return $mText;
+            }
+        }
+
+        return null;
+    }
 }

@@ -75,6 +75,7 @@ return [
         'flash_replay_error' => 'Replay failed — :error',
         'flash_replay_errored' => 'Replay errored — :error',
         'flash_replay_adapter_missing' => 'Cannot replay event_id :event_id — adapter :adapter not registered',
+        'flash_replay_too_old' => 'Cannot replay event_id :event_id, it failed more than :days days ago and Meta rejects events that old. Delete it.',
         'flash_dedup_error' => 'Dedup check failed — :error',
         'dq_title' => 'Meta dataset quality',
         'dq_hint' => 'Values for the whole pixel over the last 7 days, per event name. They do not describe single rows.',

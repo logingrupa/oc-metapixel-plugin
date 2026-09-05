@@ -14,7 +14,6 @@ use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\EventSubjectAdapter;
 use Logingrupa\Metapixel\Classes\Exception\MetaApiPermanentException;
 use Logingrupa\Metapixel\Classes\Exception\MetaApiTransientException;
-use Logingrupa\Metapixel\Classes\Exception\MetaPixelException;
 use Logingrupa\Metapixel\Classes\Exception\MissingCapiTokenException;
 use Logingrupa\Metapixel\Classes\Exception\MissingPixelConfigException;
 use Logingrupa\Metapixel\Classes\Helper\CrawlerUserAgent;
@@ -157,6 +156,11 @@ final class SendCapiEvent implements ShouldQueue
         }
 
         $iStatus = $obException instanceof MetaApiTransientException ? $obException->getHttpStatus() : null;
+        Log::warning('metapixel: retries exhausted — dead-lettered', [
+            'meta_pixel.event_id' => $this->readEventId(),
+            'meta_pixel.event_name' => $this->sEventName,
+            'meta_pixel.error' => $obException->getMessage(),
+        ]);
         $this->writeFailedEvent($obException, $iStatus, $obAdapter);
         $this->fireDeadLetter($obException, $obAdapter);
     }
@@ -287,7 +291,6 @@ final class SendCapiEvent implements ShouldQueue
     private function writeFailedEvent(Throwable $obException, ?int $iHttpStatus, ?EventSubjectAdapter $obAdapter): void
     {
         try {
-            $arContext = $obException instanceof MetaPixelException ? $obException->getContext() : [];
             $sSubjectType = $obAdapter !== null ? $obAdapter->getSubjectType($this->obSubject) : null;
             $iSubjectId = $obAdapter !== null ? $obAdapter->getSubjectId($this->obSubject) : null;
 
@@ -298,7 +301,7 @@ final class SendCapiEvent implements ShouldQueue
                 'subject_type' => $sSubjectType,
                 'subject_id' => $iSubjectId,
                 'payload' => $this->arPayload,
-                'graph_error' => $obException->getMessage()."\n".json_encode($arContext),
+                'graph_error' => FailedEvent::graphErrorFrom($obException),
                 'http_status' => $iHttpStatus,
                 'attempts' => $this->attempts() ?: 1,
             ]);

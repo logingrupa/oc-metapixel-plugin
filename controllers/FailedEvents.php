@@ -184,6 +184,15 @@ class FailedEvents extends Controller
      */
     private function replayOne(FailedEvent $obRow): void
     {
+        if ($obRow->isTooOldToReplay()) {
+            Flash::error(trans(
+                'logingrupa.metapixel::lang.failed_events.flash_replay_too_old',
+                ['event_id' => (string) $obRow->event_id, 'days' => (string) FailedEvent::RETENTION_DAYS],
+            ));
+
+            return;
+        }
+
         $sAdapterType = (string) ($obRow->adapter_type ?? '');
 
         try {
@@ -241,19 +250,20 @@ class FailedEvents extends Controller
                 : null;
             $obRow->update([
                 'attempts' => $obRow->attempts + 1,
-                'graph_error' => $obException->getMessage(),
+                'graph_error' => FailedEvent::graphErrorFrom($obException),
                 'http_status' => $iStatus,
             ]);
+            $sReason = $obException->metaReason();
             Flash::error(trans(
                 'logingrupa.metapixel::lang.failed_events.flash_replay_error',
-                ['error' => $obException->getMessage()],
+                ['error' => $sReason === null ? $obException->getMessage() : $obException->getMessage().': '.$sReason],
             ));
         } catch (Throwable $obException) {
             // log-and-persist: unknown failure (timeout, network, parser, ...),
             // no HTTP status is available, clear the stale value to avoid lying.
             $obRow->update([
                 'attempts' => $obRow->attempts + 1,
-                'graph_error' => $obException->getMessage(),
+                'graph_error' => FailedEvent::graphErrorFrom($obException),
                 'http_status' => null,
             ]);
             Flash::error(trans(

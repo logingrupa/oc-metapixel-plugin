@@ -5,6 +5,18 @@ All notable changes to `logingrupa/oc-metapixel-plugin` are documented in this f
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.6] - 2026-09-05
+
+### Fixed
+
+- **A failed replay keeps Meta's answer.** The row used to get the bare `graph API permanent 400` line, which overwrote the decoded Graph response the dead-letter writer had stored. Both writers now share `FailedEvent::graphErrorFrom()`, and the flash quotes Meta's `error_user_msg` (for example the missing customer information text) after the status line.
+- **Rows older than 7 days are refused before any Graph call.** Meta rejects `event_time` older than 7 days, so replaying such a row could only fail. The flash says so and points to Delete.
+
+### Changed
+
+- **Transient Graph failures no longer log per retry attempt.** `MetaApiTransientException` implements Laravel's `ShouldntReport`, so a resolver hiccup that the queue retries in 1s does not write a warning to the log and the backend event log (one live shop had 86 such lines in a day, all recovered). The exhausted job logs a single warning from `failed()` when it dead-letters.
+- **Connect timeout 5s, request budget 10s.** A stub resolver moves to its next upstream after about 5s; the previous 2s bound failed the attempt on every slow answer.
+
 ## [2.1.5] - 2026-09-05
 
 Failed events becomes an inbox. The list opens on the rows that still need a replay, and the per-row dedup numbers are gone.

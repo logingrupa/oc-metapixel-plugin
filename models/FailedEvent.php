@@ -2,8 +2,11 @@
 
 namespace Logingrupa\Metapixel\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
+use Logingrupa\Metapixel\Classes\Exception\MetaPixelException;
 use October\Rain\Database\Model;
+use Throwable;
 
 /**
  * Dead-letter row for a permanently failed CAPI dispatch. Phase 4 admin
@@ -57,4 +60,27 @@ class FailedEvent extends Model
         'http_status' => 'int',
         'replayed_at' => 'datetime',
     ];
+
+    /**
+     * graph_error text for a failed dispatch: the exception message plus the
+     * decoded Graph response when the exception carries one.
+     */
+    public static function graphErrorFrom(Throwable $obException): string
+    {
+        $arContext = $obException instanceof MetaPixelException ? $obException->getContext() : [];
+
+        return $obException->getMessage()."\n".json_encode($arContext);
+    }
+
+    /**
+     * Meta rejects event_time older than RETENTION_DAYS, so a row that failed
+     * before the cutoff cannot be replayed.
+     */
+    public function isTooOldToReplay(): bool
+    {
+        $obFailedAt = $this->created_at;
+
+        return $obFailedAt instanceof CarbonInterface
+            && $obFailedAt->lt(Carbon::now()->subDays(self::RETENTION_DAYS));
+    }
 }

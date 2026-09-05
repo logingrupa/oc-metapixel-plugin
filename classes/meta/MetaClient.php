@@ -29,12 +29,13 @@ class MetaClient
     private const META_GRAPH_API_BASE = 'https://graph.facebook.com';
 
     /**
-     * connect_timeout bounds DNS + TCP + TLS setup; a dead lookup costs 2s, not
-     * the full 5s request budget.
+     * connect_timeout bounds DNS + TCP + TLS setup. A stub resolver moves to
+     * its next upstream after about 5s, so a 5s bound survives one slow
+     * resolver where 2s failed the attempt; the whole request gets 10s.
      *
      * @var array<string, int>
      */
-    public const CLIENT_OPTIONS = ['timeout' => 5, 'connect_timeout' => 2];
+    public const CLIENT_OPTIONS = ['timeout' => 10, 'connect_timeout' => 5];
 
     /** @var list<int> */
     private const TRANSIENT_STATUS_CODES = [408, 429, 500, 502, 503, 504];

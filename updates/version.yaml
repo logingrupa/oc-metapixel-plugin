@@ -57,3 +57,6 @@
 2.1.5:
   - 'Failed events list reworked. Rows that still need a replay are the default view, a Replayed switch filter shows the rest, a Status column replaces the three per-row dedup columns, Check dedup reads Meta Dataset Quality once for the pixel and shows EMQ and coverage per event name in a panel above the list, toolbar buttons carry tooltips and a help callout explains the 48 hour replay window. Rows are deleted after 7 days by the daily purge, since Meta rejects older events.'
   - ReplaceDedupColumnsWithReplayedAt.php
+
+2.1.6:
+  - 'A failed replay keeps Meta''s full answer on the row, the same message plus decoded response the dead-letter writer stores, instead of the bare status line, and the flash quotes Meta''s reason, for example the missing customer information text. Rows that failed more than 7 days ago are refused before any Graph call, since Meta rejects events that old. Transient Graph failures no longer log once per retry attempt, the exhausted job logs one warning when it dead-letters; the connect timeout is 5 seconds with a 10 second request budget, so one slow resolver answer no longer fails the attempt.'

@@ -1,6 +1,7 @@
 <?php
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Exception\MetaApiPermanentException;
 use Logingrupa\Metapixel\Classes\Meta\MetaClient;
@@ -127,7 +128,9 @@ final class FailedEventsReplayTest extends MetapixelTestCase
 
             public function sendForPixel(string $sPixelId, string $sToken, array $arPayload): array
             {
-                throw new MetaApiPermanentException('metapixel: Invalid pixel_id', 400);
+                throw new MetaApiPermanentException('metapixel: Invalid pixel_id', 400, null, [
+                    'response' => ['error' => ['message' => 'Invalid parameter', 'error_user_msg' => 'No customer information parameters']],
+                ]);
             }
         };
         $this->app->instance(MetaClient::class, $obFakeClient);
@@ -138,10 +141,32 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $obFresh = FailedEvent::find($obRow->id);
         $this->assertSame(2, (int) $obFresh->attempts);
         $this->assertStringContainsString('Invalid pixel_id', (string) $obFresh->graph_error);
+        $this->assertStringContainsString('No customer information parameters', (string) $obFresh->graph_error, 'the decoded Graph response stays on the row');
+        $this->assertNull($obFresh->replayed_at);
         // CR-02 — http_status now reflects the actual upstream code from THIS
         // attempt via MetaApiPermanentException::getHttpStatus() (not the
         // stale value from the original failure that seeded the row).
         $this->assertSame(400, (int) $obFresh->http_status);
+    }
+
+    public function test_on_replay_refuses_rows_older_than_the_retention_window(): void
+    {
+        $obRow = $this->seedRow();
+        FailedEvent::where('id', $obRow->id)->update([
+            'created_at' => Carbon::now()->subDays(FailedEvent::RETENTION_DAYS + 1)->toDateTimeString(),
+        ]);
+        $this->bindRequestWithRecordId((int) $obRow->id);
+
+        $obSpy = new SpyMetaClient;
+        $this->app->instance(MetaClient::class, $obSpy);
+
+        $obController = $this->makeController();
+        $obController->onReplay();
+
+        $this->assertSame(0, $obSpy->iCallCount, 'no Graph call for a row Meta would reject on age');
+        $obFresh = FailedEvent::find($obRow->id);
+        $this->assertSame(1, (int) $obFresh->attempts);
+        $this->assertSame('previous error', (string) $obFresh->graph_error);
     }
 
     public function test_on_replay_throwable_writes_graph_error_with_throwable_message(): void
