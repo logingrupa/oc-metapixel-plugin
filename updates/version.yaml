@@ -47,3 +47,6 @@
 
 2.1.2:
   - 'The built-in account identity listener calls the auth facade''s check() before reading the user, so the session user is loaded on the first user_data.resolve call of the request. Toolbox UserHelper::getUser() only returns the user the Laravel session guard already holds in memory; on a product page the ViewContent watcher asked first, before anything touched the guard, so the empty identity was memoised and the browser Advanced Matching object and every in-request CAPI event lost the logged-in customer.'
+
+2.1.3:
+  - 'Purchase user_data reads the Lovata shipping address keys of the order property JSON (shipping_city, shipping_state, shipping_postcode, shipping_country) into ct, st, zp and country. Pickup orders without a structured address keep null, and the hasher still drops any country value that is not an ISO 3166-1 alpha-2 code.'
