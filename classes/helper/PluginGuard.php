@@ -2,6 +2,7 @@
 
 namespace Logingrupa\Metapixel\Classes\Helper;
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Models\Settings;
 
@@ -10,15 +11,19 @@ use Logingrupa\Metapixel\Models\Settings;
  *
  * Throwing at boot would cascade through OctoberCMS' plugin chain and break
  * unrelated plugins (Campaigns, PromoMechanism, etc). We disable softly here
- * and surface a single Log::warning per request via the memo.
+ * and surface one Log::warning per day via the cache.
  */
 final class PluginGuard
 {
+    public const WARNING_CACHE_KEY = 'logingrupa.metapixel.disabled_warning';
+
+    private const WARNING_INTERVAL_SECONDS = 86400;
+
     private static ?bool $bIsDisabled = null;
 
     /**
      * Returns true when pixel_id is empty (events suppressed); false otherwise.
-     * Memoised — the empty-check + Log::warning fires at most once per request.
+     * Memoised per request; the Log::warning fires at most once per day.
      */
     public static function isDisabled(): bool
     {
@@ -29,12 +34,25 @@ final class PluginGuard
         $mPixelId = Settings::get('pixel_id', '');
         $sPixelId = is_string($mPixelId) ? $mPixelId : '';
         if ($sPixelId === '') {
-            Log::warning('metapixel: pixel_id is empty — plugin running in disabled mode (events suppressed)');
+            self::warnOncePerDay();
 
             return self::$bIsDisabled = true;
         }
 
         return self::$bIsDisabled = false;
+    }
+
+    /**
+     * Cache::add writes only when the key is absent, so the warning lands
+     * once per interval across every request and worker on the host.
+     */
+    private static function warnOncePerDay(): void
+    {
+        if (! Cache::add(self::WARNING_CACHE_KEY, 1, self::WARNING_INTERVAL_SECONDS)) {
+            return;
+        }
+
+        Log::warning('metapixel: pixel_id is empty — plugin running in disabled mode (events suppressed)');
     }
 
     /**

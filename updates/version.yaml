@@ -50,3 +50,6 @@
 
 2.1.3:
   - 'Purchase user_data reads the Lovata shipping address keys of the order property JSON (shipping_city, shipping_state, shipping_postcode, shipping_country) into ct, st, zp and country. Pickup orders without a structured address keep null, and the hasher still drops any country value that is not an ISO 3166-1 alpha-2 code.'
+
+2.1.4:
+  - 'The empty pixel_id warning is written once per day through the cache instead of once per request. A shop that runs without a pixel logged the same line for every page view, on one host 12,000 rows in the backend event log; the guard still disables the plugin softly and never throws.'

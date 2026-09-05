@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
@@ -13,6 +14,7 @@ final class PluginGuardTest extends MetapixelTestCase
         parent::setUp();
         $this->app->singleton(AdapterRegistry::class);
         PluginGuard::reset();
+        Cache::forget(PluginGuard::WARNING_CACHE_KEY);
     }
 
     protected function tearDown(): void
@@ -46,6 +48,29 @@ final class PluginGuardTest extends MetapixelTestCase
 
         PluginGuard::reset();
         Log::shouldReceive('warning')->once();
+        $this->assertTrue(PluginGuard::isDisabled());
+    }
+
+    public function test_warning_fires_once_per_day_across_requests(): void
+    {
+        Settings::set(['pixel_id' => '']);
+        Log::shouldReceive('warning')->once();
+
+        PluginGuard::isDisabled();
+        PluginGuard::reset();
+        PluginGuard::isDisabled();
+        PluginGuard::reset();
+        $this->assertTrue(PluginGuard::isDisabled());
+    }
+
+    public function test_warning_fires_again_after_the_throttle_expires(): void
+    {
+        Settings::set(['pixel_id' => '']);
+        Log::shouldReceive('warning')->twice();
+
+        PluginGuard::isDisabled();
+        Cache::forget(PluginGuard::WARNING_CACHE_KEY);
+        PluginGuard::reset();
         $this->assertTrue(PluginGuard::isDisabled());
     }
 }

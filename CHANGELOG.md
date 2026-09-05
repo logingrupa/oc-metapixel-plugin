@@ -5,6 +5,18 @@ All notable changes to `logingrupa/oc-metapixel-plugin` are documented in this f
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.4] - 2026-09-05
+
+### Changed
+
+- **The empty `pixel_id` warning is written once per day.** `PluginGuard` used to log `pixel_id is empty` on every request of a shop that runs without a pixel, which filled the backend event log with thousands of identical rows. The warning now goes through `Cache::add` with a 24 hour lifetime, so one line per day per host. The guard still disables the plugin softly and never throws.
+
+## [2.1.3] - 2026-09-05
+
+### Changed
+
+- **Purchase `user_data` carries the shipping address.** The Lovata shipping address keys of the order property JSON (`shipping_city`, `shipping_state`, `shipping_postcode`, `shipping_country`) map to `ct`, `st`, `zp` and `country`. Pickup orders without a structured address keep null, and the hasher still drops any country value that is not an ISO 3166-1 alpha-2 code.
+
 ## [2.1.2] - 2026-09-04
 
 ### Fixed
