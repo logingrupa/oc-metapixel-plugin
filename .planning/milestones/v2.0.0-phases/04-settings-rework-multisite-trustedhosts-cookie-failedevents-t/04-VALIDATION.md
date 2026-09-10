@@ -30,7 +30,7 @@ revised: 2026-05-20  # iteration 2 — post-execution audit; mapped per-task tes
 
 - **After every task commit:** Run focused Pest filter for the task's test file (`composer test -- --compact --filter=...`)
 - **After every plan wave:** Run `composer qa` (pint-test → phpstan analyse → phpmd → pest --coverage --min=90)
-- **Before `/gsd:verify-work`:** `composer qa` must exit 0, coverage ≥ 90 %
+- **Before `/gsd-verify-work`:** `composer qa` must exit 0, coverage ≥ 90 %
 - **Max feedback latency:** 45 seconds
 
 ---

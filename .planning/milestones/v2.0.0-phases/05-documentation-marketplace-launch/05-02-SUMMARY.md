@@ -140,7 +140,7 @@ Three options, ranked by least-disruption first:
 
 2. **Run Tasks 1–3 as an out-of-worktree manual operation** after this plan's plugin-side inventory commit merges. The operator opens a normal terminal at the project root, follows the 9-step strip order in `05-02-LEGACY-INVENTORY.md` verbatim, runs `pnpm run prod`, commits to the theme repo. The plugin worktree is closed via the standard merge path.
 
-3. **Split plan 05-02 into 05-02a (inventory, plugin repo) + 05-02b (strip, theme repo).** Re-plan via `/gsd:plan-phase` so the orchestrator can spawn 05-02b against the theme repo's worktree. This is the cleanest architectural fix but the slowest.
+3. **Split plan 05-02 into 05-02a (inventory, plugin repo) + 05-02b (strip, theme repo).** Re-plan via `/gsd-plan-phase` so the orchestrator can spawn 05-02b against the theme repo's worktree. This is the cleanest architectural fix but the slowest.
 
 UAT Gate 1 (plan 05-03) cannot fire until the theme-side strip + bundle commit lands. The bundle still contains `fbq("track","AddToCart")`, `fbq("track","Search")`, `fbq("track","ViewContent")` and the page-load surface still emits PageView via `partials/facebook_pixel.htm`. The dead `[purchasePixel]` INI block on `order-complete.htm` line 10 will 500-error the page on the next deploy of the plugin (post Phase 2 close + post Wave-2 merge) because Plugin.php registers only `eventPixel` + `pixelHead`.
 

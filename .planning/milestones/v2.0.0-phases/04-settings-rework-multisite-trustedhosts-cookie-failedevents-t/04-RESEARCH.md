@@ -101,7 +101,7 @@ Project (`/home/forge/nailscosmetics.lv/CLAUDE.md`):
 - **Tiger-Style fail-fast:** throw at boundaries; catch only to log-and-rethrow OR dead-letter-persist; every `catch` documents reason. Bounded loops, bounded memory.
 - **Composer:** Plugin is installable as `logingrupa/oc-metapixel-plugin` from a private GitHub repo.
 - **No jQuery** in frontend code.
-- **`/gsd:execute-phase` workflow enforcement** — all Edit/Write goes through GSD command.
+- **`/gsd-execute-phase` workflow enforcement** — all Edit/Write goes through GSD command.
 - **Laravel Boost overlay:** `vendor/bin/pint --dirty --format agent` before finalizing PHP edits.
 - **OctoberCMS-specific conventions** (from october/boost rules):
   - `php artisan create:controller Logingrupa.Metapixel FailedEvents` is the canonical scaffold.
@@ -1813,7 +1813,7 @@ class FailedEvents extends Controller
 
 - **Per task commit:** `pest tests/{related-folder} -x --no-coverage` (e.g. `pest tests/Feature/Settings -x` after MULT-03 task).
 - **Per wave merge:** `composer test-cov` (full suite + coverage gate).
-- **Phase gate:** Full suite green before `/gsd:verify-phase 04`. PHPStan level 10 zero errors. `composer qa` exits 0.
+- **Phase gate:** Full suite green before `/gsd-verify-phase 04`. PHPStan level 10 zero errors. `composer qa` exits 0.
 
 ### Wave 0 Gaps
 

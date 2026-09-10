@@ -223,7 +223,7 @@ None — this plan ships pure plugin-internal classes + components + Twig partia
 | THEM-06 (EventPixel server-confirmed reader) | **03-08** | **`e6cafb8` + `eee174c`** |
 | THEM-07 (PixelHead accumulator emitter + CAPI mirror) | **03-08** | **`ebb7d66`** |
 
-**Success criteria SC1..SC5 achieved.** Ready for `/gsd:verify-phase 03` orchestrator step.
+**Success criteria SC1..SC5 achieved.** Ready for `/gsd-verify-phase 03` orchestrator step.
 
 ## Threat Flags
 
@@ -282,4 +282,4 @@ This plan's frontmatter type is `execute`, not `tdd`. RED/GREEN/REFACTOR gate se
 *Phase: 03-shopaholicadapter-themeactionadapter-parallel-wave*
 *Plan: 08*
 *Completed: 2026-05-18*
-*Phase 3: COMPLETE — handoff to /gsd:verify-phase 03*
+*Phase 3: COMPLETE — handoff to /gsd-verify-phase 03*

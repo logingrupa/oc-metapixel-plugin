@@ -1,4 +1,4 @@
-# Phase 02 — Verification Inputs (for `/gsd:verify-phase`)
+# Phase 02 — Verification Inputs (for `/gsd-verify-phase`)
 
 Phase: 02-adapter-system-core-contracts-registry-extension-hooks
 Authored by: plan 02-07 closure (M-7 flag included)
@@ -6,7 +6,7 @@ Status: ready for gsd-verifier handoff
 Last updated: 2026-05-17
 
 This document is the structured evidence trail the gsd-verifier consumes when
-running `/gsd:verify-phase 02-adapter-system-core-contracts-registry-extension-hooks`.
+running `/gsd-verify-phase 02-adapter-system-core-contracts-registry-extension-hooks`.
 The verifier produces `02-VERIFICATION.md` keyed against these checklists.
 
 ---
@@ -175,7 +175,7 @@ Phase 2 deviation 1 (plan 02-01) locked the lowercase folder convention under `p
 
 ## Next action
 
-Run `/gsd:verify-phase 02-adapter-system-core-contracts-registry-extension-hooks` to produce `02-VERIFICATION.md` against this checklist.
+Run `/gsd-verify-phase 02-adapter-system-core-contracts-registry-extension-hooks` to produce `02-VERIFICATION.md` against this checklist.
 
 Post-verification orchestrator todo list:
 

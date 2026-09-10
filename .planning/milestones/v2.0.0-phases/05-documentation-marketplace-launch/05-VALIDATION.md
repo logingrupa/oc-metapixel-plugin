@@ -30,7 +30,7 @@ created: 2026-05-21
 
 - **After every task commit:** `pest --filter='Docs\|Plugin\|Assets'` (Wave 0 doc-structure tests only — fast)
 - **After every plan wave:** `composer qa` (full pint → phpstan → phpmd → pest-cov chain)
-- **Before `/gsd:verify-work`:** `composer qa` green on Run A AND Run B (CI matrix on tag push)
+- **Before `/gsd-verify-work`:** `composer qa` green on Run A AND Run B (CI matrix on tag push)
 - **Max feedback latency:** 120 seconds full suite, 10 s for Wave 0 subset
 
 ---

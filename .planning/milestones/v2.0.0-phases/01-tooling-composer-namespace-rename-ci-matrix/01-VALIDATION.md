@@ -30,7 +30,7 @@ mode: reconstruct  # State B — VERIFICATION.md + 3 SUMMARYs existed; no prior 
 
 - **After every task commit:** focused Pest filter (`composer test -- --filter=ComposerJsonShapeTest`)
 - **After every plan wave:** `composer qa` (pint-test → phpstan analyse → phpmd → test-cov)
-- **Before `/gsd:verify-work`:** `composer qa` exit 0, coverage ≥ 90 %
+- **Before `/gsd-verify-work`:** `composer qa` exit 0, coverage ≥ 90 %
 - **Max feedback latency:** 45 seconds
 
 ---
@@ -66,7 +66,7 @@ All test infrastructure pre-existed before retroactive validation:
 - ✅ `phpunit.xml` — Pest 4 config
 - ✅ `phpstan.neon` + `pint.json` + `phpmd.xml` + `rector.php` + `composer-dependency-analyser.php` — tooling configs
 
-Retroactive tests written by /gsd:validate-phase 1 (2026-05-20):
+Retroactive tests written by /gsd-validate-phase 1 (2026-05-20):
 
 - ✅ `tests/Unit/Tooling/ComposerJsonShapeTest.php` — TOOL-01 shape lock
 - ✅ `tests/Unit/Tooling/PhpstanConfigShapeTest.php` — TOOL-04 ban shape lock

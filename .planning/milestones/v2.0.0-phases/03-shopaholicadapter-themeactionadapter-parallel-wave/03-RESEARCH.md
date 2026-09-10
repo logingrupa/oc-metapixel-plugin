@@ -433,7 +433,7 @@ public function registerMarkupTags(): array
 }
 ```
 
-The Twig path `this.metapixel.pushEvent($arEvent)` resolves to `ThemeEventCollector::pushEvent($arEvent)` via Twig attribute access — `this` is the controller, `this.metapixel` reads the controller's dynamic `vars['metapixel']` slot set inside the `page.beforeRenderPage` listener, and `.pushEvent(...)` resolves to the collector's `pushEvent(array $arEvent): void` method via Twig's property → method resolution chain. Confidence: HIGH — pattern locked in plan 03-06; the Task 1 spike there exercises the resolution end-to-end against a real `Cms\Classes\Controller` instance. If the spike fails, the executor escalates via `/gsd:debug` — **NO bare-function fallback ships under any circumstance**.
+The Twig path `this.metapixel.pushEvent($arEvent)` resolves to `ThemeEventCollector::pushEvent($arEvent)` via Twig attribute access — `this` is the controller, `this.metapixel` reads the controller's dynamic `vars['metapixel']` slot set inside the `page.beforeRenderPage` listener, and `.pushEvent(...)` resolves to the collector's `pushEvent(array $arEvent): void` method via Twig's property → method resolution chain. Confidence: HIGH — pattern locked in plan 03-06; the Task 1 spike there exercises the resolution end-to-end against a real `Cms\Classes\Controller` instance. If the spike fails, the executor escalates via `/gsd-debug` — **NO bare-function fallback ships under any circumstance**.
 
 ### Pattern 3: `registerSchedule(Schedule)` daily wire-up (D-08)
 
@@ -1010,19 +1010,19 @@ public function register(): void
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | The `this.metapixel.pushEvent($arEvent)` Twig dot-notation syntax can be implemented by setting a dynamic property on `Cms\Classes\Controller`'s `vars[...]` during `page.beforeRenderPage` (or via an equivalent October Twig surface). | Pattern 2 (registerMarkupTags) | If the `this` Twig object doesn't accept arbitrary dynamic-property attachment, plan 03-06 must escalate via `/gsd:debug` to locate the working October Twig surface (controller extension hook, AJAX framework hook, etc.). Per the revision-cycle user decision, the bare-function fallback `metapixel_push_event(...)` is dropped — THEM-04 is a hard dot-notation contract. Verify in plan 03-06 task 1 via a spike — if `Controller::extend(...) + bindEvent('page.beforeRenderPage')` cleanly mounts `this.metapixel` as a Twig-accessible attribute, ship as-is; otherwise escalate (do NOT silently revive bare function). |
+| A1 | The `this.metapixel.pushEvent($arEvent)` Twig dot-notation syntax can be implemented by setting a dynamic property on `Cms\Classes\Controller`'s `vars[...]` during `page.beforeRenderPage` (or via an equivalent October Twig surface). | Pattern 2 (registerMarkupTags) | If the `this` Twig object doesn't accept arbitrary dynamic-property attachment, plan 03-06 must escalate via `/gsd-debug` to locate the working October Twig surface (controller extension hook, AJAX framework hook, etc.). Per the revision-cycle user decision, the bare-function fallback `metapixel_push_event(...)` is dropped — THEM-04 is a hard dot-notation contract. Verify in plan 03-06 task 1 via a spike — if `Controller::extend(...) + bindEvent('page.beforeRenderPage')` cleanly mounts `this.metapixel` as a Twig-accessible attribute, ship as-is; otherwise escalate (do NOT silently revive bare function). |
 | A2 | `Illuminate\Cache\RateLimiter::tooManyAttempts($sKey, $iMax)` works against the default cache driver (`array` in tests, `file` in dev, redis/memcached in prod). | Pattern 4 (ThemeAjaxHandler) | If the host operator configures `CACHE_DRIVER=null`, rate-limiting silently no-ops. Mitigation: plan 03-07 test runs against the test array driver; production deployment doc should call out `CACHE_DRIVER` requirement. Confidence is HIGH that the host's `file` driver works fine (Phase 1 + Phase 2 tests already use it). |
 | A3 | The `Settings::beforeSave()` sanitization hook fires on every save (including admin Settings page POST). | THEM-05 / D-12 sanitization at SAVE | If CommonSettings (Lovata.Toolbox parent) overrides save semantics in a way that skips child `beforeSave`, the sanitization is bypassed. Verify in plan 03-07 task 1 — assert that `Settings::create([...invalid name list...])` calls beforeSave and drops bad entries. |
 | A4 | `Lovata\OrdersShopaholic\Models\CartPosition::$item` MorphTo resolves to a `Lovata\Shopaholic\Models\Offer` instance with `->product->id` + `->id` accessible. | Pattern 1 + Pitfall 1 (CartPosition) | Verified by reading the model — the MorphTo signature accepts any morphable item_type but Phase 3 first-party scope is Offer only (`Lovata\Shopaholic\Models\Offer`). If a third party introduces non-Offer cart items (gift cards), the ValueResolver returns null content_ids + skips dispatch gracefully (Tiger-Style early return). This is a documented limitation of first-party Shopaholic adapter — third party writes their own adapter per D-13. |
 | A5 | The Larajax handler `Metapixel::onFireEvent` works in the operator's theme even when the plugin ships ZERO routes (D-29 ZERO-routes lock). | Pattern 4 / D-29 | October's `runAjaxHandler` walks page, layout, components, and the `cms.ajax.beforeRunHandler` event. The event-listener path short-circuits ALL handler resolution — works regardless of whether a route is registered. Verified in source. |
 
-**Risk-reducing recommendation for A1:** Plan 03-06 Task 1 ships a `Cms\Classes\Controller::extend(...)` mount + a Twig string-render integration test that asserts `{% do this.metapixel.pushEvent({...}) %}` accumulates the event into `ThemeEventCollector`. If the dot-notation mount is technically infeasible without a fork-or-monkey-patch, the executor returns `## PLANNING INCONCLUSIVE` via `/gsd:debug` so the orchestrator can re-prompt the user — the bare-function fallback is NOT revived.
+**Risk-reducing recommendation for A1:** Plan 03-06 Task 1 ships a `Cms\Classes\Controller::extend(...)` mount + a Twig string-render integration test that asserts `{% do this.metapixel.pushEvent({...}) %}` accumulates the event into `ThemeEventCollector`. If the dot-notation mount is technically infeasible without a fork-or-monkey-patch, the executor returns `## PLANNING INCONCLUSIVE` via `/gsd-debug` so the orchestrator can re-prompt the user — the bare-function fallback is NOT revived.
 
 ## Open Questions (RESOLVED)
 
 > Zero plan-blocking unknowns. All 5 open questions resolved in-phase without changing the plan layout.
 
-1. **RESOLVED:** Twig `this.metapixel.pushEvent($arEvent)` mount mechanism — resolved via A1 spike in Plan 03-06 Task 1. The spike MUST produce a working `Cms\Classes\Controller::extend`-based mount (or equivalent October Twig surface) that survives the Twig render test. Per the revision-cycle user decision (dot-notation hard contract), the bare-function fallback path is dropped — `Plugin::registerMarkupTags()` ships ONLY the dot-notation mount; if the spike is technically infeasible without a fork-or-monkey-patch, the executor escalates via `/gsd:debug` at execution time rather than reviving a bare-function fallback.
+1. **RESOLVED:** Twig `this.metapixel.pushEvent($arEvent)` mount mechanism — resolved via A1 spike in Plan 03-06 Task 1. The spike MUST produce a working `Cms\Classes\Controller::extend`-based mount (or equivalent October Twig surface) that survives the Twig render test. Per the revision-cycle user decision (dot-notation hard contract), the bare-function fallback path is dropped — `Plugin::registerMarkupTags()` ships ONLY the dot-notation mount; if the spike is technically infeasible without a fork-or-monkey-patch, the executor escalates via `/gsd-debug` at execution time rather than reviving a bare-function fallback.
 2. **RESOLVED:** Whether `Settings::beforeSave` on the Lovata.Toolbox CommonSettings parent works as Eloquent-standard (A3) — resolved by Plan 03-07 Task 1. The task front-loads a read of `vendor/lovata/toolbox-plugin/models/Settings.php` (or the CommonSettings base) to verify the actual storage shape (`$this->value[...]` vs `$this->attributes[...]` vs `Settings::set/get` static methods) BEFORE writing the unit test; the implementation adjusts to the verified storage mechanism, and the unit test asserts the bad-input drop + Flash::warning against the actual storage surface.
 3. **RESOLVED:** CartPosition MorphTo non-Offer item handling (A4) — documented limitation. First-party Shopaholic adapter scope is `Lovata\Shopaholic\Models\Offer`-shaped CartPosition items only; non-Offer items (e.g. gift cards) cause `ValueResolver::resolveContentIds` to skip the row gracefully (Tiger-Style early return on null MorphTo target). Third parties introducing non-Offer cart items write their own adapter per D-13.
 4. **RESOLVED:** PHPStan signature variance on `registerSchedule(Schedule $obSchedule)` (Pitfall 7) — resolved by Plan 03-01 Task 1 phpstan run. Both forms (typed and untyped) acceptable to the analyser at level 10 with the current phpstan.neon config.
@@ -1090,7 +1090,7 @@ Phase 3 adds no external dependencies. All consumed packages are vetted in earli
 
 - **Per task commit:** `pest --compact tests/Path/To/SpecificTest.php` — sub-3-second feedback per task.
 - **Per wave merge:** `pest --compact` (full suite) — green required before next plan starts.
-- **Phase gate:** `composer qa` end-to-end (pint-test → phpstan analyse → phpmd → pest --coverage --min=90) before `/gsd:verify-phase`. Coverage gate must hit 90%+ on Run A (full-Lovata) and adapter tests excluded on Run B (`pest --exclude-group=adapter`).
+- **Phase gate:** `composer qa` end-to-end (pint-test → phpstan analyse → phpmd → pest --coverage --min=90) before `/gsd-verify-phase`. Coverage gate must hit 90%+ on Run A (full-Lovata) and adapter tests excluded on Run B (`pest --exclude-group=adapter`).
 
 ### Wave 0 Gaps
 
@@ -1188,7 +1188,7 @@ None — all sources are in-tree or vendored framework code; nothing relies on t
 - Standard stack: HIGH — Phase 3 ships zero new packages; every consumed lib is verified in-tree.
 - Architecture: HIGH — 29 locked decisions (D-01..D-29) constrain the architecture; CONTEXT.md drives the planning.
 - Pitfalls: HIGH — every Phase 3 pitfall is verified by direct source inspection of OctoberCMS framework, Lovata models, or Phase 2 code.
-- Twig dot-notation mount (Pattern 2 A1): HIGH — Controller::extend mount pattern locked iteration-1 revision; failure escalates via /gsd:debug, NOT plan-level fallback.
+- Twig dot-notation mount (Pattern 2 A1): HIGH — Controller::extend mount pattern locked iteration-1 revision; failure escalates via /gsd-debug, NOT plan-level fallback.
 
 **Research date:** 2026-05-18
 **Valid until:** 2026-06-17 (30 days — stable framework + locked decisions)
@@ -1208,7 +1208,7 @@ None — all sources are in-tree or vendored framework code; nothing relies on t
 - CartPosition is MorphTo (`item_id` + `item_type`), NOT direct `offer_id` — the CONTEXT.md outline column shape was inaccurate. ValueResolver accesses Offer via `$obCartPosition->item`; null-guard required for non-Offer items.
 - Status model lacks its own `lists()` — dropdown sourced via `Status::orderBy('sort_order')->pluck('name', 'code')` exposed through `Settings::getPaidStatusCodeOptions`.
 - v1.x 367-LOC OrderStatusWatcher anti-pattern reference — Phase 3 ≤70 LOC plain `Event::subscribe` class beats Lovata.Toolbox ModelHandler inheritance (which forces unneeded `getModelClass()` + `getItemClass()` abstracts).
-- Twig `this.metapixel.pushEvent($arEvent)` dot-notation mount is the hard contract per REQUIREMENTS.md THEM-04 + CONTEXT.md D-18 + revision iteration 1 user lock. No fallback path ships. Spike risk handled by plan 03-06 Task 1 (executor escalates via `/gsd:debug` if the mount is technically infeasible).
+- Twig `this.metapixel.pushEvent($arEvent)` dot-notation mount is the hard contract per REQUIREMENTS.md THEM-04 + CONTEXT.md D-18 + revision iteration 1 user lock. No fallback path ships. Spike risk handled by plan 03-06 Task 1 (executor escalates via `/gsd-debug` if the mount is technically infeasible).
 
 ### File Created
 
@@ -1221,7 +1221,7 @@ None — all sources are in-tree or vendored framework code; nothing relies on t
 | Standard Stack | HIGH | Zero new packages; in-tree verification of every lib. |
 | Architecture | HIGH | 29 locked decisions from CONTEXT.md drive structure. |
 | Pitfalls | HIGH | All 9 documented pitfalls verified by direct source inspection. |
-| Twig mount (A1) | HIGH | Controller::extend + page.beforeRenderPage mount pattern locked in plan 03-06; failure escalates via /gsd:debug, no plan-level fallback. |
+| Twig mount (A1) | HIGH | Controller::extend + page.beforeRenderPage mount pattern locked in plan 03-06; failure escalates via /gsd-debug, no plan-level fallback. |
 
 ### Open Questions
 

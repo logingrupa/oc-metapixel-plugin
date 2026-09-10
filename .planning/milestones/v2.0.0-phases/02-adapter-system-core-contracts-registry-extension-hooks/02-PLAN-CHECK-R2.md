@@ -211,4 +211,4 @@ The R1 revision closes every HIGH and MEDIUM issue cited in the R1 plan-check, w
 - N-2: orchestra/testbench is not yet in project vendor. Plan 02-07 Task 1 verify gate will fail at execution time until operator runs `composer require --dev orchestra/testbench:^9.0` from project root. The plan body documents this as the H-4 pattern — operator action.
 - M-7 (already flagged in plan 02-07): ROADMAP.md SC5 wording mentions 4 v1.x test files that OQ-1 reframes as Phase 3. Plan 02-07's 02-VERIFICATION-INPUTS.md scaffold flags this for orchestrator action. ROADMAP.md edit happens outside Phase 2's plan scope.
 
-Orchestrator may commit artifacts and close plan-phase. Plans are ready for `/gsd:execute-phase 02-adapter-system-core-contracts-registry-extension-hooks`.
+Orchestrator may commit artifacts and close plan-phase. Plans are ready for `/gsd-execute-phase 02-adapter-system-core-contracts-registry-extension-hooks`.

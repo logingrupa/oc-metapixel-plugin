@@ -32,7 +32,7 @@ provides:
   - "phpstan.neon excludePaths adds classes/testing/ — cross-namespace import of Logingrupa\\Metapixel\\Tests\\MetapixelTestCase from production-scan dir is treated as test-helper code (Rule 3 fix; same shape as phpunit.xml exclude)"
 
 affects:
-  - 02-VERIFICATION-INPUTS.md (next step: /gsd:verify-phase 02-adapter-system-core-contracts-registry-extension-hooks consumes this scaffold; produces 02-VERIFICATION.md)
+  - 02-VERIFICATION-INPUTS.md (next step: /gsd-verify-phase 02-adapter-system-core-contracts-registry-extension-hooks consumes this scaffold; produces 02-VERIFICATION.md)
   - ROADMAP.md SC5 (M-7 flag: orchestrator action pending — wording references 4 v1.x test files that OQ-1 reframes as Phase 3 work)
   - phase 03 (Phase 3 first-party adapters extend EventSubjectAdapterContractTestCase: ShopaholicOrderAdapterContractTest + ThemeActionAdapterContractTest follow the FakeAdapterContractTest pattern)
   - phase 05 (docs/CUSTOM-ADAPTERS.md will document the contract base usage pattern for marketplace third parties + revisit orchestra/testbench require-dev when first real third party authors an adapter outside this repo)
@@ -245,7 +245,7 @@ Flagged in 02-VERIFICATION-INPUTS.md "ROADMAP.md SC5 mismatch (M-7 — orchestra
 
 ## Pending Orchestrator Actions (post-verification)
 
-1. `/gsd:verify-phase 02-adapter-system-core-contracts-registry-extension-hooks` to produce 02-VERIFICATION.md.
+1. `/gsd-verify-phase 02-adapter-system-core-contracts-registry-extension-hooks` to produce 02-VERIFICATION.md.
 2. Apply M-7 ROADMAP.md SC5 wording fix.
 3. Flip `.planning/REQUIREMENTS.md` ADAP-01..11 from `[ ]` to `[x]`.
 4. Update `.planning/ROADMAP.md` Phase 2 status to "Complete".

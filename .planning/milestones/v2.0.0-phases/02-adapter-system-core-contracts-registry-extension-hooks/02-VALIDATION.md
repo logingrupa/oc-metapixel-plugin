@@ -32,7 +32,7 @@ Retroactive Nyquist validation for the adapter-system-core backbone (8 plans, AD
 
 - **After every task commit:** `vendor/bin/pest --testsuite='Metapixel Unit Tests'` (quick — ~6 s)
 - **After every plan wave:** `composer qa` from `plugins/logingrupa/metapixel/`
-- **Before `/gsd:verify-work`:** Full suite green on Run A + Run B CI matrix cells
+- **Before `/gsd-verify-work`:** Full suite green on Run A + Run B CI matrix cells
 - **Max feedback latency:** ~25 s
 
 ---
