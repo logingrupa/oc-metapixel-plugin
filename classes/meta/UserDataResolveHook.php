@@ -68,6 +68,7 @@ final class UserDataResolveHook
      */
     public function mergeIntoPayload(string $sEventName, string $sSubjectType, array $arPayload, array $arRequestUserData): array
     {
+        $arRequestUserData['fbc'] = $this->obHasher->freshFbc($arRequestUserData['fbc'] ?? null);
         $arUserData = array_merge($arRequestUserData, $this->hashedIdentity($sEventName, $sSubjectType));
 
         return PayloadRequestContext::merge($arPayload, $arUserData, EventSourceUrl::current());

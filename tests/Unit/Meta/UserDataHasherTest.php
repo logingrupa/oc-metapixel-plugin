@@ -35,18 +35,32 @@ final class UserDataHasherTest extends MetapixelTestCase
 
     public function test_passthrough_fields_are_not_hashed(): void
     {
+        $iNowMs = 1757548800000;
+        $sFbc = 'fb.1.'.($iNowMs - 86400000).'.IwAR1validfbclid_123';
         $obAdapter = (new FakeAdapter)->withUserData([
             'fbp' => 'fb.1.x.42',
-            'fbc' => 'fb.1.x.fbclidvalue',
+            'fbc' => $sFbc,
             'client_ip_address' => '203.0.113.10',
             'client_user_agent' => 'Mozilla/5.0',
         ]);
-        $arResult = (new UserDataHasher)->forSubject($obAdapter, new stdClass);
+        $arResult = (new UserDataHasher($iNowMs))->forSubject($obAdapter, new stdClass);
 
         $this->assertSame('fb.1.x.42', $arResult['fbp']);
-        $this->assertSame('fb.1.x.fbclidvalue', $arResult['fbc']);
+        $this->assertSame($sFbc, $arResult['fbc']);
         $this->assertSame('203.0.113.10', $arResult['client_ip_address']);
         $this->assertSame('Mozilla/5.0', $arResult['client_user_agent']);
+    }
+
+    public function test_stale_or_malformed_fbc_is_dropped(): void
+    {
+        $iNowMs = 1757548800000;
+        $sStale = 'fb.1.'.($iNowMs - 91 * 86400000).'.IwAR1validfbclid_123';
+
+        $arStale = (new UserDataHasher($iNowMs))->hashRaw(['fbc' => $sStale]);
+        $arMalformed = (new UserDataHasher($iNowMs))->hashRaw(['fbc' => 'fb.1.x.fbclidvalue']);
+
+        $this->assertNull($arStale['fbc']);
+        $this->assertNull($arMalformed['fbc']);
     }
 
     public function test_returns_all_thirteen_documented_keys(): void

@@ -5,6 +5,12 @@ All notable changes to `logingrupa/oc-metapixel-plugin` are documented in this f
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.7] - 2026-09-11
+
+### Fixed
+
+- **Stale click ids no longer reach the Conversions API.** Meta flagged the integration for sending an `fbc` whose `fbclid` was over 90 days old. `fbevents.js` keeps extending the `_fbc` cookie on every page view, so a customer who clicked an ad months ago still carried the old value and every server event forwarded it. `FbcValue::fresh()` now parses the value, drops it when malformed or when its creation time is older than the 90 day cookie lifetime, and both merge points apply it: the hasher passthrough for adapter and listener values, and the request cookie merge in `UserDataResolveHook`. The cookie itself is never rewritten, as Meta requires.
+
 ## [2.1.6] - 2026-09-05
 
 ### Fixed

@@ -7,11 +7,22 @@ use Logingrupa\Metapixel\Classes\Adapter\EventSubjectAdapter;
 /**
  * Normalises and sha256-hashes raw user_data per the Meta Conversions API
  * customer-information rules, one normaliser per field. Passthrough fields
- * (fbp/fbc/client_ip_address/client_user_agent) are returned as-is. Null or
- * empty input returns null, never the hash of an empty string.
+ * (fbp/fbc/client_ip_address/client_user_agent) are returned as-is, except
+ * fbc, which is dropped when malformed or older than 90 days. Null or empty
+ * input returns null, never the hash of an empty string.
  */
 final class UserDataHasher
 {
+    private int $iNowMs;
+
+    /**
+     * @param  ?int  $iNowMs  Clock for the fbc freshness gate, defaults to now.
+     */
+    public function __construct(?int $iNowMs = null)
+    {
+        $this->iNowMs = $iNowMs ?? (int) (microtime(true) * 1000);
+    }
+
     /** Fields Meta expects sha256-hashed, in the order the payload lists them. */
     public const IDENTITY_FIELDS = ['em', 'ph', 'fn', 'ln', 'ct', 'st', 'zp', 'country', 'external_id'];
 
@@ -42,6 +53,7 @@ final class UserDataHasher
             $mValue = $arRaw[$sField] ?? null;
             $arResult[$sField] = is_string($mValue) ? $mValue : null;
         }
+        $arResult['fbc'] = $this->freshFbc($arResult['fbc']);
 
         return $arResult;
     }
@@ -64,6 +76,12 @@ final class UserDataHasher
         }
 
         return $arResult;
+    }
+
+    /** The fbc click id when well formed and under 90 days old, else null. */
+    public function freshFbc(mixed $mValue): ?string
+    {
+        return FbcValue::fresh(is_string($mValue) ? $mValue : null, $this->iNowMs);
     }
 
     private function hashField(string $sField, mixed $mValue): ?string

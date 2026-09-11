@@ -110,7 +110,8 @@ final class ThemeAjaxHandlerServerUserDataTest extends MetapixelTestCase
     {
         Request::shouldReceive('userAgent')->andReturn('Honest/2.0');
         Request::shouldReceive('cookie')->with('_fbp', null)->andReturn('fb.1.111.222');
-        Request::shouldReceive('cookie')->with('_fbc', null)->andReturn('fb.1.333.444');
+        $sFbc = self::freshFbc();
+        Request::shouldReceive('cookie')->with('_fbc', null)->andReturn($sFbc);
         Request::shouldReceive('input')->with('data', [])->andReturn([
             'name' => 'Subscribe',
             'action_key' => 'newsletter:footer',
@@ -124,13 +125,13 @@ final class ThemeAjaxHandlerServerUserDataTest extends MetapixelTestCase
         $this->assertInstanceOf(JsonResponse::class, $mResponse);
         $this->assertSame(200, $mResponse->getStatusCode());
 
-        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob): bool {
+        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob) use ($sFbc): bool {
             $arUserData = $obJob->arPayload['data'][0]['user_data'] ?? [];
 
             return ($arUserData['client_ip_address'] ?? null) === '203.0.113.9'
                 && ($arUserData['client_user_agent'] ?? null) === 'Honest/2.0'
                 && ($arUserData['fbp'] ?? null) === 'fb.1.111.222'
-                && ($arUserData['fbc'] ?? null) === 'fb.1.333.444';
+                && ($arUserData['fbc'] ?? null) === $sFbc;
         });
     }
 
@@ -164,5 +165,11 @@ final class ThemeAjaxHandlerServerUserDataTest extends MetapixelTestCase
                 && ($arUserData['external_id'] ?? null) === hash('sha256', '42')
                 && ($arUserData['client_ip_address'] ?? null) === '203.0.113.9';
         });
+    }
+
+    /** A well formed _fbc value one day old, so the freshness gate lets it through. */
+    private static function freshFbc(): string
+    {
+        return 'fb.1.'.((int) (microtime(true) * 1000) - 86400000).'.IwAR1validfbclid_123';
     }
 }

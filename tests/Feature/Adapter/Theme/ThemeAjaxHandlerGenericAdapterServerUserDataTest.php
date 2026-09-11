@@ -65,7 +65,8 @@ final class ThemeAjaxHandlerGenericAdapterServerUserDataTest extends MetapixelTe
         $this->registerHybridAdapter([]);
         Request::shouldReceive('userAgent')->andReturn('Honest/2.0');
         Request::shouldReceive('cookie')->with('_fbp', null)->andReturn('fb.1.111.222');
-        Request::shouldReceive('cookie')->with('_fbc', null)->andReturn('fb.1.333.444');
+        $sFbc = self::freshFbc();
+        Request::shouldReceive('cookie')->with('_fbc', null)->andReturn($sFbc);
         Request::shouldReceive('input')->with('data', [])->andReturn([
             'name' => 'ViewContent',
             'subject_type' => 'mall.order',
@@ -81,7 +82,7 @@ final class ThemeAjaxHandlerGenericAdapterServerUserDataTest extends MetapixelTe
         $this->assertInstanceOf(JsonResponse::class, $mResponse);
         $this->assertSame(200, $mResponse->getStatusCode());
 
-        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob): bool {
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob) use ($sFbc): bool {
             $arUserData = $obJob->arPayload['data'][0]['user_data'] ?? [];
             if (! is_array($arUserData)) {
                 return false;
@@ -90,7 +91,7 @@ final class ThemeAjaxHandlerGenericAdapterServerUserDataTest extends MetapixelTe
             return ($arUserData['client_ip_address'] ?? null) === '203.0.113.9'
                 && ($arUserData['client_user_agent'] ?? null) === 'Honest/2.0'
                 && ($arUserData['fbp'] ?? null) === 'fb.1.111.222'
-                && ($arUserData['fbc'] ?? null) === 'fb.1.333.444'
+                && ($arUserData['fbc'] ?? null) === $sFbc
                 && ! array_key_exists('site_id', $arUserData);
         });
     }
@@ -103,7 +104,8 @@ final class ThemeAjaxHandlerGenericAdapterServerUserDataTest extends MetapixelTe
         ]);
         Request::shouldReceive('userAgent')->andReturn('Honest/2.0');
         Request::shouldReceive('cookie')->with('_fbp', null)->andReturn('fb.1.request.fbp');
-        Request::shouldReceive('cookie')->with('_fbc', null)->andReturn('fb.1.333.444');
+        $sFbc = self::freshFbc();
+        Request::shouldReceive('cookie')->with('_fbc', null)->andReturn($sFbc);
         Request::shouldReceive('input')->with('data', [])->andReturn([
             'name' => 'ViewContent',
             'subject_type' => 'mall.order',
@@ -119,13 +121,13 @@ final class ThemeAjaxHandlerGenericAdapterServerUserDataTest extends MetapixelTe
         $this->assertInstanceOf(JsonResponse::class, $mResponse);
         $this->assertSame(200, $mResponse->getStatusCode());
 
-        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob): bool {
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob) use ($sFbc): bool {
             $arUserData = $obJob->arPayload['data'][0]['user_data'] ?? [];
 
             return ($arUserData['client_ip_address'] ?? null) === '198.51.100.7'
                 && ($arUserData['fbp'] ?? null) === 'fb.1.subject.fbp'
                 && ($arUserData['client_user_agent'] ?? null) === 'Honest/2.0'
-                && ($arUserData['fbc'] ?? null) === 'fb.1.333.444';
+                && ($arUserData['fbc'] ?? null) === $sFbc;
         });
     }
 
@@ -220,5 +222,11 @@ final class ThemeAjaxHandlerGenericAdapterServerUserDataTest extends MetapixelTe
         $sAdapterClass = get_class($obFakeAdapter);
         $this->app->instance($sAdapterClass, $obFakeAdapter);
         App::make(AdapterRegistry::class)->register($sAdapterClass, $sAdapterClass);
+    }
+
+    /** A well formed _fbc value one day old, so the freshness gate lets it through. */
+    private static function freshFbc(): string
+    {
+        return 'fb.1.'.((int) (microtime(true) * 1000) - 86400000).'.IwAR1validfbclid_123';
     }
 }

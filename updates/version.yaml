@@ -60,3 +60,6 @@
 
 2.1.6:
   - 'A failed replay keeps Meta''s full answer on the row, the same message plus decoded response the dead-letter writer stores, instead of the bare status line, and the flash quotes Meta''s reason, for example the missing customer information text. Rows that failed more than 7 days ago are refused before any Graph call, since Meta rejects events that old. Transient Graph failures no longer log once per retry attempt, the exhausted job logs one warning when it dead-letters; the connect timeout is 5 seconds with a 10 second request budget, so one slow resolver answer no longer fails the attempt.'
+
+2.1.7:
+  - 'A fbc click id whose creation time is older than the 90 day cookie lifetime, or that is malformed, is dropped from user_data before any Conversions API send. Meta flagged the integration for stale fbclid values because fbevents.js extends the _fbc cookie on every page view, so a customer who clicked an ad months ago kept forwarding the old id. The cookie itself is never rewritten.'

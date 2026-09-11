@@ -199,7 +199,27 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         $_SERVER['HTTP_USER_AGENT'] = 'Test/1.0';
         $_SERVER['REMOTE_ADDR'] = '203.0.113.1';
         $_COOKIE['_fbp'] = 'fb.1.123.456';
-        $_COOKIE['_fbc'] = 'fb.1.789.abc';
+        $sFbc = 'fb.1.'.((int) (microtime(true) * 1000) - 86400000).'.IwAR1validfbclid_123';
+        $_COOKIE['_fbc'] = $sFbc;
+
+        $obProduct = $this->makeProduct(42, [[100, 9.99, 0, true]]);
+
+        (new ProductPageWatcher)->handle($obProduct);
+
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob) use ($sFbc): bool {
+            $arUserData = $obJob->arPayload['data'][0]['user_data'] ?? [];
+
+            return ($arUserData['client_user_agent'] ?? null) === 'Test/1.0'
+                && ($arUserData['client_ip_address'] ?? null) === '203.0.113.1'
+                && ($arUserData['fbp'] ?? null) === 'fb.1.123.456'
+                && ($arUserData['fbc'] ?? null) === $sFbc;
+        });
+    }
+
+    public function test_stale_fbc_cookie_is_dropped_from_user_data(): void
+    {
+        $_COOKIE['_fbp'] = 'fb.1.123.456';
+        $_COOKIE['_fbc'] = 'fb.1.'.((int) (microtime(true) * 1000) - 91 * 86400000).'.IwAR1validfbclid_123';
 
         $obProduct = $this->makeProduct(42, [[100, 9.99, 0, true]]);
 
@@ -208,10 +228,8 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob): bool {
             $arUserData = $obJob->arPayload['data'][0]['user_data'] ?? [];
 
-            return ($arUserData['client_user_agent'] ?? null) === 'Test/1.0'
-                && ($arUserData['client_ip_address'] ?? null) === '203.0.113.1'
-                && ($arUserData['fbp'] ?? null) === 'fb.1.123.456'
-                && ($arUserData['fbc'] ?? null) === 'fb.1.789.abc';
+            return ($arUserData['fbp'] ?? null) === 'fb.1.123.456'
+                && ($arUserData['fbc'] ?? null) === null;
         });
     }
 
