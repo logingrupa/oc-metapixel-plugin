@@ -76,6 +76,28 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         Bus::assertNotDispatched(SendCapiEvent::class);
     }
 
+    public function test_dispatches_for_every_code_in_a_paid_status_list(): void
+    {
+        Bus::fake();
+        Settings::set(['paid_status_code' => ['new-payment-received', 'complete']]);
+
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 3));
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5));
+
+        Bus::assertDispatchedTimes(SendCapiEvent::class, 2);
+    }
+
+    public function test_empty_paid_status_list_falls_back_to_the_default_code(): void
+    {
+        Bus::fake();
+        Settings::set(['paid_status_code' => []]);
+
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5));
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 3));
+
+        Bus::assertDispatchedTimes(SendCapiEvent::class, 1);
+    }
+
     public function test_does_not_dispatch_when_status_unchanged(): void
     {
         Bus::fake();

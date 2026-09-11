@@ -101,7 +101,7 @@ All configuration lives in the backend — you never place a Pixel ID or access 
    * **Pixel ID** — your Meta Pixel ID (digits only).
    * **CAPI Access Token** — the Conversions API access token for that Pixel.
    * **Test Events Code** — optional; routes events to the Meta Test Events panel for verification. Leave blank in production.
-   * **Paid status code** — the Shopaholic order status that triggers a Purchase event. Default: `new-payment-received`.
+   * **Paid status codes** — the Shopaholic order statuses that mean paid. The Purchase event fires the first time an order reaches any of them, once per order, so tick the gateway status for card and PayPal orders and the status your ERP sets when a bank transfer arrives. Default: `new-payment-received`.
    * **Default currency code** — the ISO 4217 currency used as a fallback when a subject has no currency of its own (Meta CAPI requires a currency on every event).
 3. On the **Theme Tracking** tab, fill in:
    * **Custom theme event names** — operator-supplied event names your theme is allowed to send through the Twig API, one per line. Standard Meta events (PageView, ViewContent, AddToCart, Purchase, Lead) are always allowed and do not need to be listed.
@@ -151,7 +151,7 @@ The step sequence below is the exact sequence exercised during the live smoke te
 
 1. **Configure the Pixel.** Backend → **Settings → Marketing → Meta Pixel + CAPI**: set **Pixel ID** and **CAPI Access Token**, **Save**, reload to confirm persistence.
 2. **Place a guest order.** Add a product to the cart, choose a shipping method, choose a payment method, and complete checkout to reach the order-complete page at `/{lang}/checkout/{secret_key}`.
-3. **Transition the order to paid.** The Purchase event fires on the **status transition to the Paid status code** (`new-payment-received`), not at order creation. Open the order in the backend, set its status to your paid status, and **Save**. The server CAPI Purchase dispatches immediately.
+3. **Transition the order to paid.** The Purchase event fires on the **first transition to any of the Paid status codes** (`new-payment-received` by default), not at order creation, and once per order. Open the order in the backend, set its status to your paid status, and **Save**. The server CAPI Purchase dispatches immediately.
 4. **Confirm browser dedup.** Revisit the order-complete page. The browser Pixel fires a `Purchase` carrying the **server** `event_id`, and the plugin writes the matching `channel=pixel` twin row alongside the `channel=capi` row — Meta collapses the pair.
 5. **Verify ViewContent.** Open a product page. `ViewContent` fires as a browser Pixel event and a CAPI event sharing one `event_id`.
 6. **Verify PageView.** Load any page. Exactly one `PageView` request reaches Meta per page load.

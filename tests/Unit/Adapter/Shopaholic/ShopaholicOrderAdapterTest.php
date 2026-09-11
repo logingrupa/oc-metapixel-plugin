@@ -74,4 +74,30 @@ final class ShopaholicOrderAdapterTest extends ShopaholicAdapterTestCase
 
         return $obOrder;
     }
+
+    public function test_client_ip_address_comes_from_the_order_user_account(): void
+    {
+        $obOrder = $this->makeOrder(['email' => 'a@b.test']);
+        $obUser = new class extends \October\Rain\Database\Model
+        {
+            protected $table = 'users';
+        };
+        $obUser->setAttribute('last_ip_address', '203.0.113.7');
+        $obOrder->setRelation('user', $obUser);
+
+        $arUserData = (new ShopaholicOrderAdapter)->getUserData($obOrder);
+
+        $this->assertSame('203.0.113.7', $arUserData['client_ip_address']);
+        $this->assertNull($arUserData['client_user_agent']);
+    }
+
+    public function test_client_ip_address_is_null_without_a_user_account(): void
+    {
+        $obOrder = $this->makeOrder(['email' => 'a@b.test']);
+        $obOrder->setRelation('user', null);
+
+        $arUserData = (new ShopaholicOrderAdapter)->getUserData($obOrder);
+
+        $this->assertNull($arUserData['client_ip_address']);
+    }
 }

@@ -5,6 +5,17 @@ All notable changes to `logingrupa/oc-metapixel-plugin` are documented in this f
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.8] - 2026-09-11
+
+### Fixed
+
+- **Request identity is attached only for the customer's browser.** A Purchase fired by a backend admin save, the 1C order exchange or a gateway webhook used to carry that caller's IP, user agent and cookies as if they were the buyer's. One shop sent the 1C server's IP on 9 out of 10 Purchases once its paid status moved to the one 1C sets. The Shopaholic watchers now attach IP, user agent, `_fbp` and `_fbc` only outside the backend and only when the user agent is a browser.
+
+### Added
+
+- **Buyer IP from the user account.** The order adapter fills `client_ip_address` from the order user's `last_ip_address` (RainLab.User or Buddies), so a Purchase fired without the buyer's request still carries their IP.
+- **Several paid statuses.** The Paid status setting is a checkbox list. The Purchase fires the first time an order reaches any ticked status, once per order, so card and PayPal orders fire at the gateway status with the buyer's click id while bank transfers fire when the ERP marks them paid. A saved single value from before keeps working.
+
 ## [2.1.7] - 2026-09-11
 
 ### Fixed

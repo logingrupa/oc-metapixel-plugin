@@ -63,3 +63,6 @@
 
 2.1.7:
   - 'A fbc click id whose creation time is older than the 90 day cookie lifetime, or that is malformed, is dropped from user_data before any Conversions API send. Meta flagged the integration for stale fbclid values because fbevents.js extends the _fbc cookie on every page view, so a customer who clicked an ad months ago kept forwarding the old id. The cookie itself is never rewritten.'
+
+2.1.8:
+  - 'Shopaholic watchers attach the request IP, user agent, _fbp and _fbc only outside the backend and only for a browser user agent, so a Purchase fired by an admin save, the 1C order exchange or a gateway webhook no longer carries the caller''s identity as the buyer''s. The order adapter fills client_ip_address from the order user''s last_ip_address instead. The Paid status setting is a checkbox list: the Purchase fires the first time an order reaches any ticked status, once per order; a saved single value keeps working.'

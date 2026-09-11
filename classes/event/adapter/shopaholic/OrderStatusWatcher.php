@@ -32,11 +32,8 @@ final class OrderStatusWatcher
     public function handle(Order $obOrder): void
     {
         try {
-            $mPaidCode = Settings::get('paid_status_code', 'new-payment-received');
-            $sPaidCode = is_string($mPaidCode) ? $mPaidCode : 'new-payment-received';
-
             $mStatus = $obOrder->getRelationValue('status');
-            if (! is_object($mStatus) || ($mStatus->code ?? null) !== $sPaidCode) {
+            if (! is_object($mStatus) || ! in_array($mStatus->code ?? null, $this->paidStatusCodes(), true)) {
                 return;
             }
 
@@ -69,5 +66,20 @@ final class OrderStatusWatcher
                 'meta_pixel.message' => $obException->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Status codes that mean paid. The setting is a checkbox list, older
+     * installs still hold a single string.
+     *
+     * @return list<string>
+     */
+    private function paidStatusCodes(): array
+    {
+        $mSetting = Settings::get('paid_status_code', ['new-payment-received']);
+        $arRaw = is_array($mSetting) ? $mSetting : [$mSetting];
+        $arCodes = array_values(array_filter($arRaw, static fn (mixed $mCode): bool => is_string($mCode) && $mCode !== ''));
+
+        return $arCodes === [] ? ['new-payment-received'] : $arCodes;
     }
 }

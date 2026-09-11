@@ -22,9 +22,9 @@ tabs:
             tab: logingrupa.metapixel::lang.tab.pixel_and_capi
             label: logingrupa.metapixel::lang.field.paid_status_code_label
             commentAbove: logingrupa.metapixel::lang.field.paid_status_code_comment
-            type: dropdown
+            type: checkboxlist
             span: auto
-            default: new-payment-received
+            default: [new-payment-received]
             options: \Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicSettingsOptions::getPaidStatusCodeOptions
         default_currency_code:
             tab: logingrupa.metapixel::lang.tab.pixel_and_capi

@@ -43,18 +43,36 @@ trait CapturesRequestUserData
     /**
      * Read passthrough request fields from PHP superglobals. Returns null
      * for each that is absent or empty so the merge can skip cleanly without
-     * overwriting subject-supplied values with empties.
+     * overwriting subject-supplied values with empties. All null when the
+     * request is not the customer's browser (backend admin, ERP exchange,
+     * gateway webhook): their IP, user agent and cookies describe the caller,
+     * not the buyer.
      *
      * @return array<string, ?string>
      */
     protected function collectRequestUserData(): array
     {
+        if (! $this->isCustomerBrowserRequest()) {
+            return ['client_ip_address' => null, 'client_user_agent' => null, 'fbp' => null, 'fbc' => null];
+        }
+
         return [
             'client_ip_address' => $this->resolveClientIp(),
             'client_user_agent' => $this->nonEmptyString($_SERVER['HTTP_USER_AGENT'] ?? null),
             'fbp' => $this->nonEmptyString($_COOKIE['_fbp'] ?? null),
             'fbc' => $this->nonEmptyString($_COOKIE['_fbc'] ?? null),
         ];
+    }
+
+    /** Frontend request whose user agent is a browser; every browser announces itself as Mozilla/. */
+    private function isCustomerBrowserRequest(): bool
+    {
+        if (App::runningInBackend()) {
+            return false;
+        }
+        $mUserAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
+
+        return is_string($mUserAgent) && str_starts_with($mUserAgent, 'Mozilla/');
     }
 
     private function resolveClientIp(): ?string
