@@ -81,3 +81,6 @@
 
 2.1.13:
   - 'Search custom_data is also read when Larajax posts the fields as top level form fields (search_string, content_ids, content_type, num_items), which is how the theme sends them. 2.1.12 only read them from a nested data[] payload, so live Search events still reached Meta without the query and the result SKUs.'
+
+2.1.14:
+  - 'A zero value, an empty contents list and a zero item count are left out of custom_data on every event, not only on contentless ones, so a Search no longer reports value 0 EUR beside the found SKUs. Purchase keeps value and currency even at zero, because Meta rejects a Purchase without them.'
