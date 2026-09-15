@@ -78,3 +78,6 @@
 
 2.1.12:
   - 'Search events fired from the theme carry the query and the result SKUs. The Larajax onFireEvent handler used to keep only the event name and action key, so a Search reached Meta with empty custom_data on both channels. The handler now admits search_string, content_ids, content_type and num_items from the client, validated and capped (100 characters, 20 SKU-shaped ids, product only, 0 to 1000), and puts the same custom_data into the Conversions API payload and the browser twin. Meta can show what people searched and feed the SKUs into dynamic product ads. Identity, value and currency stay server-derived.'
+
+2.1.13:
+  - 'Search custom_data is also read when Larajax posts the fields as top level form fields (search_string, content_ids, content_type, num_items), which is how the theme sends them. 2.1.12 only read them from a nested data[] payload, so live Search events still reached Meta without the query and the result SKUs.'

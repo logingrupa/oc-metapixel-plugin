@@ -170,7 +170,7 @@ final class ThemeAjaxRequestReader
             return null;
         }
 
-        foreach (['name', 'subject_type', 'subject_id', 'offer_id', 'action_key'] as $sField) {
+        foreach (['name', 'subject_type', 'subject_id', 'offer_id', 'action_key', 'search_string', 'content_ids', 'content_type', 'num_items'] as $sField) {
             if (array_key_exists($sField, $arData)) {
                 continue;
             }

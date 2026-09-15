@@ -92,6 +92,31 @@ final class ThemeAjaxHandlerClientCustomDataTest extends MetapixelTestCase
         $this->assertStringContainsString('"num_items":2', $sScript);
     }
 
+    public function test_search_fields_posted_as_top_level_form_fields_are_read(): void
+    {
+        // Larajax flattens options.data into top-level form fields, which is
+        // what the live theme sends: name=Search&search_string=gel&content_ids[]=...
+        Request::shouldReceive('input')->with('data', [])->andReturn([]);
+        Request::shouldReceive('input')->with('name')->andReturn('Search');
+        Request::shouldReceive('input')->with('action_key')->andReturn('search:gel:x1');
+        Request::shouldReceive('input')->with('search_string')->andReturn('gel');
+        Request::shouldReceive('input')->with('content_ids')->andReturn(['SKU-429-6645', 'SKU-233']);
+        Request::shouldReceive('input')->with('content_type')->andReturn('product');
+        Request::shouldReceive('input')->with('num_items')->andReturn('13');
+
+        $mResponse = $this->fire();
+
+        $this->assertSame(200, $mResponse->getStatusCode());
+        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob): bool {
+            $arCustomData = $obJob->arPayload['data'][0]['custom_data'] ?? [];
+
+            return ($arCustomData['search_string'] ?? null) === 'gel'
+                && ($arCustomData['content_ids'] ?? null) === ['SKU-429-6645', 'SKU-233']
+                && ($arCustomData['num_items'] ?? null) === 13;
+        });
+        $this->assertStringContainsString('"search_string":"gel"', $this->scriptOf($mResponse));
+    }
+
     public function test_invalid_content_ids_and_unknown_keys_are_dropped(): void
     {
         Request::shouldReceive('input')->with('data', [])->andReturn([

@@ -31,6 +31,10 @@ final class ThemeAjaxRequestReaderTest extends MetapixelTestCase
         Request::shouldReceive('input')->with('subject_id')->andReturn('5');
         Request::shouldReceive('input')->with('offer_id')->andReturnNull();
         Request::shouldReceive('input')->with('action_key')->andReturnNull();
+        Request::shouldReceive('input')->with('search_string')->andReturnNull();
+        Request::shouldReceive('input')->with('content_ids')->andReturnNull();
+        Request::shouldReceive('input')->with('content_type')->andReturnNull();
+        Request::shouldReceive('input')->with('num_items')->andReturnNull();
 
         $arData = (new ThemeAjaxRequestReader)->readEventData();
 
