@@ -41,6 +41,7 @@ final class ShopaholicCartPositionValueResolverTest extends ShopaholicAdapterTes
     protected function tearDown(): void
     {
         Schema::dropIfExists('lovata_shopaholic_currency');
+        Schema::dropIfExists('lovata_shopaholic_prices');
         parent::tearDown();
     }
 
@@ -116,6 +117,27 @@ final class ShopaholicCartPositionValueResolverTest extends ShopaholicAdapterTes
         $obPosition = $this->makeBarePositionForOffer($obOffer, iQuantity: 7);
 
         $this->assertSame(7, (new ShopaholicCartPositionValueResolver)->resolveNumItems($obPosition));
+    }
+
+    public function test_explicit_quantity_describes_one_add_instead_of_the_position_total(): void
+    {
+        // resolveContents reads Offer.price_value, a Lovata accessor backed by
+        // the prices table; an empty table yields 0.0 and keeps the call safe.
+        Schema::create('lovata_shopaholic_prices', function ($obTable): void {
+            $obTable->increments('id');
+            $obTable->integer('item_id');
+            $obTable->string('item_type');
+            $obTable->decimal('price', 15, 2)->nullable();
+            $obTable->decimal('old_price', 15, 2)->nullable();
+            $obTable->integer('price_type_id')->nullable();
+            $obTable->timestamps();
+        });
+        $obOffer = $this->makeOfferWithProduct(iProductId: 1, iOfferId: 1, iSiblingOffers: 0);
+        $obPosition = $this->makeBarePositionForOffer($obOffer, iQuantity: 7);
+        $obResolver = new ShopaholicCartPositionValueResolver(3);
+
+        $this->assertSame(3, $obResolver->resolveNumItems($obPosition));
+        $this->assertSame(3, $obResolver->resolveContents($obPosition)[0]['quantity']);
     }
 
     public function test_resolve_currency_falls_back_to_settings_default_when_set(): void

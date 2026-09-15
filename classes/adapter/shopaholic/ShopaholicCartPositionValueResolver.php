@@ -15,9 +15,14 @@ use October\Rain\Database\Model;
  * via the MorphTo $item relation with null-guard (Pitfall 1). Reuses the
  * SKU-{product_id}[-{offer_id}] content_ids format byte-for-byte with the
  * Order resolver + FacebookCatalog feed exporter.
+ *
+ * An explicit quantity describes the units of one add action, so a repeat
+ * add reports what was just added rather than the position total.
  */
 final class ShopaholicCartPositionValueResolver implements ValueResolver
 {
+    public function __construct(private readonly ?int $iQuantity = null) {}
+
     /** @return list<string> */
     public function resolveContentIds(object $obSubject): array
     {
@@ -32,10 +37,9 @@ final class ShopaholicCartPositionValueResolver implements ValueResolver
         if ($obPosition === null) {
             return 0.0;
         }
-        $iQuantity = $this->intAttr($obPosition, 'quantity');
         $obOffer = $this->offerOf($obSubject);
 
-        return $iQuantity * ($obOffer !== null ? $this->floatAttr($obOffer, 'price_value') : 0.0);
+        return $this->quantityOf($obPosition) * ($obOffer !== null ? $this->floatAttr($obOffer, 'price_value') : 0.0);
     }
 
     public function resolveCurrency(object $obSubject): string
@@ -60,7 +64,7 @@ final class ShopaholicCartPositionValueResolver implements ValueResolver
 
         return [[
             'id' => $this->buildContentId($obOffer),
-            'quantity' => $this->intAttr($obPosition, 'quantity'),
+            'quantity' => $this->quantityOf($obPosition),
             'item_price' => $this->floatAttr($obOffer, 'price_value'),
         ]];
     }
@@ -69,7 +73,12 @@ final class ShopaholicCartPositionValueResolver implements ValueResolver
     {
         $obPosition = $this->positionOf($obSubject);
 
-        return $obPosition !== null ? $this->intAttr($obPosition, 'quantity') : 0;
+        return $obPosition !== null ? $this->quantityOf($obPosition) : 0;
+    }
+
+    private function quantityOf(CartPosition $obPosition): int
+    {
+        return $this->iQuantity ?? $this->intAttr($obPosition, 'quantity');
     }
 
     private function positionOf(object $obSubject): ?CartPosition

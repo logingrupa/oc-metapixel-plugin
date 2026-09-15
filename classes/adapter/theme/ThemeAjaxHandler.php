@@ -20,8 +20,8 @@ use Logingrupa\Metapixel\Classes\Exception\UnknownSubjectTypeException;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
 use Logingrupa\Metapixel\Classes\Meta\OfferSwitchResult;
-use Logingrupa\Metapixel\Classes\Meta\PixelRenderHook;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
+use Logingrupa\Metapixel\Classes\Meta\PixelRenderHook;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
@@ -164,7 +164,8 @@ final class ThemeAjaxHandler
      * event_id + custom_data for the current-session cart position via
      * CartPositionWatcher::resolveBrowserPixel and returns an executable fbq
      * AddToCart block carrying that eventID (true event_id dedup). Dispatches NO
-     * CAPI — the server AddToCart already fired on CartPosition eloquent.created.
+     * CAPI — the server AddToCart already fired when the position was created
+     * or its quantity grew.
      * event_id is server-sourced only; the browser never supplies it (T-05G-03).
      */
     private function markAddToCartPixel(): JsonResponse

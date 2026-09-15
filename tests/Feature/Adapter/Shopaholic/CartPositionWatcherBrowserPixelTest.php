@@ -5,6 +5,7 @@ namespace Logingrupa\Metapixel\Tests\Feature\Adapter\Shopaholic;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\AddToCartPixelResult;
@@ -107,12 +108,24 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         $this->assertSame($obFirst->sEventId, $obSecond->sEventId, 'repeat calls return the same reserved event_id');
 
         $iPixelRows = DB::table(self::TABLE)
-            ->where('subject_type', 'shopaholic.cart_position')
-            ->where('subject_id', self::POSITION_ID)
+            ->where('secret_key', 'cart_position:'.self::POSITION_ID)
             ->where('event_name', 'AddToCart')
             ->where('channel', 'pixel')
             ->count();
         $this->assertSame(1, $iPixelRows, 'resolver is read-only — still exactly one reservation row');
+    }
+
+    public function test_returns_the_newest_reservation_when_the_position_was_added_to_again(): void
+    {
+        $this->seedPosition();
+        $this->seedPixelRow();
+        $this->seedPixelRow('99999999-2222-4333-8444-555566667777');
+        $this->stubCartProcessor(self::CART_ID);
+
+        $obResult = (new CartPositionWatcher)->resolveBrowserPixel(self::OFFER_ID);
+
+        $this->assertNotNull($obResult);
+        $this->assertSame('99999999-2222-4333-8444-555566667777', $obResult->sEventId);
     }
 
     public function test_dispatches_no_send_capi_event(): void
@@ -195,21 +208,26 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         ]);
     }
 
-    private function seedPixelRow(): void
+    /** Mirror the per-add reservation dispatchAddToCart writes: theme.action subject keyed by the add, secret_key tagged with the position. */
+    private function seedPixelRow(string $sEventId = self::KNOWN_EVENT_ID): void
     {
+        $obDispatchEvent = ThemeActionEvent::fromArray([
+            'name' => 'AddToCart',
+            'action_key' => 'addtocart:'.self::POSITION_ID.':'.$sEventId,
+        ]);
         DB::table(self::TABLE)->insert([
-            'event_id' => self::KNOWN_EVENT_ID,
+            'event_id' => $sEventId,
             'event_name' => 'AddToCart',
             'channel' => 'pixel',
-            'subject_type' => 'shopaholic.cart_position',
-            'subject_id' => self::POSITION_ID,
-            'secret_key' => null,
+            'subject_type' => 'theme.action',
+            'subject_id' => $obDispatchEvent->iSyntheticId,
+            'secret_key' => 'cart_position:'.self::POSITION_ID,
             'site_id' => 1,
             'event_time' => time(),
             'payload' => (string) json_encode([
                 'data' => [[
                     'event_name' => 'AddToCart',
-                    'event_id' => self::KNOWN_EVENT_ID,
+                    'event_id' => $sEventId,
                     'custom_data' => self::CUSTOM_DATA,
                 ]],
             ]),

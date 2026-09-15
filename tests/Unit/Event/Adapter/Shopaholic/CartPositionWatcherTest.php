@@ -8,6 +8,8 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
@@ -21,9 +23,10 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * SHOP-03 (carry-forward) — CartPositionWatcher dispatch logic. Exercises the
  * handlers directly (not via eloquent.* firing) and asserts SendCapiEvent::dispatch
- * is called on the AddToCart path; skipped when the EventLog row already exists
- * (dedup pre-check); skipped when MorphTo $item is null (Pitfall 1); never
- * rethrows on exception (Tiger-Style log+return).
+ * is called on creation and on every quantity increase with the added
+ * quantity, each add with its own event_id and pixel reservation; skipped
+ * when the quantity did not grow; skipped when MorphTo $item is null
+ * (Pitfall 1); never rethrows on exception (Tiger-Style log+return).
  */
 #[Group('adapter')]
 final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
@@ -38,6 +41,7 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
         $this->bootSupportTables();
         $this->app->singleton(AdapterRegistry::class);
         app(AdapterRegistry::class)->register(CartPosition::class, ShopaholicCartPositionAdapter::class);
+        app(AdapterRegistry::class)->register(ThemeActionEvent::class, ThemeActionAdapter::class);
         Settings::clearInternalCache();
         Settings::set([
             'pixel_id' => 'PIXEL-1',
@@ -95,8 +99,13 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
         (new CartPositionWatcher)->handleCreated($obPosition);
 
         Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob): bool {
+            $arCustomData = $obJob->arPayload['data'][0]['custom_data'] ?? [];
+
             return $obJob->sEventName === 'AddToCart'
-                && $obJob->sAdapterClass === ShopaholicCartPositionAdapter::class;
+                && $obJob->sAdapterClass === ThemeActionAdapter::class
+                && $obJob->obSubject instanceof ThemeActionEvent
+                && str_starts_with($obJob->obSubject->sActionKey, 'addtocart:1:')
+                && ($arCustomData['num_items'] ?? null) === 2;
         });
     }
 
@@ -110,8 +119,7 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
         // The browser-pixel reservation is written synchronously in-request so
         // resolveBrowserPixel never races the queue worker on async drivers.
         $obPixelRow = DB::table('logingrupa_metapixel_event_log')
-            ->where('subject_type', 'shopaholic.cart_position')
-            ->where('subject_id', $obPosition->id)
+            ->where('secret_key', 'cart_position:1')
             ->where('event_name', 'AddToCart')
             ->where('channel', 'pixel')
             ->first();
@@ -122,37 +130,48 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
         });
     }
 
-    public function test_handle_updated_dispatches_when_event_log_row_absent(): void
+    public function test_repeat_add_on_the_same_position_fires_a_fresh_pair_with_the_added_quantity(): void
     {
         Bus::fake();
         $obPosition = $this->makePositionWithOffer();
+        $obWatcher = new CartPositionWatcher;
 
-        (new CartPositionWatcher)->handleUpdated($obPosition);
+        $obWatcher->handleCreated($obPosition);
+        $obPosition->syncOriginal();
+        $obPosition->setAttribute('quantity', 5);
+        $obWatcher->handleUpdated($obPosition);
 
-        Bus::assertDispatched(SendCapiEvent::class);
+        $arEventIds = DB::table('logingrupa_metapixel_event_log')
+            ->where('secret_key', 'cart_position:1')
+            ->where('channel', 'pixel')
+            ->orderBy('id')
+            ->pluck('event_id')
+            ->all();
+        $this->assertCount(2, $arEventIds, 'each add reserves its own pixel row');
+        $this->assertNotSame($arEventIds[0], $arEventIds[1]);
+
+        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob) use ($arEventIds): bool {
+            $arRecord = $obJob->arPayload['data'][0] ?? [];
+            $arCustomData = $arRecord['custom_data'] ?? [];
+
+            return ($arRecord['event_id'] ?? null) === $arEventIds[1]
+                && ($arCustomData['num_items'] ?? null) === 3
+                && ($arCustomData['contents'][0]['quantity'] ?? null) === 3;
+        });
     }
 
-    public function test_handle_updated_skips_when_event_log_row_present(): void
+    public function test_handle_updated_skips_when_quantity_did_not_grow(): void
     {
         Bus::fake();
         $obPosition = $this->makePositionWithOffer();
-        // Seed the pixel reservation row matching the dedup tuple — handler
-        // should short-circuit on the DB::table exists() check (the pixel row
-        // is written in-request by dispatchAddToCart, so it is the reliable
-        // "already dispatched" marker independent of queue-worker latency).
-        DB::table('logingrupa_metapixel_event_log')->insert([
-            'event_id' => 'preexisting-uuid',
-            'event_name' => 'AddToCart',
-            'channel' => 'pixel',
-            'subject_type' => 'shopaholic.cart_position',
-            'subject_id' => $obPosition->id,
-            'site_id' => 1,
-            'event_time' => time(),
-        ]);
+        $obPosition->syncOriginal();
 
+        (new CartPositionWatcher)->handleUpdated($obPosition);
+        $obPosition->setAttribute('quantity', 1);
         (new CartPositionWatcher)->handleUpdated($obPosition);
 
         Bus::assertNotDispatched(SendCapiEvent::class);
+        $this->assertSame(0, DB::table('logingrupa_metapixel_event_log')->count());
     }
 
     public function test_handle_created_skips_when_item_morphto_null(): void

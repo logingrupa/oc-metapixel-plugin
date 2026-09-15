@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicCartPositionValueResolver;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
+use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Helper\EventLogWriter;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
@@ -21,11 +23,14 @@ use Ramsey\Uuid\Uuid;
 use Throwable;
 
 /**
- * Watches CartPosition eloquent.created|updated; fires AddToCart on creation
- * always, on update only when EventLog has no prior (cart_position, AddToCart,
- * pixel, site_id) row — qty-bump dedup keys on the request-time pixel
- * reservation row written by dispatchAddToCart (visible immediately,
- * independent of queue-worker latency).
+ * Watches CartPosition eloquent.created|updated; every add action fires its
+ * own AddToCart pair: creation with the position quantity, an update with
+ * the quantity that was just added. Each pair gets a fresh event_id and a
+ * per-add ThemeActionEvent subject (action_key addtocart:{position}:{eid}),
+ * so the EventLog UNIQUE race-fence keys on the add, not on the position,
+ * and a master buying the same shade three times yields three matched
+ * events. The in-request pixel reservation row is tagged with the position
+ * through secret_key so the browser twin can find the latest add.
  */
 class CartPositionWatcher
 {
@@ -40,32 +45,27 @@ class CartPositionWatcher
     public function handleCreated(CartPosition $obCartPosition): void
     {
         try {
-            $this->dispatchAddToCart($obCartPosition);
+            $this->dispatchAddToCart($obCartPosition, $this->intValue($obCartPosition->getAttribute('quantity')));
         } catch (Throwable $obException) {
             $this->logFailure('created', $obCartPosition, $obException);
         }
     }
 
+    /** A quantity increase is a repeat add; a decrease or any other change is not. */
     public function handleUpdated(CartPosition $obCartPosition): void
     {
         try {
-            $obAdapter = new ShopaholicCartPositionAdapter;
-            $bAlreadyLogged = DB::table('logingrupa_metapixel_event_log')
-                ->where('subject_type', 'shopaholic.cart_position')
-                ->where('subject_id', $obAdapter->getSubjectId($obCartPosition))
-                ->where('event_name', 'AddToCart')
-                ->where('channel', 'pixel')
-                ->where('site_id', $obAdapter->getSiteId($obCartPosition))
-                ->exists();
-            if (! $bAlreadyLogged) {
-                $this->dispatchAddToCart($obCartPosition);
+            $iAdded = $this->intValue($obCartPosition->getAttribute('quantity'))
+                - $this->intValue($obCartPosition->getOriginal('quantity'));
+            if ($iAdded > 0) {
+                $this->dispatchAddToCart($obCartPosition, $iAdded);
             }
         } catch (Throwable $obException) {
             $this->logFailure('updated', $obCartPosition, $obException);
         }
     }
 
-    private function dispatchAddToCart(CartPosition $obCartPosition): void
+    private function dispatchAddToCart(CartPosition $obCartPosition, int $iQuantity): void
     {
         if (! $obCartPosition->getRelationValue('item') instanceof Offer) {
             Log::info('metapixel: CartPositionWatcher — item MorphTo not an Offer, skipping', [
@@ -76,7 +76,7 @@ class CartPositionWatcher
         }
 
         $obAdapter = new ShopaholicCartPositionAdapter;
-        $obResolver = new ShopaholicCartPositionValueResolver;
+        $obResolver = new ShopaholicCartPositionValueResolver($iQuantity);
         $obBuilder = new PayloadBuilder(new UserDataHasher);
 
         $sEventId = Uuid::uuid4()->toString();
@@ -92,34 +92,54 @@ class CartPositionWatcher
         );
         $arPayload = $this->injectRequestUserData('AddToCart', $obAdapter->getSubjectType($obCartPosition), $arPayload);
 
+        $iPositionId = $obAdapter->getSubjectId($obCartPosition);
+        $iSiteId = $obAdapter->getSiteId($obCartPosition);
+        $obDispatchEvent = ThemeActionEvent::fromArray([
+            'name' => 'AddToCart',
+            'action_key' => 'addtocart:'.$iPositionId.':'.$sEventId,
+            'site_id' => $iSiteId,
+            'secret_key' => self::positionKey($iPositionId),
+        ]);
+
         // Reserve the browser-pixel twin IN-REQUEST: the theme JS calls
         // Metapixel::onMarkAddToCart milliseconds after Cart::onAdd, so the
         // browser pixel must not depend on the queue worker having executed
         // (on async drivers the worker-written capi row usually does not exist
-        // yet). Return value intentionally unchecked — on fence collision or
-        // DB failure the browser pixel is skipped (fail-safe) while the CAPI
-        // dispatch still proceeds.
+        // yet). Return value intentionally unchecked — on DB failure the
+        // browser pixel is skipped (fail-safe) while the CAPI dispatch still
+        // proceeds.
         EventLogWriter::record(
             $sEventId,
             'AddToCart',
             'pixel',
-            $obCartPosition,
-            $obAdapter->getSecretKey($obCartPosition),
+            $obDispatchEvent,
+            self::positionKey($iPositionId),
             $iEventTime,
-            $obAdapter->getSiteId($obCartPosition),
+            $iSiteId,
             $arPayload,
         );
 
-        SendCapiEvent::dispatch('AddToCart', $arPayload, $obCartPosition, ShopaholicCartPositionAdapter::class);
+        SendCapiEvent::dispatch('AddToCart', $arPayload, $obDispatchEvent, ThemeActionAdapter::class);
+    }
+
+    /** secret_key tag that ties every per-add reservation row back to its cart position. */
+    private static function positionKey(int $iPositionId): string
+    {
+        return 'cart_position:'.$iPositionId;
+    }
+
+    private function intValue(mixed $mValue): int
+    {
+        return is_numeric($mValue) ? (int) $mValue : 0;
     }
 
     /**
-     * Browser-pixel resolver (D-07). Reads the channel='pixel' AddToCart
-     * EventLog row that dispatchAddToCart reserved IN-REQUEST for the
-     * current-session cart position and returns its event_id + custom_data so
-     * the AJAX boundary can emit a browser fbq that Meta dedups with the CAPI
-     * twin by event_id. Dispatches NO SendCapiEvent — dispatchAddToCart on
-     * eloquent.created is the sole CAPI emitter. Reading the request-time
+     * Browser-pixel resolver (D-07). Reads the latest channel='pixel'
+     * AddToCart EventLog row that dispatchAddToCart reserved IN-REQUEST for
+     * the current-session cart position and returns its event_id +
+     * custom_data so the AJAX boundary can emit a browser fbq that Meta
+     * dedups with the CAPI twin by event_id. Dispatches NO SendCapiEvent —
+     * dispatchAddToCart is the sole CAPI emitter. Reading the request-time
      * reservation (never the worker-written capi row) keeps this path correct
      * on async queue drivers. Fail-safe: returns null on every resolution
      * miss; infrastructure failures propagate to the AJAX boundary's catch.
@@ -191,14 +211,14 @@ class CartPositionWatcher
         return is_numeric($mPositionId) ? (int) $mPositionId : 0;
     }
 
-    /** Read the channel='pixel' AddToCart EventLog row for this position, or null. */
+    /** Read the newest channel='pixel' AddToCart reservation for this position, or null. */
     private function findPixelAddToCartRow(int $iPositionId): ?object
     {
         return DB::table('logingrupa_metapixel_event_log')
-            ->where('subject_type', 'shopaholic.cart_position')
-            ->where('subject_id', $iPositionId)
+            ->where('secret_key', self::positionKey($iPositionId))
             ->where('event_name', 'AddToCart')
             ->where('channel', 'pixel')
+            ->orderByDesc('id')
             ->first(['event_id', 'event_time', 'secret_key', 'site_id', 'payload']);
     }
 

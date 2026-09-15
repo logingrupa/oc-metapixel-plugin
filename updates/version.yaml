@@ -72,3 +72,6 @@
 
 2.1.10:
   - 'The base pixel sets fbq.disablePushState before fbevents.js loads. fbevents.js otherwise fires its own PageView, without an event id, on every history.pushState or replaceState, and the theme rewrites the URL on an offer switch, in the offer sheet, on catalog filters and pagination and on search. Each such PageView reached Meta with no server twin and dragged the PageView event coverage on nailscosmetics.lv down to 37 percent. Only the server paired PageView fires now.'
+
+2.1.11:
+  - 'Every add to cart is its own AddToCart. A quantity increase on a cart position that already exists fires a fresh server event and browser twin with a new event id, carrying only the quantity just added, instead of handing the browser the id minted when the position was created. That reused id had no fresh server partner, which is what held AddToCart event coverage on nailscosmetics.lv at 52 percent. Each add dispatches through a per-add theme action subject (addtocart:{position}:{event_id}) so the event log race fence keys on the add, and the pixel reservation row is tagged with the cart position through secret_key so the browser twin always finds the latest add.'

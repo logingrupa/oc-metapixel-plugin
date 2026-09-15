@@ -7,7 +7,7 @@ Server-deduplicated Meta Pixel and Conversions API (CAPI) tracking for OctoberCM
 This plugin lets you:
 
 * **fire browser Pixel + server CAPI events in one step**, deduplicated on a shared server-generated `event_id` (Meta collapses the twin within its match window);
-* **track Shopaholic orders automatically** — Purchase and AddToCart events ship the moment `Lovata.OrdersShopaholic` is enabled, with `SKU-{product_id}[-{offer_id}]` content IDs matching the Facebook Catalog feed;
+* **track Shopaholic orders automatically** — Purchase and AddToCart events ship the moment `Lovata.OrdersShopaholic` is enabled, with `SKU-{product_id}[-{offer_id}]` content IDs matching the Facebook Catalog feed. Every add is its own AddToCart: adding a shade already in the cart fires a fresh server and browser pair carrying the quantity just added, so a customer buying three of the same 8 ml colour counts as three adds, all matched;
 * **track any theme action** on a Lovata-free install through a single Twig API call, with no cart plugin required;
 * **replay failed CAPI events** from a backend admin list, and check the deduplication rate reported by Meta;
 * **run multi-site** with a separate Pixel ID and access token per site, isolated so a token never leaks across sites;
