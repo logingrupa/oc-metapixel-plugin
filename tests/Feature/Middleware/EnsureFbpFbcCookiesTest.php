@@ -75,6 +75,16 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
         $this->assertNull($this->extractCookie($obResponse, '_fbc'));
     }
 
+    public function test_scanner_without_browser_user_agent_gets_no_cookies(): void
+    {
+        foreach ([null, 'WordPress/6.4.3; https://example.com', 'Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)'] as $mUserAgent) {
+            $obResponse = $this->dispatchRequest('example.com', 'IwAR1validfbclid_123', [], null, $mUserAgent);
+
+            $this->assertNull($this->extractCookie($obResponse, '_fbp'));
+            $this->assertNull($this->extractCookie($obResponse, '_fbc'));
+        }
+    }
+
     public function test_kill_switch_default_true_writes_cookies_when_trusted(): void
     {
         $obResponse = $this->dispatchRequest('example.com');
@@ -341,13 +351,17 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
         string $sHost,
         ?string $sFbclidQuery = null,
         array $arExistingCookies = [],
-        ?Closure $fnInner = null
+        ?Closure $fnInner = null,
+        ?string $sUserAgent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36'
     ): Response {
         $arServer = [
             'HTTP_HOST' => $sHost,
             'HTTPS' => 'on',
             'SERVER_PORT' => 443,
         ];
+        if ($sUserAgent !== null) {
+            $arServer['HTTP_USER_AGENT'] = $sUserAgent;
+        }
         $arQuery = $sFbclidQuery === null ? [] : ['fbclid' => $sFbclidQuery];
 
         $obRequest = Request::create(

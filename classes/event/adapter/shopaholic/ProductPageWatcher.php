@@ -81,6 +81,13 @@ class ProductPageWatcher
                 return;
             }
 
+            // A scanner or crawler never runs the browser pixel, and its
+            // anonymous ViewContent would carry no user_data at all, which
+            // Meta rejects with HTTP 400 subcode 2804050.
+            if (! $this->isCustomerBrowserRequest()) {
+                return;
+            }
+
             $iGuardProductId = $this->intAttr($obProduct, 'id');
             if (isset(self::$arEmittedProductIds[$iGuardProductId])) {
                 return;
@@ -158,8 +165,8 @@ class ProductPageWatcher
      * here so we surface failures to the JS soft-gate instead of swallowing.
      *
      * @param  object|null  $obSubject  subject already loaded through the
-     *                                   adapter's loadSubject (same guards); anything
-     *                                   but a matching Product is reloaded here
+     *                                  adapter's loadSubject (same guards); anything
+     *                                  but a matching Product is reloaded here
      * @return OfferSwitchResult server event_id + browser ViewContent custom_data
      */
     public function dispatchForOfferSwitch(int $iProductId, int $iOfferId, ?object $obSubject = null): OfferSwitchResult

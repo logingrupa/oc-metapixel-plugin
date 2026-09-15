@@ -23,7 +23,30 @@ final class CrawlerUserAgentTest extends MetapixelTestCase
             'curl' => ['curl/8.5.0'],
             'python' => ['python-requests/2.31'],
             'lighthouse' => ['Mozilla/5.0 (Macintosh) Chrome/120 Chrome-Lighthouse'],
+            'geedo' => ['Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko; GeedoShopProductFinder) Chrome/142.0.0.0 Safari/537.36'],
+            'google read aloud' => ['Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Mobile Safari/537.36 (compatible; Google-Read-Aloud; +https://support.google.com/webmasters/answer/1061943)'],
+            'wordpress' => ['WordPress/6.4.3; https://example.com'],
         ];
+    }
+
+    /** @return array<string, array{?string, bool}> */
+    public static function browserVerdicts(): array
+    {
+        return [
+            'chrome' => ['Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36', true],
+            'bare mozilla' => ['Mozilla/5.0', true],
+            'null' => [null, false],
+            'empty' => ['', false],
+            'erp client' => ['1C+Enterprise/8.3', false],
+            'geedo' => ['Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko; GeedoShopProductFinder) Chrome/142.0.0.0 Safari/537.36', false],
+            'wordpress' => ['WordPress/6.4.3; https://example.com', false],
+        ];
+    }
+
+    #[DataProvider('browserVerdicts')]
+    public function test_is_browser_requires_mozilla_prefix_and_no_crawler_marker(?string $sUserAgent, bool $bExpected): void
+    {
+        $this->assertSame($bExpected, CrawlerUserAgent::isBrowser($sUserAgent));
     }
 
     /** @return array<string, array{?string}> */

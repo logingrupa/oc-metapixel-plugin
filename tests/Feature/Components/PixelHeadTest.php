@@ -30,6 +30,7 @@ final class PixelHeadTest extends MetapixelTestCase
         parent::setUp();
         App::singleton(ThemeEventCollector::class);
         App::singleton(PixelHeadDeferredFlushBuffer::class);
+        $this->app['request']->headers->set('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36');
     }
 
     protected function tearDown(): void
@@ -40,7 +41,7 @@ final class PixelHeadTest extends MetapixelTestCase
         parent::tearDown();
     }
 
-    public function test_flushDeferredFromController_emits_one_script_block_per_pushed_event(): void
+    public function test_flush_deferred_from_controller_emits_one_script_block_per_pushed_event(): void
     {
         $obCollector = App::make(ThemeEventCollector::class);
         $obCollector->push(['name' => 'ViewContent', 'value' => 12.5]);
@@ -57,7 +58,7 @@ final class PixelHeadTest extends MetapixelTestCase
         $this->assertStringContainsString('"Search"', $arBlocks[2]);
     }
 
-    public function test_flushDeferredFromController_skips_event_with_missing_or_empty_name(): void
+    public function test_flush_deferred_from_controller_skips_event_with_missing_or_empty_name(): void
     {
         $obCollector = App::make(ThemeEventCollector::class);
         $obCollector->push(['value' => 12.5]);
@@ -71,7 +72,7 @@ final class PixelHeadTest extends MetapixelTestCase
         $this->assertStringContainsString('"ValidOne"', $arBlocks[0]);
     }
 
-    public function test_flushDeferredFromController_mirrors_to_capi_when_also_dispatch_capi_is_true(): void
+    public function test_flush_deferred_from_controller_mirrors_to_capi_when_also_dispatch_capi_is_true(): void
     {
         Bus::fake();
         $obCollector = App::make(ThemeEventCollector::class);
@@ -87,7 +88,7 @@ final class PixelHeadTest extends MetapixelTestCase
         $this->assertCount(1, $arBlocks, 'Pixel block emitted even when CAPI mirror dispatches');
     }
 
-    public function test_flushDeferredFromController_does_not_mirror_when_also_dispatch_capi_absent_or_false(): void
+    public function test_flush_deferred_from_controller_does_not_mirror_when_also_dispatch_capi_absent_or_false(): void
     {
         Bus::fake();
         $obCollector = App::make(ThemeEventCollector::class);
@@ -100,7 +101,7 @@ final class PixelHeadTest extends MetapixelTestCase
         $this->assertCount(1, $arBlocks);
     }
 
-    public function test_flushDeferredFromController_swallows_mirror_exception_does_not_break_page_render(): void
+    public function test_flush_deferred_from_controller_swallows_mirror_exception_does_not_break_page_render(): void
     {
         $obCollector = App::make(ThemeEventCollector::class);
         $obCollector->push(['name' => 'Lead', 'action_key' => 'lead:form1', 'also_dispatch_capi' => true]);
@@ -118,7 +119,7 @@ final class PixelHeadTest extends MetapixelTestCase
         $this->assertStringContainsString('"Lead"', $arBlocks[0]);
     }
 
-    public function test_flushDeferredFromController_flushes_collector_state(): void
+    public function test_flush_deferred_from_controller_flushes_collector_state(): void
     {
         $obCollector = App::make(ThemeEventCollector::class);
         $obCollector->push(['name' => 'A']);

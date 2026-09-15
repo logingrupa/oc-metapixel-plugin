@@ -12,6 +12,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionValueResolver;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
+use Logingrupa\Metapixel\Classes\Helper\CrawlerUserAgent;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Helper\RequestKind;
@@ -89,6 +90,10 @@ class PixelHead extends ComponentBase
             return;
         }
 
+        if (! self::isBrowserRequest()) {
+            return;
+        }
+
         try {
             $obAdapter = App::make(ThemeActionAdapter::class);
             $obProbeEvent = ThemeActionEvent::fromArray([
@@ -148,6 +153,16 @@ class PixelHead extends ComponentBase
             ]);
             $this->page['pixelHeadBase'] = null;
         }
+    }
+
+    /**
+     * Scanners without a user agent, ERP clients and crawlers never run
+     * fbevents.js, so neither the browser markup nor its CAPI twin is emitted
+     * for them; the twin would reach Meta permanently unmatched.
+     */
+    private static function isBrowserRequest(): bool
+    {
+        return CrawlerUserAgent::isBrowser(Request::userAgent());
     }
 
     /**
@@ -217,6 +232,11 @@ class PixelHead extends ComponentBase
             /** @var ThemeEventCollector $obCollector */
             $obCollector = App::make(ThemeEventCollector::class);
             $arEvents = $obCollector->flush();
+            if (! self::isBrowserRequest()) {
+                App::make(PixelHeadDeferredFlushBuffer::class)->setBlocks([]);
+
+                return;
+            }
             $arScriptBlocks = [];
             foreach ($arEvents as $arEvent) {
                 $sBlock = self::buildDeferredScriptBlock($arEvent, $sTestCode);

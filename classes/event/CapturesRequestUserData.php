@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixel\Classes\Event;
 
 use Illuminate\Support\Facades\App;
+use Logingrupa\Metapixel\Classes\Helper\CrawlerUserAgent;
 use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 
 /**
@@ -64,15 +65,15 @@ trait CapturesRequestUserData
         ];
     }
 
-    /** Frontend request whose user agent is a browser; every browser announces itself as Mozilla/. */
-    private function isCustomerBrowserRequest(): bool
+    /** Frontend request whose user agent is a real browser, see CrawlerUserAgent::isBrowser. */
+    protected function isCustomerBrowserRequest(): bool
     {
         if (App::runningInBackend()) {
             return false;
         }
         $mUserAgent = $_SERVER['HTTP_USER_AGENT'] ?? null;
 
-        return is_string($mUserAgent) && str_starts_with($mUserAgent, 'Mozilla/');
+        return CrawlerUserAgent::isBrowser(is_string($mUserAgent) ? $mUserAgent : null);
     }
 
     private function resolveClientIp(): ?string

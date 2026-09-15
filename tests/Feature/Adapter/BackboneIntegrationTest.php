@@ -15,6 +15,7 @@ use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
+use Logingrupa\Metapixel\Tests\Doubles\FakeValueResolver;
 use Logingrupa\Metapixel\Tests\Doubles\TestSubject;
 use Logingrupa\Metapixel\Tests\Doubles\TestSubjectAdapter;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
@@ -162,14 +163,17 @@ final class BackboneIntegrationTest extends MetapixelTestCase
     {
         $obBuilder = new PayloadBuilder(new UserDataHasher);
 
-        return $obBuilder->buildEventPayload(
+        $arPayload = $obBuilder->buildEventPayload(
             'Purchase',
             new TestSubjectAdapter,
             new TestSubject,
-            new \Logingrupa\Metapixel\Tests\Doubles\FakeValueResolver,
+            new FakeValueResolver,
             $sEventId,
             $iEventTime,
             [],
         );
+        $arPayload['data'][0]['user_data']['client_ip_address'] = '203.0.113.9';
+
+        return $arPayload;
     }
 }

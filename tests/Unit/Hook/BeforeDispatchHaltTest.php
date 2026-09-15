@@ -47,7 +47,7 @@ final class BeforeDispatchHaltTest extends MetapixelTestCase
             'event_time' => 1700000000,
             'event_name' => 'Purchase',
             'action_source' => 'website',
-            'user_data' => [],
+            'user_data' => ['client_ip_address' => '203.0.113.9'],
             'custom_data' => [],
         ]]];
     }

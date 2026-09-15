@@ -39,6 +39,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         App::singleton(ThemeEventCollector::class);
         App::singleton(PixelHeadDeferredFlushBuffer::class);
         PluginGuard::reset();
+        $this->app['request']->headers->set('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36');
     }
 
     protected function tearDown(): void
@@ -48,6 +49,24 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         PluginGuard::reset();
         (new CreateMetapixelEventLogTable)->down();
         parent::tearDown();
+    }
+
+    public function test_skips_emission_for_scanner_without_browser_user_agent(): void
+    {
+        Bus::fake();
+        Settings::clearInternalCache();
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::clearInternalCache();
+        PluginGuard::reset();
+
+        foreach ([null, 'WordPress/6.4.3; https://example.com', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko; GeedoShopProductFinder) Chrome/142.0.0.0 Safari/537.36'] as $mUserAgent) {
+            $this->app['request']->headers->set('User-Agent', $mUserAgent);
+
+            $arPage = $this->runComponent(new PixelHead);
+
+            $this->assertNull($arPage['pixelHeadBase'], 'no fbevents.js runs for a scanner, so neither the markup nor a CAPI twin may be emitted');
+            Bus::assertNotDispatched(SendCapiEvent::class);
+        }
     }
 
     public function test_emits_base_pixel_when_pixel_id_configured(): void

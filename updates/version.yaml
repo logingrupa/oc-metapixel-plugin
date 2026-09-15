@@ -66,3 +66,6 @@
 
 2.1.8:
   - 'Shopaholic watchers attach the request IP, user agent, _fbp and _fbc only outside the backend and only for a browser user agent, so a Purchase fired by an admin save, the 1C order exchange or a gateway webhook no longer carries the caller''s identity as the buyer''s. The order adapter fills client_ip_address from the order user''s last_ip_address instead. The Paid status setting is a checkbox list: the Purchase fires the first time an order reaches any ticked status, once per order; a saved single value keeps working.'
+
+2.1.9:
+  - 'Requests that are not a real browser (no user agent, a user agent without the Mozilla/ prefix, or a crawler marker, now including GeedoShopProductFinder, Google Read-Aloud and WordPress/) get no base PageView markup, no deferred fbq blocks, no Conversions API twin for PageView or ViewContent and no server minted _fbp cookie. A queued event whose user_data carries no value at all is dropped with a log line instead of dead-lettering on Meta''s HTTP 400 subcode 2804050. The offer switch ViewContent path is untouched.'

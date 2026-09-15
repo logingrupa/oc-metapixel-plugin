@@ -39,6 +39,26 @@ final class PixelHeadDeferredFlushTest extends MetapixelTestCase
         Settings::set(['pixel_id' => 'TEST-PIXEL-1', 'capi_access_token' => 'TEST-TOKEN-1']);
         Settings::clearInternalCache();
         PluginGuard::reset();
+        $this->app['request']->headers->set('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36');
+    }
+
+    public function test_scanner_request_drains_collector_and_emits_neither_blocks_nor_capi_mirror(): void
+    {
+        Bus::fake();
+        $this->app['request']->headers->set('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko; GeedoShopProductFinder) Chrome/142.0.0.0 Safari/537.36');
+
+        App::make(ThemeEventCollector::class)->push([
+            'name' => 'Lead',
+            'action_key' => 'lead:contact-form',
+            'also_dispatch_capi' => true,
+            'site_id' => 1,
+        ]);
+
+        PixelHead::flushDeferredFromController(Mockery::mock(CmsController::class));
+
+        $this->assertSame([], App::make(PixelHeadDeferredFlushBuffer::class)->getBlocks());
+        $this->assertSame(0, App::make(ThemeEventCollector::class)->count());
+        Bus::assertNotDispatched(SendCapiEvent::class);
     }
 
     protected function tearDown(): void

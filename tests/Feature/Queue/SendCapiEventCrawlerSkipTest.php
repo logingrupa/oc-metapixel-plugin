@@ -69,6 +69,20 @@ final class SendCapiEventCrawlerSkipTest extends MetapixelTestCase
         $this->assertSame(1, DB::table('logingrupa_metapixel_event_log')->count());
     }
 
+    public function test_payload_without_any_user_data_value_is_dropped_before_send(): void
+    {
+        $obSpy = new SpyMetaClient;
+        $arPayload = $this->makePayload('');
+        $arPayload['data'][0]['user_data'] = ['em' => null, 'client_ip_address' => null, 'client_user_agent' => null, 'fbp' => null];
+
+        $obJob = new SendCapiEvent('ViewContent', $arPayload, new TestSubject, TestSubjectAdapter::class);
+        $obJob->handle(app(AdapterRegistry::class), $obSpy);
+
+        $this->assertSame(0, $obSpy->iCallCount);
+        $this->assertSame(0, DB::table('logingrupa_metapixel_event_log')->count());
+        $this->assertSame(0, DB::table('logingrupa_metapixel_failed_events')->count());
+    }
+
     /** @return array<string, mixed> */
     private function makePayload(string $sUserAgent): array
     {

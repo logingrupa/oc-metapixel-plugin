@@ -5,6 +5,7 @@ namespace Logingrupa\Metapixel\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Logingrupa\Metapixel\Classes\Helper\CrawlerUserAgent;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Models\Settings;
@@ -145,6 +146,12 @@ class EnsureFbpFbcCookies
         $mBackendUri = config('cms.backendUri', 'backend');
         $sBackendUri = is_scalar($mBackendUri) ? (string) $mBackendUri : '';
         if ($sBackendUri !== '' && $obRequest->is(ltrim($sBackendUri, '/').'*')) {
+            return true;
+        }
+
+        // A crawler or a client without a user agent never runs fbevents.js,
+        // so a minted _fbp would identify nobody.
+        if (! CrawlerUserAgent::isBrowser($obRequest->userAgent())) {
             return true;
         }
 

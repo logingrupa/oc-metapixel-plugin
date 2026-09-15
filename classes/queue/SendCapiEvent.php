@@ -91,7 +91,7 @@ final class SendCapiEvent implements ShouldQueue
             return;
         }
 
-        if (CrawlerUserAgent::isCrawler($this->readUserAgent())) {
+        if ($this->isUnsendable()) {
             return;
         }
 
@@ -312,6 +312,31 @@ final class SendCapiEvent implements ShouldQueue
                 'meta_pixel.exception' => get_class($obDbException),
             ]);
         }
+    }
+
+    /**
+     * A crawler never runs the browser pixel, so its twin would stay
+     * unmatched; and Meta rejects an event without a single customer
+     * information parameter (HTTP 400 subcode 2804050), so such a row could
+     * only dead-letter. Both are dropped before any send or log write.
+     */
+    private function isUnsendable(): bool
+    {
+        if (CrawlerUserAgent::isCrawler($this->readUserAgent())) {
+            return true;
+        }
+
+        $mUserData = $this->firstEventRecord()['user_data'] ?? null;
+        if (is_array($mUserData) && array_filter($mUserData) !== []) {
+            return false;
+        }
+
+        Log::info('metapixel: dispatch skipped, user_data carries no value', [
+            'meta_pixel.event_id' => $this->readEventId(),
+            'meta_pixel.event_name' => $this->sEventName,
+        ]);
+
+        return true;
     }
 
     private function readUserAgent(): ?string

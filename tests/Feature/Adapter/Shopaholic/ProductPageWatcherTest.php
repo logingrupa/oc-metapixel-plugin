@@ -74,6 +74,7 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         Settings::clearInternalCache();
 
         $this->stubCurrencyHelperWithCode('EUR');
+        $_SERVER['HTTP_USER_AGENT'] = 'Mozilla/5.0 Test/1.0';
 
         Bus::fake();
     }
@@ -337,6 +338,22 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
             );
         } finally {
             unset($_SERVER['HTTP_X_OCTOBER_REQUEST_HANDLER']);
+        }
+    }
+
+    public function test_scanner_without_browser_user_agent_does_not_dispatch_viewcontent(): void
+    {
+        foreach ([null, 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko; GeedoShopProductFinder) Chrome/142.0.0.0 Safari/537.36'] as $mUserAgent) {
+            unset($_SERVER['HTTP_USER_AGENT']);
+            if ($mUserAgent !== null) {
+                $_SERVER['HTTP_USER_AGENT'] = $mUserAgent;
+            }
+            ProductPageWatcher::resetViewGuard();
+
+            (new ProductPageWatcher)->handle($this->makeProduct(42, [[100, 9.99, 0, true]]));
+
+            Bus::assertNotDispatched(SendCapiEvent::class);
+            $this->assertSame([], App::make(ThemeEventCollector::class)->flush(), 'no browser pixel runs for a scanner, so nothing may be pushed or dispatched');
         }
     }
 
