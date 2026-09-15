@@ -18,6 +18,92 @@ use October\Rain\Support\Facades\Site;
  */
 final class ThemeAjaxRequestReader
 {
+    private const SEARCH_STRING_MAX_LENGTH = 100;
+
+    private const CONTENT_IDS_MAX = 20;
+
+    private const CONTENT_ID_PATTERN = '/^SKU-\d+(-\d+)?$/';
+
+    private const NUM_ITEMS_MAX = 1000;
+
+    /**
+     * Narrow the client-supplied custom_data of a theme-action event to the
+     * fields a Search may carry: search_string, content_ids, content_type,
+     * num_items. Every other client key stays dropped; identity, value and
+     * currency remain server-derived on this path.
+     *
+     * @param  array<string, mixed>  $arData
+     * @return array<string, mixed>
+     */
+    public function readClientCustomData(array $arData): array
+    {
+        $arResult = [];
+        $sSearchString = $this->readSearchString($arData['search_string'] ?? null);
+        if ($sSearchString !== null) {
+            $arResult['search_string'] = $sSearchString;
+        }
+        $arContentIds = $this->readContentIds($arData['content_ids'] ?? null);
+        if ($arContentIds !== []) {
+            $arResult['content_ids'] = $arContentIds;
+        }
+        // Meta requires content_type beside content_ids and PayloadBuilder adds
+        // it server-side; mirror that so the browser twin matches.
+        if ($arContentIds !== [] || ($arData['content_type'] ?? null) === 'product') {
+            $arResult['content_type'] = 'product';
+        }
+        $iNumItems = $this->readNumItems($arData['num_items'] ?? null);
+        if ($iNumItems !== null) {
+            $arResult['num_items'] = $iNumItems;
+        }
+
+        return $arResult;
+    }
+
+    /** Trimmed, non-empty, truncated to the length cap; null when unusable. */
+    private function readSearchString(mixed $mValue): ?string
+    {
+        if (! is_string($mValue)) {
+            return null;
+        }
+        $sTrimmed = trim($mValue);
+        if ($sTrimmed === '') {
+            return null;
+        }
+
+        return mb_substr($sTrimmed, 0, self::SEARCH_STRING_MAX_LENGTH);
+    }
+
+    /**
+     * Keep only catalog-feed shaped ids (SKU-{product}[-{offer}]), capped in count.
+     *
+     * @return list<string>
+     */
+    private function readContentIds(mixed $mValue): array
+    {
+        if (! is_array($mValue)) {
+            return [];
+        }
+        $arResult = [];
+        foreach ($mValue as $mId) {
+            if (is_string($mId) && preg_match(self::CONTENT_ID_PATTERN, $mId) === 1) {
+                $arResult[] = $mId;
+            }
+        }
+
+        return array_slice($arResult, 0, self::CONTENT_IDS_MAX);
+    }
+
+    /** Non-negative int within the cap; null when absent or out of range. */
+    private function readNumItems(mixed $mValue): ?int
+    {
+        if (! is_numeric($mValue)) {
+            return null;
+        }
+        $iValue = (int) $mValue;
+
+        return $iValue >= 0 && $iValue <= self::NUM_ITEMS_MAX ? $iValue : null;
+    }
+
     /**
      * Server-derived Meta CAPI user_data + site context for the theme-action
      * and generic hybrid paths. Mirrors PixelHead::collectRequestUserData —

@@ -196,6 +196,8 @@ This is the Run B path: a plain OctoberCMS install with no cart plugin. You wire
 
    The `action_key` is the dedup anchor for that action; the plugin generates the `event_id` server-side and reuses it for the browser Pixel emission so both channels match.
 
+   A theme-fired `Metapixel::onFireEvent` Larajax call may add four optional custom_data fields, meant for `Search`: `search_string` (string, trimmed, cut at 100 characters), `content_ids` (up to 20 ids shaped `SKU-{product_id}` or `SKU-{product_id}-{offer_id}`, other entries are dropped), `content_type` (only `product`) and `num_items` (integer from 0 to 1000). They reach Meta on both channels, so Events Manager shows what people searched and the result SKUs feed dynamic product ads. Every other client field is ignored: identity, value and currency stay server-derived.
+
 If you also run Shopaholic, the store theme wires the Pixel through the `pixelHead` component in its layouts and a product-page component on the product template, while the generic `this.metapixel.pushEvent` Twig API stays available for any additional action. Both mechanisms feed the same pipeline.
 
 ![Twig API](docs/screenshots/05-twig-api.png)

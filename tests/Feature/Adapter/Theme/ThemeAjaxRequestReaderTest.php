@@ -65,6 +65,50 @@ final class ThemeAjaxRequestReaderTest extends MetapixelTestCase
         $this->assertSame(['variant' => 'red', 'offer_id' => 42], $arContext);
     }
 
+    public function test_read_client_custom_data_keeps_only_valid_search_fields(): void
+    {
+        $arResult = (new ThemeAjaxRequestReader)->readClientCustomData([
+            'search_string' => ' nail file ',
+            'content_ids' => ['SKU-1', 'SKU-2-3', 'sku-4', 'SKU-', 'SKU-5-x', 7],
+            'content_type' => 'product',
+            'num_items' => '3',
+            'em' => 'nope@example.com',
+            'value' => 12.5,
+        ]);
+
+        $this->assertSame([
+            'search_string' => 'nail file',
+            'content_ids' => ['SKU-1', 'SKU-2-3'],
+            'content_type' => 'product',
+            'num_items' => 3,
+        ], $arResult);
+    }
+
+    public function test_read_client_custom_data_applies_caps_and_drops_out_of_range(): void
+    {
+        $obReader = new ThemeAjaxRequestReader;
+        $arManyIds = array_map(static fn (int $iIndex): string => 'SKU-'.$iIndex, range(1, 25));
+
+        $arResult = $obReader->readClientCustomData([
+            'search_string' => str_repeat('x', 150),
+            'content_ids' => $arManyIds,
+            'num_items' => 1001,
+        ]);
+
+        $this->assertSame(100, mb_strlen((string) $arResult['search_string']));
+        $this->assertCount(20, $arResult['content_ids']);
+        $this->assertSame('product', $arResult['content_type']);
+        $this->assertArrayNotHasKey('num_items', $arResult);
+
+        $this->assertSame([], $obReader->readClientCustomData([
+            'search_string' => '   ',
+            'content_ids' => 'SKU-1',
+            'content_type' => 'product_group',
+            'num_items' => -2,
+        ]));
+        $this->assertSame([], $obReader->readClientCustomData([]));
+    }
+
     public function test_read_int_field_coerces_numeric_and_defaults_to_zero(): void
     {
         $obReader = new ThemeAjaxRequestReader;

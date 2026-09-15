@@ -75,3 +75,6 @@
 
 2.1.11:
   - 'Every add to cart is its own AddToCart. A quantity increase on a cart position that already exists fires a fresh server event and browser twin with a new event id, carrying only the quantity just added, instead of handing the browser the id minted when the position was created. That reused id had no fresh server partner, which is what held AddToCart event coverage on nailscosmetics.lv at 52 percent. Each add dispatches through a per-add theme action subject (addtocart:{position}:{event_id}) so the event log race fence keys on the add, and the pixel reservation row is tagged with the cart position through secret_key so the browser twin always finds the latest add.'
+
+2.1.12:
+  - 'Search events fired from the theme carry the query and the result SKUs. The Larajax onFireEvent handler used to keep only the event name and action key, so a Search reached Meta with empty custom_data on both channels. The handler now admits search_string, content_ids, content_type and num_items from the client, validated and capped (100 characters, 20 SKU-shaped ids, product only, 0 to 1000), and puts the same custom_data into the Conversions API payload and the browser twin. Meta can show what people searched and feed the SKUs into dynamic product ads. Identity, value and currency stay server-derived.'

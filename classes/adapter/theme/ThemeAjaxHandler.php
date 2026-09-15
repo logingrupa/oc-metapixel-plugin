@@ -114,41 +114,7 @@ final class ThemeAjaxHandler
                 return $this->dispatchViaAdapter($arData, $mSubjectType);
             }
 
-            // Identity firewall: the client controls ONLY the event name and
-            // action_key. Every Meta CAPI identity field (em, ph, external_id,
-            // …), secret_key, and site_id is server-derived — otherwise any
-            // visitor could inject arbitrary identities into server-signed
-            // CAPI events or select another site's pixel credentials.
-            $arSafe = array_intersect_key($arData, ['name' => true, 'action_key' => true]);
-            $arSafe = array_merge($arSafe, $this->obRequestReader->collectServerUserData());
-
-            try {
-                $obEvent = ThemeActionEvent::fromArray($arSafe);
-            } catch (InvalidArgumentException $obException) {
-                return new JsonResponse(
-                    ['error' => 'invalid event payload: '.$obException->getMessage()],
-                    422,
-                );
-            }
-
-            $sEventId = Uuid::uuid4()->toString();
-            /** @var ThemeActionAdapter $obAdapter */
-            $obAdapter = App::make(ThemeActionAdapter::class);
-            $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
-                $obEvent->sEventName,
-                $obAdapter,
-                $obEvent,
-                new ThemeActionValueResolver,
-                $sEventId,
-                time(),
-                [],
-            );
-            $arPayload = $this->obRequestReader->injectServerUserData($obEvent->sEventName, $obAdapter->getSubjectType($obEvent), $arPayload);
-            SendCapiEvent::dispatch($obEvent->sEventName, $arPayload, $obEvent, ThemeActionAdapter::class);
-
-            $sScript = FbqScriptBuilder::build($obEvent->sEventName, [], $sEventId, $this->resolveTestEventCode());
-
-            return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
+            return $this->dispatchThemeAction($arData);
         } catch (Throwable $obException) {
             Log::warning('metapixel: ThemeAjaxHandler failed', [
                 'meta_pixel.exception' => get_class($obException),
@@ -157,6 +123,57 @@ final class ThemeAjaxHandler
 
             return new JsonResponse(['error' => 'internal'], 500);
         }
+    }
+
+    /**
+     * Theme-action dispatch. Identity firewall: the client controls ONLY the
+     * event name, action_key and the Search custom_data fields the reader
+     * admits. Every Meta CAPI identity field (em, ph, external_id, …),
+     * secret_key, value, currency and site_id is server-derived — otherwise
+     * any visitor could inject arbitrary identities into server-signed CAPI
+     * events or select another site's pixel credentials. The browser twin
+     * carries the same client custom_data as the server payload.
+     *
+     * @param  array<string, mixed>  $arData
+     */
+    private function dispatchThemeAction(array $arData): JsonResponse
+    {
+        $arClientCustomData = $this->obRequestReader->readClientCustomData($arData);
+        $arSafe = array_intersect_key($arData, ['name' => true, 'action_key' => true]);
+        $arSafe = array_merge($arSafe, $arClientCustomData, $this->obRequestReader->collectServerUserData());
+
+        try {
+            $obEvent = ThemeActionEvent::fromArray($arSafe);
+        } catch (InvalidArgumentException $obException) {
+            return new JsonResponse(
+                ['error' => 'invalid event payload: '.$obException->getMessage()],
+                422,
+            );
+        }
+
+        $sEventId = Uuid::uuid4()->toString();
+        /** @var ThemeActionAdapter $obAdapter */
+        $obAdapter = App::make(ThemeActionAdapter::class);
+        $arPayload = (new PayloadBuilder(new UserDataHasher))->buildEventPayload(
+            $obEvent->sEventName,
+            $obAdapter,
+            $obEvent,
+            new ThemeActionValueResolver,
+            $sEventId,
+            time(),
+            array_intersect_key($arClientCustomData, ['search_string' => true, 'content_type' => true]),
+        );
+        $arPayload = $this->obRequestReader->injectServerUserData($obEvent->sEventName, $obAdapter->getSubjectType($obEvent), $arPayload);
+        SendCapiEvent::dispatch($obEvent->sEventName, $arPayload, $obEvent, ThemeActionAdapter::class);
+
+        $sScript = FbqScriptBuilder::build(
+            $obEvent->sEventName,
+            PixelRenderHook::apply($obEvent->sEventName, $arClientCustomData),
+            $sEventId,
+            $this->resolveTestEventCode(),
+        );
+
+        return new JsonResponse(['event_id' => $sEventId, 'script' => $sScript]);
     }
 
     /**
