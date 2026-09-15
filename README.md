@@ -12,7 +12,8 @@ This plugin lets you:
 * **replay failed CAPI events** from a backend admin list, and check the deduplication rate reported by Meta;
 * **run multi-site** with a separate Pixel ID and access token per site, isolated so a token never leaks across sites;
 * **register custom adapters** from your own plugin to track any model through the same pipeline, without editing plugin core;
-* **skip crawlers automatically** — requests from Googlebot, bingbot, DotBot, MJ12bot, Facebook's own fetcher, headless browsers, price scanners such as GeedoShopProductFinder, Google Read-Aloud, WordPress pingbacks, CLI tools and clients that send no user agent at all never produce server events, browser markup or `_fbp` cookies, because the browser pixel never runs for them and Meta would count the twin as an unmatched event. An event whose user_data ends up empty for any other reason is dropped before the send instead of dead-lettering with Meta's "insufficient customer information" 400.
+* **skip crawlers automatically** — requests from Googlebot, bingbot, DotBot, MJ12bot, Facebook's own fetcher, headless browsers, price scanners such as GeedoShopProductFinder, Google Read-Aloud, WordPress pingbacks, CLI tools and clients that send no user agent at all never produce server events, browser markup or `_fbp` cookies, because the browser pixel never runs for them and Meta would count the twin as an unmatched event. An event whose user_data ends up empty for any other reason is dropped before the send instead of dead-lettering with Meta's "insufficient customer information" 400;
+* **fire PageView only with a server twin** — the base pixel sets `fbq.disablePushState`, so fbevents.js no longer sends its own id-less PageView whenever the theme rewrites the URL with `history.pushState` or `replaceState` (offer switch, filters, search). Those browser-only PageViews can never be matched and pull the event coverage down.
 
 ## Requirements
 

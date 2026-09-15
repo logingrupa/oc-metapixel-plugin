@@ -69,3 +69,6 @@
 
 2.1.9:
   - 'Requests that are not a real browser (no user agent, a user agent without the Mozilla/ prefix, or a crawler marker, now including GeedoShopProductFinder, Google Read-Aloud and WordPress/) get no base PageView markup, no deferred fbq blocks, no Conversions API twin for PageView or ViewContent and no server minted _fbp cookie. A queued event whose user_data carries no value at all is dropped with a log line instead of dead-lettering on Meta''s HTTP 400 subcode 2804050. The offer switch ViewContent path is untouched.'
+
+2.1.10:
+  - 'The base pixel sets fbq.disablePushState before fbevents.js loads. fbevents.js otherwise fires its own PageView, without an event id, on every history.pushState or replaceState, and the theme rewrites the URL on an offer switch, in the offer sheet, on catalog filters and pagination and on search. Each such PageView reached Meta with no server twin and dragged the PageView event coverage on nailscosmetics.lv down to 37 percent. Only the server paired PageView fires now.'
