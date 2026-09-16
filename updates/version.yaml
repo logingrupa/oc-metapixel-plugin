@@ -84,3 +84,7 @@
 
 2.1.14:
   - 'A zero value, an empty contents list and a zero item count are left out of custom_data on every event, not only on contentless ones, so a Search no longer reports value 0 EUR beside the found SKUs. Purchase keeps value and currency even at zero, because Meta rejects a Purchase without them.'
+
+2.1.15:
+  - 'Purchase carries the buyer''s browser identity. The buyer''s IP, user agent, _fbp, _fbc and checkout page URL are stored per order when the order is created inside the checkout request, and the Purchase reads them back when it fires later from a gateway webhook, a backend save or the 1C exchange. Meta showed the Purchase event with 7.7 percent user agent and fbp coverage and 42 percent IP coverage, every other event at 100 percent. The account''s last IP stays as the fallback for orders created before this release. Rows are purged after 90 days.'
+  - CreateMetapixelOrderBrowserContextsTable.php

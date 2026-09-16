@@ -51,9 +51,8 @@ final class ShopaholicOrderAdapter implements EventSubjectAdapter
     /**
      * Raw Meta CAPI user_data — Order columns plus the Lovata shipping address
      * keys of the property JSON (shipping_city, shipping_state, shipping_postcode,
-     * shipping_country). client_ip_address is the last IP stored on the order's
-     * user account, so a Purchase fired by a backend or 1C status change still
-     * carries the buyer's IP. fbp/fbc/UA stay null (theme-side per D-15+D-16).
+     * shipping_country). The passthrough fields (fbp, fbc, IP, user agent) stay
+     * null: OrderStatusWatcher fills them from the stored checkout context.
      * external_id derives from Order.secret_key. country passes through raw;
      * UserDataHasher keeps only ISO 3166-1 alpha-2 codes.
      *
@@ -74,23 +73,8 @@ final class ShopaholicOrderAdapter implements EventSubjectAdapter
             'country' => $this->stringAttr($obOrder, 'shipping_country'),
             'external_id' => $this->stringAttr($obOrder, 'secret_key'),
             'fbp' => null, 'fbc' => null,
-            'client_ip_address' => $this->userLastIp($obOrder), 'client_user_agent' => null,
+            'client_ip_address' => null, 'client_user_agent' => null,
         ];
-    }
-
-    /** last_ip_address of the order's user account (RainLab.User / Buddies), null without one. */
-    private function userLastIp(?Order $obOrder): ?string
-    {
-        if ($obOrder === null || ! $obOrder->hasRelation('user')) {
-            return null;
-        }
-        $mUser = $obOrder->getRelationValue('user');
-        if (! is_object($mUser) || ! method_exists($mUser, 'getAttribute')) {
-            return null;
-        }
-        $mIp = $mUser->getAttribute('last_ip_address');
-
-        return is_string($mIp) && $mIp !== '' ? $mIp : null;
     }
 
     /** @return array<string, list<string>> */

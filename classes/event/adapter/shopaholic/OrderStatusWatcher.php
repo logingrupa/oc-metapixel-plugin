@@ -8,8 +8,10 @@ use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
+use Logingrupa\Metapixel\Classes\Meta\PayloadRequestContext;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
+use Logingrupa\Metapixel\Models\OrderBrowserContext;
 use Logingrupa\Metapixel\Models\Settings;
 use Lovata\OrdersShopaholic\Models\Order;
 use Ramsey\Uuid\Uuid;
@@ -18,6 +20,8 @@ use Throwable;
 /**
  * Watches Order eloquent.updated|created; fires Purchase on transition to
  * paid_status_code. EventLog UNIQUE race-fence is the dedup anchor.
+ * Buyer identity precedence: stored checkout context, then the current
+ * request when it is the buyer's browser, then the account's last IP.
  */
 final class OrderStatusWatcher
 {
@@ -54,7 +58,9 @@ final class OrderStatusWatcher
                 time(),
                 [],
             );
+            $arPayload = $this->injectStoredBrowserContext($obOrder, $arPayload);
             $arPayload = $this->injectRequestUserData('Purchase', $obAdapter->getSubjectType($obOrder), $arPayload);
+            $arPayload = PayloadRequestContext::merge($arPayload, ['client_ip_address' => $this->userLastIp($obOrder)], null);
 
             SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class);
         } catch (Throwable $obException) {
@@ -66,6 +72,42 @@ final class OrderStatusWatcher
                 'meta_pixel.message' => $obException->getMessage(),
             ]);
         }
+    }
+
+    /**
+     * Fill user_data and event_source_url from the buyer's checkout request,
+     * stored by OrderBrowserContextRecorder. Wins over the current request,
+     * which for a webhook, backend save or 1C exchange describes the caller.
+     *
+     * @param  array<string, mixed>  $arPayload
+     * @return array<string, mixed>
+     */
+    private function injectStoredBrowserContext(Order $obOrder, array $arPayload): array
+    {
+        $mOrderId = $obOrder->getAttribute('id');
+        $obContext = OrderBrowserContext::findForOrder(is_int($mOrderId) ? $mOrderId : 0);
+        if ($obContext === null) {
+            return $arPayload;
+        }
+        $arUserData = $obContext->toUserData();
+        $arUserData['fbc'] = (new UserDataHasher)->freshFbc($arUserData['fbc']);
+
+        return PayloadRequestContext::merge($arPayload, $arUserData, $obContext->event_source_url);
+    }
+
+    /** last_ip_address of the order's user account (RainLab.User / Buddies), the fallback when no context was stored. */
+    private function userLastIp(Order $obOrder): ?string
+    {
+        if (! $obOrder->hasRelation('user')) {
+            return null;
+        }
+        $mUser = $obOrder->getRelationValue('user');
+        if (! is_object($mUser) || ! method_exists($mUser, 'getAttribute')) {
+            return null;
+        }
+        $mLastIp = $mUser->getAttribute('last_ip_address');
+
+        return is_string($mLastIp) && $mLastIp !== '' ? $mLastIp : null;
     }
 
     /**

@@ -24,6 +24,7 @@ use Logingrupa\Metapixel\Tests\ShopaholicAdapterTestCase;
 use Logingrupa\Metapixel\Updates\AddPayloadToMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
+use Logingrupa\Metapixel\Updates\CreateMetapixelOrderBrowserContextsTable;
 use Lovata\OrdersShopaholic\Models\Order;
 use PHPUnit\Framework\Attributes\Group;
 use Ramsey\Uuid\Uuid;
@@ -59,6 +60,7 @@ final class PurchaseFlowIntegrationTest extends ShopaholicAdapterTestCase
         (new CreateMetapixelEventLogTable)->up();
         (new AddPayloadToMetapixelEventLogTable)->up();
         (new CreateMetapixelFailedEventsTable)->up();
+        (new CreateMetapixelOrderBrowserContextsTable)->up();
 
         $this->app->singleton(AdapterRegistry::class);
         app(AdapterRegistry::class)->register(Order::class, ShopaholicOrderAdapter::class);
@@ -90,6 +92,7 @@ final class PurchaseFlowIntegrationTest extends ShopaholicAdapterTestCase
         (new AddPayloadToMetapixelEventLogTable)->down();
         (new CreateMetapixelEventLogTable)->down();
         (new CreateMetapixelFailedEventsTable)->down();
+        (new CreateMetapixelOrderBrowserContextsTable)->down();
 
         Event::forget(SendCapiEvent::HOOK_BEFORE_DISPATCH);
         Event::forget(SendCapiEvent::HOOK_AFTER_DISPATCH);

@@ -10,8 +10,10 @@ use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
+use Logingrupa\Metapixel\Models\OrderBrowserContext;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use Logingrupa\Metapixel\Updates\CreateMetapixelOrderBrowserContextsTable;
 use Lovata\OrdersShopaholic\Models\Order;
 use Lovata\OrdersShopaholic\Models\Status;
 use PHPUnit\Framework\Attributes\Group;
@@ -30,6 +32,7 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
     {
         parent::setUp();
         $this->bootHermeticTables();
+        (new CreateMetapixelOrderBrowserContextsTable)->up();
         $this->app->singleton(AdapterRegistry::class);
         app(AdapterRegistry::class)->register(Order::class, ShopaholicOrderAdapter::class);
         Settings::clearInternalCache();
@@ -43,6 +46,7 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
 
     protected function tearDown(): void
     {
+        (new CreateMetapixelOrderBrowserContextsTable)->down();
         Schema::dropIfExists('lovata_shopaholic_taxes');
         Schema::dropIfExists('lovata_orders_shopaholic_order_promo_mechanism');
         Schema::dropIfExists('lovata_orders_shopaholic_order_positions');
@@ -129,6 +133,73 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
             })
             ->atLeast()->once();
         Bus::assertNotDispatched(SendCapiEvent::class);
+    }
+
+    public function test_purchase_carries_the_stored_checkout_browser_context(): void
+    {
+        Bus::fake();
+        OrderBrowserContext::create([
+            'order_id' => 1,
+            'client_ip_address' => '198.51.100.9',
+            'client_user_agent' => 'Mozilla/5.0 (iPhone) Safari/17',
+            'fbp' => 'fb.1.123.456',
+            'fbc' => 'fb.1.'.(time() * 1000).'.IwAR1validfbclid_123',
+            'event_source_url' => 'https://shop.test/checkout',
+        ]);
+        $obOrder = $this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5);
+        $obOrder->setRelation('user', $this->makeUser('203.0.113.7'));
+
+        (new OrderStatusWatcher)->handle($obOrder);
+
+        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob): bool {
+            $arEvent = $obJob->arPayload['data'][0];
+
+            return $arEvent['user_data']['client_ip_address'] === '198.51.100.9'
+                && $arEvent['user_data']['client_user_agent'] === 'Mozilla/5.0 (iPhone) Safari/17'
+                && $arEvent['user_data']['fbp'] === 'fb.1.123.456'
+                && str_ends_with((string) $arEvent['user_data']['fbc'], 'IwAR1validfbclid_123')
+                && $arEvent['event_source_url'] === 'https://shop.test/checkout';
+        });
+    }
+
+    public function test_stale_stored_fbc_is_dropped(): void
+    {
+        Bus::fake();
+        OrderBrowserContext::create(['order_id' => 1, 'fbp' => 'fb.1.123.456', 'fbc' => 'fb.1.1000.IwAR1validfbclid_123']);
+
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5));
+
+        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob): bool {
+            $arUserData = $obJob->arPayload['data'][0]['user_data'];
+
+            return $arUserData['fbp'] === 'fb.1.123.456' && $arUserData['fbc'] === null;
+        });
+    }
+
+    public function test_client_ip_falls_back_to_the_account_last_ip_without_a_stored_context(): void
+    {
+        Bus::fake();
+        $obOrder = $this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5);
+        $obOrder->setRelation('user', $this->makeUser('203.0.113.7'));
+
+        (new OrderStatusWatcher)->handle($obOrder);
+
+        Bus::assertDispatched(SendCapiEvent::class, function (SendCapiEvent $obJob): bool {
+            $arUserData = $obJob->arPayload['data'][0]['user_data'];
+
+            return $arUserData['client_ip_address'] === '203.0.113.7' && $arUserData['client_user_agent'] === null;
+        });
+    }
+
+    private function makeUser(string $sLastIp): \October\Rain\Database\Model
+    {
+        $obUser = new class extends \October\Rain\Database\Model
+        {
+            protected $table = 'users';
+        };
+        $obUser->setAttribute('last_ip_address', $sLastIp);
+
+        return $obUser;
     }
 
     private function makePaidOrder(int $iOriginalStatusId, int $iCurrentStatusId, bool $bExists = false): Order

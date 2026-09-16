@@ -20,6 +20,7 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeAjaxHandler;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
 use Logingrupa\Metapixel\Classes\Event\AccountIdentityHandler;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
+use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderBrowserContextRecorder;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
@@ -88,6 +89,7 @@ class Plugin extends PluginBase
             $obRegistry->register(Order::class, ShopaholicOrderAdapter::class);
             $obRegistry->register(CartPosition::class, ShopaholicCartPositionAdapter::class);
             $obRegistry->register(Product::class, ShopaholicProductAdapter::class);
+            Event::subscribe(OrderBrowserContextRecorder::class);
             Event::subscribe(OrderStatusWatcher::class);
             Event::subscribe(CartPositionWatcher::class);
             Event::subscribe(ProductPageWatcher::class);

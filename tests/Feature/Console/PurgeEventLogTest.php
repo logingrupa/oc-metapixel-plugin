@@ -9,6 +9,7 @@ use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Logingrupa\Metapixel\Updates\AddPayloadToMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
+use Logingrupa\Metapixel\Updates\CreateMetapixelOrderBrowserContextsTable;
 use Logingrupa\Metapixel\Updates\ReplaceDedupColumnsWithReplayedAt;
 
 /**
@@ -29,6 +30,7 @@ final class PurgeEventLogTest extends MetapixelTestCase
         (new AddPayloadToMetapixelEventLogTable)->up();
         (new CreateMetapixelFailedEventsTable)->up();
         (new ReplaceDedupColumnsWithReplayedAt)->up();
+        (new CreateMetapixelOrderBrowserContextsTable)->up();
         // Register the console command directly into Laravel's Artisan kernel for the
         // test container — MetapixelTestCase keeps autoRegister=false to stay light, so
         // we cannot rely on Plugin::register() wiring the command via October's
@@ -40,6 +42,7 @@ final class PurgeEventLogTest extends MetapixelTestCase
     protected function tearDown(): void
     {
         Carbon::setTestNow(null);
+        (new CreateMetapixelOrderBrowserContextsTable)->down();
         (new ReplaceDedupColumnsWithReplayedAt)->down();
         (new CreateMetapixelFailedEventsTable)->down();
         (new AddPayloadToMetapixelEventLogTable)->down();
@@ -60,6 +63,19 @@ final class PurgeEventLogTest extends MetapixelTestCase
 
         $this->assertSame(1, DB::table(self::FAILED_TABLE)->count());
         $this->assertSame('uuid-new', DB::table(self::FAILED_TABLE)->first()->event_id);
+    }
+
+    public function test_purge_deletes_order_browser_contexts_older_than_ninety_days_keeps_newer(): void
+    {
+        Carbon::setTestNow(Carbon::parse('2026-05-20 12:00:00'));
+        $sTable = 'logingrupa_metapixel_order_browser_contexts';
+
+        DB::table($sTable)->insert(['order_id' => 1, 'fbp' => 'old', 'created_at' => '2026-02-19 11:59:59', 'updated_at' => '2026-02-19 11:59:59']);
+        DB::table($sTable)->insert(['order_id' => 2, 'fbp' => 'new', 'created_at' => '2026-02-19 12:00:01', 'updated_at' => '2026-02-19 12:00:01']);
+
+        $this->assertSame(0, Artisan::call('metapixel:purge-event-log'));
+
+        $this->assertSame([2], DB::table($sTable)->pluck('order_id')->map(fn ($mId): int => (int) $mId)->all());
     }
 
     /** @return array<string, mixed> */
