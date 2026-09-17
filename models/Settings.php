@@ -70,7 +70,7 @@ class Settings extends CommonSettings
             ];
         }
 
-        [$sSitePixel, $sSiteToken] = $arRowList[(string) $iSiteId] ?? ['', ''];
+        [$sSitePixel, $sSiteToken] = $arRowList[$iSiteId] ?? ['', ''];
 
         return [
             'pixel_id' => $sSitePixel !== '' ? $sSitePixel : $sDefaultPixel,
@@ -80,12 +80,12 @@ class Settings extends CommonSettings
 
     /**
      * Read all rows for this settings code in one direct DB query, keyed by
-     * site_id ('' for the site_id IS NULL row, first row wins per key).
+     * site_id (int per site, '' for the site_id IS NULL row; first row wins per key).
      * Bypasses the SettingModel cache layer (static $instances +
      * Cache::remember), whose getCacheKey() is shared across
      * Site::withGlobalContext / Site::withContext switches.
      *
-     * @return array<string, array{0: string, 1: string}>
+     * @return array<int|string, array{0: string, 1: string}>
      */
     private static function readCredentialRows(): array
     {
@@ -96,11 +96,13 @@ class Settings extends CommonSettings
 
         $arRowList = [];
         foreach ($obRowList as $obRow) {
-            $sKey = $obRow->site_id === null ? '' : (string) $obRow->site_id;
-            if (array_key_exists($sKey, $arRowList)) {
+            $mSiteId = $obRow->site_id;
+            $mKey = is_numeric($mSiteId) ? (int) $mSiteId : '';
+            if (array_key_exists($mKey, $arRowList)) {
                 continue;
             }
-            $arRowList[$sKey] = self::decodeCredentials($obRow->value ?? null);
+            $mValue = $obRow->value;
+            $arRowList[$mKey] = self::decodeCredentials(is_string($mValue) ? $mValue : null);
         }
 
         return $arRowList;
@@ -111,7 +113,7 @@ class Settings extends CommonSettings
      * (seeded inside Site::withGlobalContext); falls back to the first row
      * for single-site installs, which save under the active site.
      *
-     * @param  array<string, array{0: string, 1: string}>  $arRowList
+     * @param  array<int|string, array{0: string, 1: string}>  $arRowList
      * @return array{0: string, 1: string}
      */
     private static function resolveDefaultCredentials(array $arRowList): array
@@ -179,7 +181,7 @@ class Settings extends CommonSettings
      */
     private function beforeSaveTrustedHosts(): void
     {
-        $arLines = $this->splitHostInput($this->getAttribute('trusted_hosts'));
+        $arLines = self::splitLines($this->getAttribute('trusted_hosts'));
         if ($arLines === null) {
             return;
         }
@@ -205,37 +207,17 @@ class Settings extends CommonSettings
 
     private function beforeSaveThemeCustomEventNames(): void
     {
-        $arLines = $this->splitEventNameInput($this->getAttribute('theme_custom_event_names'));
+        $arLines = self::splitLines($this->getAttribute('theme_custom_event_names'));
         if ($arLines === null) {
             return;
         }
 
-        [$arClean, $arDropped] = $this->partitionEventNames($arLines);
+        [$arClean, $arDropped] = self::partitionEventNames($arLines);
         $this->setAttribute('theme_custom_event_names', implode("\n", $arClean));
 
         if ($arDropped !== []) {
             Flash::warning('metapixel: dropped invalid event names: '.implode(', ', $arDropped));
         }
-    }
-
-    /**
-     * Normalize the raw trusted_hosts textarea value (string OR array shape)
-     * to a list of candidate lines. Returns null when the value is neither
-     * shape (signals beforeSave to no-op early).
-     *
-     * @return list<mixed>|null
-     */
-    private function splitHostInput(mixed $mValue): ?array
-    {
-        if (is_array($mValue)) {
-            return array_values($mValue);
-        }
-        if (! is_string($mValue)) {
-            return null;
-        }
-        $mLines = preg_split('/\R/', $mValue);
-
-        return $mLines === false ? [] : $mLines;
     }
 
     /**
@@ -274,13 +256,13 @@ class Settings extends CommonSettings
     }
 
     /**
-     * Normalize the raw stored value (string textarea OR array passthrough) to
-     * a list of candidate lines. Returns null when the value is neither shape
+     * Normalize a raw textarea value (string OR array passthrough) to a list
+     * of candidate lines. Returns null when the value is neither shape
      * (signals beforeSave to no-op early).
      *
      * @return list<mixed>|null
      */
-    private function splitEventNameInput(mixed $mValue): ?array
+    private static function splitLines(mixed $mValue): ?array
     {
         if (is_array($mValue)) {
             return array_values($mValue);
@@ -300,7 +282,7 @@ class Settings extends CommonSettings
      * @param  list<mixed>  $arLines
      * @return array{0: list<string>, 1: list<string>}
      */
-    private function partitionEventNames(array $arLines): array
+    private static function partitionEventNames(array $arLines): array
     {
         $arClean = [];
         $arDropped = [];
@@ -326,25 +308,13 @@ class Settings extends CommonSettings
      */
     public static function getThemeCustomEventNames(): array
     {
-        $mList = self::get('theme_custom_event_names', '');
-
-        if (is_array($mList)) {
-            $arCandidates = $mList;
-        } elseif (is_string($mList)) {
-            $arParts = preg_split('/\R/', $mList);
-            $arCandidates = $arParts === false ? [] : $arParts;
-        } else {
+        $arLines = self::splitLines(self::get('theme_custom_event_names', ''));
+        if ($arLines === null) {
             return [];
         }
 
-        $arResult = [];
-        foreach ($arCandidates as $mItem) {
-            $sTrim = is_string($mItem) ? trim($mItem) : '';
-            if ($sTrim !== '' && preg_match('/^[A-Za-z0-9_]{1,50}$/', $sTrim) === 1) {
-                $arResult[] = $sTrim;
-            }
-        }
+        [$arClean] = self::partitionEventNames($arLines);
 
-        return $arResult;
+        return $arClean;
     }
 }

@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixel\Classes\Event;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Events\Dispatcher;
 use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use Logingrupa\Metapixel\Models\Settings;
 use Lovata\Toolbox\Classes\Helper\UserHelper;
@@ -20,7 +21,7 @@ final class AccountIdentityHandler
     private const NATIONAL_PHONE_LENGTH = 8;
 
     /**
-     * @param  \Illuminate\Events\Dispatcher  $obEvent  untyped: October passes its own dispatcher
+     * @param  Dispatcher  $obEvent  untyped: October passes its own dispatcher
      */
     public function subscribe($obEvent): void
     {
