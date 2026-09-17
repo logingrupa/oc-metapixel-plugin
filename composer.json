@@ -33,6 +33,7 @@
     },
     "require-dev": {
         "larastan/larastan": "^3.0",
+        "laravel/framework": "^12.0",
         "laravel/pint": "^1.26",
         "lovata/buddies-plugin": "^1.10",
         "lovata/ordersshopaholic-plugin": "^1.33",
