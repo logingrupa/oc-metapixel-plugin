@@ -50,7 +50,7 @@ php artisan project:set <license>
 Then require the package and run the migrations:
 
 ```bash
-composer require logingrupa/oc-metapixel-plugin -W
+composer require logingrupa/metapixel-plugin -W
 php artisan october:migrate
 ```
 
@@ -58,7 +58,7 @@ The `-W` (with-all-dependencies) flag is required because a fresh October lockfi
 
 If **Settings → Marketing → Meta Pixel + CAPI** is not visible after install, run `php artisan october:migrate` to apply the plugin migrations — the settings panel and the failed-events table are created by that step.
 
-Install the exact package name `logingrupa/oc-metapixel-plugin` from the VCS URL `https://github.com/logingrupa/oc-metapixel-plugin`. Do not install a similarly named package.
+Install the exact package name `logingrupa/metapixel-plugin` from the VCS URL `https://github.com/logingrupa/oc-metapixel-plugin`. Do not install a similarly named package.
 
 ### Queue worker (recommended)
 
@@ -85,7 +85,7 @@ The shortest path from a fresh OctoberCMS 4.x app to a verified hit in the Meta 
 
 1. Add the VCS `repositories` entry above to your project's `composer.json`.
 2. Register the October gateway: `php artisan project:set <license>` (your own project license key).
-3. Require the plugin: `composer require logingrupa/oc-metapixel-plugin -W`.
+3. Require the plugin: `composer require logingrupa/metapixel-plugin -W`.
 4. Run the migrations: `php artisan october:migrate`.
 5. Enter the four required fields under **Settings → Marketing → Meta Pixel + CAPI**: **Pixel ID**, **CAPI Access Token**, **Test Events Code**, and **Default currency code**. **Save**.
 6. Mount the head Pixel in your layout. Declare `[pixelHead]` in the layout's INI/config section **and** place `{% component 'pixelHead' %}` in the layout markup. The Twig tag alone renders nothing — without the `[pixelHead]` INI declaration October emits an empty string (HTTP 200, no `fbq()`, no log signature).

@@ -55,6 +55,9 @@ foreach ([
     );
 }
 
+// Composer installer plugin that places the package in plugins/logingrupa/metapixel, never imported.
+$obConfig->ignoreErrorsOnPackage('composer/installers', [ErrorType::UNUSED_DEPENDENCY]);
+
 // Dev tooling — referenced via composer scripts, not imported. Guard each ignore
 // on actual presence in composer.json: CI installs the plugin vendor without
 // rector (its scope-prefixed vendor stubs fatal the analyser's reflection pass),

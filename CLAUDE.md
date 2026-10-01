@@ -6,7 +6,7 @@ Inherits parent `/home/forge/nailscosmetics.lv/CLAUDE.md` (Hungarian notation, L
 
 - **Namespace:** `Logingrupa\Metapixel`
 - **OctoberCMS plugin identifier:** `Logingrupa.Metapixel`
-- **Composer package:** `logingrupa/oc-metapixel-plugin`
+- **Composer package:** `logingrupa/metapixel-plugin` (GitHub repo stays `logingrupa/oc-metapixel-plugin`)
 - **PHP support:** `^8.3 || ^8.4` dual — avoid 8.4-only syntax (no property hooks, no asymmetric visibility, no `array_find`/`array_any`/`array_all`/`array_find_key`, no `#[\Deprecated]`)
 
 ## Architecture

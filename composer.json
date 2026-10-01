@@ -1,5 +1,5 @@
 {
-    "name": "logingrupa/oc-metapixel-plugin",
+    "name": "logingrupa/metapixel-plugin",
     "type": "october-plugin",
     "description": "Meta Pixel + Conversions API for OctoberCMS",
     "keywords": [
@@ -21,6 +21,7 @@
         }
     ],
     "require": {
+        "composer/installers": "~1.0",
         "guzzlehttp/guzzle": "^7.8",
         "jeremykendall/php-domain-parser": "^6.4",
         "lovata/toolbox-plugin": "^2.2",

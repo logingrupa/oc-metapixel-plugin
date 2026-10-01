@@ -29,9 +29,9 @@ final class ComposerJsonShapeTest extends MetapixelTestCase
         }
     }
 
-    public function test_composer_name_is_logingrupa_oc_metapixel_plugin(): void
+    public function test_composer_name_is_logingrupa_metapixel_plugin(): void
     {
-        $this->assertSame('logingrupa/oc-metapixel-plugin', self::$arShape['name'] ?? null);
+        $this->assertSame('logingrupa/metapixel-plugin', self::$arShape['name'] ?? null);
     }
 
     public function test_php_version_constraint_targets_83_and_84(): void

@@ -142,7 +142,7 @@ final class ReadmeStructureTest extends MetapixelTestCase
             'README install must document `php artisan project:set <license>` — registers the October gateway so october/system + lovata/* resolve on a fresh install (DOCS-01).',
         );
         $this->assertStringContainsString(
-            'oc-metapixel-plugin -W',
+            'logingrupa/metapixel-plugin -W',
             $sReadme,
             'README require command must carry the `-W` flag — a fresh October lockfile pins composer/installers that toolbox ^2.2 must move (DOCS-01).',
         );
@@ -200,7 +200,7 @@ final class ReadmeStructureTest extends MetapixelTestCase
     {
         $sReadme = $this->loadReadme();
         $this->assertStringContainsString(
-            'composer require logingrupa/oc-metapixel-plugin -W',
+            'composer require logingrupa/metapixel-plugin -W',
             $sReadme,
             'README must ship the verbatim stable install command — DOCS-01.',
         );
