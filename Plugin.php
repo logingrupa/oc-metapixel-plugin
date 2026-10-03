@@ -197,7 +197,7 @@ class Plugin extends PluginBase
             'settings' => [
                 'label' => 'logingrupa.metapixel::lang.settings.label',
                 'description' => 'logingrupa.metapixel::lang.settings.description',
-                'category' => 'logingrupa.metapixel::lang.settings.category',
+                'category' => 'Marketing',
                 'icon' => 'icon-bullseye',
                 'class' => Settings::class,
                 'order' => 500,
@@ -208,7 +208,7 @@ class Plugin extends PluginBase
             'failed_events' => [
                 'label' => 'logingrupa.metapixel::lang.menu.failed_events',
                 'description' => 'logingrupa.metapixel::lang.menu.failed_events_description',
-                'category' => 'logingrupa.metapixel::lang.settings.category',
+                'category' => 'Marketing',
                 'icon' => 'icon-bell',
                 'url' => Backend::url('logingrupa/metapixel/failedevents'),
                 'order' => 510,

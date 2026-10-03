@@ -91,6 +91,16 @@ final class LangKeyCoverageTest extends MetapixelTestCase
         $this->assertIsArray($arLv);
     }
 
+    public function test_lv_json_translates_only_the_marketing_heading(): void
+    {
+        $sPath = dirname(__DIR__, 3).'/lang/lv.json';
+        $this->assertFileExists($sPath, 'lang/lv.json must ship the Latvian settings heading.');
+
+        $arLines = json_decode((string) file_get_contents($sPath), true, 512, JSON_THROW_ON_ERROR);
+
+        $this->assertSame(['Marketing' => 'Mārketings'], $arLines);
+    }
+
     public function test_no_ru_lang_file_shipped(): void
     {
         // D-17 lock — Russian translations dropped in v2.0; operators
