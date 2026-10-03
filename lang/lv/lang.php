@@ -8,7 +8,6 @@ return [
     'settings' => [
         'label' => 'Meta Pixel + CAPI',
         'description' => 'Konfigurējiet Pixel ID, CAPI piekļuves marķieri un Test Events kodu Meta izsekošanai.',
-        'category' => 'Mārketings',
     ],
     'tab' => [
         'pixel_and_capi' => 'Pixel un CAPI',

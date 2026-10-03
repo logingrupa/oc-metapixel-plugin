@@ -91,3 +91,6 @@
 
 2.1.16:
   - 'The Composer package is now logingrupa/metapixel-plugin, the name the October CMS marketplace requires. A project that installs from the GitHub repository changes the name in its require line. The repository URL and the plugin code Logingrupa.Metapixel stay the same. composer/installers is a direct requirement.'
+
+2.1.17:
+  - 'Meta Pixel + CAPI and Failed events now sit under the plain settings category Marketing, and lang/lv.json translates it to Mārketings. October groups settings by the raw category string, so another plugin that registers its settings under Marketing joins this sidebar group instead of adding a second Marketing heading.'

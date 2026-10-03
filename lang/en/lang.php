@@ -8,7 +8,6 @@ return [
     'settings' => [
         'label' => 'Meta Pixel + CAPI',
         'description' => 'Configure the Pixel ID, CAPI access token, and Test Events code for Meta tracking.',
-        'category' => 'Marketing',
     ],
     'tab' => [
         'pixel_and_capi' => 'Pixel & CAPI',
