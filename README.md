@@ -226,7 +226,7 @@ Grep the OctoberCMS runtime log at `storage/logs/system.log` for these signature
 
 | Symptom | `Log::*` signature | Fix |
 |---------|--------------------|-----|
-| No events fire at all, even though settings are saved | `metapixel: pixel_id is empty — plugin running in disabled mode (events suppressed)` | Set the **Pixel ID** in Settings → Meta Pixel + CAPI → Pixel & CAPI. An empty Pixel ID disables the plugin by design. |
+| No events fire at all, even though settings are saved | `metapixel: site <id> disabled - pixel_id must be digits only and the access token empty or starting with EAA (events suppressed)` (`default row` in place of `site <id>` when no site is in context) | In Settings → Meta Pixel + CAPI → Pixel & CAPI for that site, set a digits-only **Pixel ID** and either an access token that starts with EAA or no token at all. An empty or malformed Pixel ID, or a token that does not start with EAA, disables the plugin for that site. A browser autofill often puts an email address or a password in these fields. The warning is logged at most once a day. |
 | Order is paid but no Purchase event ships | `metapixel: OrderStatusWatcher payload-build failed` | The order has no currency — set a **Default currency code**, and confirm the order status matches the **Paid status code**. |
 | An event is silently dropped, nothing in the event log | `metapixel: EventLogWriter — no adapter registered for subject` | Enable `Lovata.OrdersShopaholic` for the Shopaholic path, or register a custom adapter for that subject. |
 | Failed-events rows accumulate and nothing reaches Meta | `metapixel: adapter rehydrate failed — dead-lettered` | A worker restarted with a stale queue — open **Failed events** and **Replay** the affected rows. |
