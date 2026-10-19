@@ -45,12 +45,17 @@ use Throwable;
  * If you push to ThemeEventCollector AFTER cms.page.beforeRenderPage, the push
  * is silently dropped — emit point has passed. Push during component onRun()
  * or earlier.
+ *
+ * A second run in the same request (ElementPage 404 re-runs the layout)
+ * re-renders the first run's pixel and dispatches nothing.
  */
 class PixelHead extends ComponentBase
 {
     private const JS = JSON_HEX_TAG | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_HEX_APOS;
 
     private const BASE_ACTION_KEY_PREFIX = 'base:pageview';
+
+    private const RENDERED_BASE_ATTRIBUTE = 'metapixel.pixel_head_base';
 
     /** @return array{name: string, description: string} */
     public function componentDetails(): array
@@ -80,17 +85,14 @@ class PixelHead extends ComponentBase
     {
         $this->page['pixelHeadBase'] = null;
 
-        if (PluginGuard::isDisabled()) {
+        if (! self::isPixelPageRender()) {
             return;
         }
 
-        // AJAX postbacks run onRun without rendering the page — the browser
-        // base pixel never re-fires there (see RequestKind).
-        if (! RequestKind::isPageRender()) {
-            return;
-        }
+        $mRenderedBase = Request::instance()->attributes->get(self::RENDERED_BASE_ATTRIBUTE);
+        if (is_array($mRenderedBase)) {
+            $this->page['pixelHeadBase'] = $mRenderedBase;
 
-        if (! self::isBrowserRequest()) {
             return;
         }
 
@@ -133,7 +135,7 @@ class PixelHead extends ComponentBase
             $mTestCode = Settings::get('test_event_code', '');
             $sTestCode = is_string($mTestCode) ? $mTestCode : '';
 
-            $this->page['pixelHeadBase'] = [
+            $arPixelHeadBase = [
                 'pixel_id' => $sPixelId,
                 'pixel_id_js' => (string) json_encode($sPixelId, self::JS),
                 'advanced_matching_js' => $arAdvancedMatching === [] ? null : (string) json_encode($arAdvancedMatching, self::JS),
@@ -144,6 +146,8 @@ class PixelHead extends ComponentBase
                 'noscript_pixel_id' => rawurlencode($sPixelId),
                 'noscript_event_name' => rawurlencode('PageView'),
             ];
+            $this->page['pixelHeadBase'] = $arPixelHeadBase;
+            Request::instance()->attributes->set(self::RENDERED_BASE_ATTRIBUTE, $arPixelHeadBase);
         } catch (Throwable $obException) {
             // Tiger-Style boundary fail-safe: base-pixel emission failure
             // MUST NOT break page render. Log + skip.
@@ -153,6 +157,16 @@ class PixelHead extends ComponentBase
             ]);
             $this->page['pixelHeadBase'] = null;
         }
+    }
+
+    /**
+     * Guard on, a rendered page and a browser client. AJAX postbacks run
+     * onRun without rendering the page, so the browser base pixel never
+     * re-fires there (see RequestKind).
+     */
+    private static function isPixelPageRender(): bool
+    {
+        return ! PluginGuard::isDisabled() && RequestKind::isPageRender() && self::isBrowserRequest();
     }
 
     /**

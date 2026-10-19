@@ -4,10 +4,12 @@ namespace Logingrupa\Metapixel\Tests\Feature\Components;
 
 use ArrayAccess;
 use Cms\Classes\Controller;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
@@ -124,6 +126,34 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
                 && str_starts_with($obJob->obSubject->sActionKey, 'base:pageview:')
                 && str_ends_with($obJob->obSubject->sActionKey, $sBrowserEventId);
         });
+    }
+
+    public function test_second_run_in_one_request_rerenders_the_first_pixel_without_a_second_dispatch(): void
+    {
+        Bus::fake();
+        Settings::clearInternalCache();
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
+        Settings::clearInternalCache();
+
+        $arOuter = $this->runComponent(new PixelHead);
+        $arNested = $this->runComponent(new PixelHead);
+
+        Bus::assertDispatchedTimes(SendCapiEvent::class, 1);
+        $this->assertSame($arOuter['pixelHeadBase']['event_id_js'], $arNested['pixelHeadBase']['event_id_js']);
+        $sRenderedEventId = trim($arNested['pixelHeadBase']['event_id_js'], '"');
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob) use ($sRenderedEventId): bool {
+            return ($obJob->arPayload['data'][0]['event_id'] ?? null) === $sRenderedEventId;
+        });
+
+        $this->app->instance('request', Request::create('/', 'GET', [], [], [], [
+            'HTTP_USER_AGENT' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36',
+        ]));
+        Facade::clearResolvedInstance('request');
+
+        $arFresh = $this->runComponent(new PixelHead);
+
+        Bus::assertDispatchedTimes(SendCapiEvent::class, 2);
+        $this->assertNotSame($arOuter['pixelHeadBase']['event_id_js'], $arFresh['pixelHeadBase']['event_id_js']);
     }
 
     public function test_skips_emission_when_plugin_guard_disabled(): void
