@@ -115,6 +115,32 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         Bus::assertNotDispatched(SendCapiEvent::class);
     }
 
+    public function test_does_not_dispatch_for_an_order_site_with_malformed_credentials(): void
+    {
+        Bus::fake();
+        DB::table('system_settings')->insert([
+            'item' => 'logingrupa_metapixel_settings',
+            'site_id' => 2,
+            'value' => json_encode(['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2']),
+        ]);
+        $obOrder = $this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5);
+        $obOrder->setAttribute('site_id', 2);
+
+        (new OrderStatusWatcher)->handle($obOrder);
+
+        Bus::assertNotDispatched(SendCapiEvent::class);
+    }
+
+    public function test_backend_saved_purchase_on_a_valid_site_still_dispatches(): void
+    {
+        Bus::fake();
+        $this->app->instance('execution.context', 'backend');
+
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5));
+
+        Bus::assertDispatched(SendCapiEvent::class);
+    }
+
     public function test_catches_payload_build_exception_logs_warning_does_not_rethrow(): void
     {
         Bus::fake();

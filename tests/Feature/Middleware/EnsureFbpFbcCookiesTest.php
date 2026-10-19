@@ -258,6 +258,7 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
         DB::table('system_settings')->insert([
             'item' => $sCode,
             'value' => json_encode([
+                'pixel_id' => '1234567890',
                 'trusted_hosts' => "example.com\nwat.fakeylock",
                 'ensure_fbp_fbc_server_side' => true,
             ]),

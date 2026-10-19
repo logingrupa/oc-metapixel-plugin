@@ -67,6 +67,12 @@ class CartPositionWatcher
 
     private function dispatchAddToCart(CartPosition $obCartPosition, int $iQuantity): void
     {
+        $obAdapter = new ShopaholicCartPositionAdapter;
+        $iSiteId = $obAdapter->getSiteId($obCartPosition);
+        if (PluginGuard::isDisabledForSite($iSiteId)) {
+            return;
+        }
+
         if (! $obCartPosition->getRelationValue('item') instanceof Offer) {
             Log::info('metapixel: CartPositionWatcher — item MorphTo not an Offer, skipping', [
                 'meta_pixel.cart_position_id' => $obCartPosition->id,
@@ -75,7 +81,6 @@ class CartPositionWatcher
             return;
         }
 
-        $obAdapter = new ShopaholicCartPositionAdapter;
         $obResolver = new ShopaholicCartPositionValueResolver($iQuantity);
         $obBuilder = new PayloadBuilder(new UserDataHasher);
 
@@ -93,7 +98,6 @@ class CartPositionWatcher
         $arPayload = $this->injectRequestUserData('AddToCart', $obAdapter->getSubjectType($obCartPosition), $arPayload);
 
         $iPositionId = $obAdapter->getSubjectId($obCartPosition);
-        $iSiteId = $obAdapter->getSiteId($obCartPosition);
         $obDispatchEvent = ThemeActionEvent::fromArray([
             'name' => 'AddToCart',
             'action_key' => 'addtocart:'.$iPositionId.':'.$sEventId,

@@ -18,6 +18,7 @@ use Lovata\OrdersShopaholic\Models\Cart;
 use Lovata\OrdersShopaholic\Models\CartPosition;
 use Lovata\Shopaholic\Models\Offer;
 use Lovata\Shopaholic\Models\Product;
+use October\Rain\Support\Facades\Site;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -55,6 +56,8 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
         Schema::dropIfExists('logingrupa_metapixel_event_log');
         Schema::dropIfExists('lovata_shopaholic_prices');
         Schema::dropIfExists('lovata_shopaholic_currency');
+        Schema::dropIfExists('system_site_definitions');
+        Site::resetCache();
         app()->forgetInstance(AdapterRegistry::class);
         parent::tearDown();
     }
@@ -172,6 +175,51 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
 
         Bus::assertNotDispatched(SendCapiEvent::class);
         $this->assertSame(0, DB::table('logingrupa_metapixel_event_log')->count());
+    }
+
+    public function test_cart_site_with_malformed_credentials_queues_nothing(): void
+    {
+        Bus::fake();
+        DB::table('system_settings')->insert([
+            'item' => 'logingrupa_metapixel_settings',
+            'site_id' => 2,
+            'value' => json_encode(['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2']),
+        ]);
+        $obPosition = $this->makePositionWithOffer();
+        $obPosition->getRelationValue('cart')->setAttribute('site_id', 2);
+
+        (new CartPositionWatcher)->handleCreated($obPosition);
+
+        Bus::assertNotDispatched(SendCapiEvent::class);
+        $this->assertSame(0, DB::table('logingrupa_metapixel_event_log')->where('channel', 'pixel')->count());
+    }
+
+    public function test_row_less_cart_site_uses_the_default_row_pixel_and_currency(): void
+    {
+        $fnSeedSites = require __DIR__.'/../../../../fixtures/sites.php';
+        $fnSeedSites(
+            $this->app['db']->connection()->getSchemaBuilder(),
+            $this->app['db']->connection(),
+        );
+        DB::table('system_settings')->delete();
+        DB::table('system_settings')->insert([
+            'item' => 'logingrupa_metapixel_settings',
+            'site_id' => 1,
+            'value' => json_encode(['pixel_id' => '100000000000001', 'capi_access_token' => 'EAATOKEN-1', 'default_currency_code' => 'EUR']),
+        ]);
+        DB::table('lovata_shopaholic_prices')->insert(['item_id' => 1, 'item_type' => Offer::class, 'price' => 12.5]);
+        Settings::clearInternalCache();
+        Bus::fake();
+        $obPosition = $this->makePositionWithOffer();
+        $obPosition->getRelationValue('cart')->setAttribute('site_id', 2);
+
+        Site::withContext(2, static function () use ($obPosition): void {
+            (new CartPositionWatcher)->handleCreated($obPosition);
+        });
+
+        Bus::assertDispatched(SendCapiEvent::class, static function (SendCapiEvent $obJob): bool {
+            return ($obJob->arPayload['data'][0]['custom_data']['currency'] ?? null) === 'EUR';
+        });
     }
 
     public function test_handle_created_skips_when_item_morphto_null(): void

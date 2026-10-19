@@ -9,8 +9,10 @@ use Logingrupa\Metapixel\Classes\Helper\CrawlerUserAgent;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Models\Settings;
+use October\Rain\Support\Facades\Site;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Response;
+use System\Models\SiteDefinition;
 use Throwable;
 
 /**
@@ -68,13 +70,37 @@ class EnsureFbpFbcCookies
     /**
      * Cookie name => value for every cookie this request must gain: a missing
      * _fbp, and a _fbc built from a valid ?fbclid the stored cookie does not
-     * already carry. Empty when the middleware NO-OPs.
+     * already carry. Empty when the middleware NO-OPs. Runs before
+     * CmsController applies the active site, so it resolves the request's own
+     * site the same way and reads every setting inside that site context.
      *
      * @return array<string, string>
      */
     private function resolveFreshCookies(Request $obRequest): array
     {
         if ($this->shouldSkip($obRequest)) {
+            return [];
+        }
+
+        $obSite = Site::getSiteFromRequest($obRequest->root(), $obRequest->path());
+        if (! $obSite instanceof SiteDefinition || ! $obSite->is_enabled) {
+            return [];
+        }
+
+        $arFresh = [];
+        Site::withContext($obSite->getKey(), function () use ($obRequest, &$arFresh): void {
+            $arFresh = $this->resolveForSite($obRequest);
+        });
+
+        return $arFresh;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function resolveForSite(Request $obRequest): array
+    {
+        if ($this->isSiteSkipped()) {
             return [];
         }
 
@@ -136,31 +162,32 @@ class EnsureFbpFbcCookies
     }
 
     /**
-     * Short-circuit predicate. Backend paths skip; PluginGuard-disabled
-     * plugins skip; kill switch off skips. Settings::get throwing falls back
-     * to enabled per Pitfall 8 — boundary fail-safe so the initial migration
-     * HTTP request does not 500 when system_settings is absent.
+     * Request-level skip: a path inside the backend.uri segment (/back and
+     * /back/..., not /backoffice) or a client that never runs fbevents.js.
      */
     private function shouldSkip(Request $obRequest): bool
     {
-        $mBackendUri = config('cms.backendUri', 'backend');
-        $sBackendUri = is_scalar($mBackendUri) ? (string) $mBackendUri : '';
-        if ($sBackendUri !== '' && $obRequest->is(ltrim($sBackendUri, '/').'*')) {
+        $mBackendUri = config('backend.uri', 'backend');
+        $sBackendUri = is_scalar($mBackendUri) ? trim((string) $mBackendUri, '/') : '';
+        if ($sBackendUri !== '' && $obRequest->is($sBackendUri, $sBackendUri.'/*')) {
             return true;
         }
 
         // A crawler or a client without a user agent never runs fbevents.js,
         // so a minted _fbp would identify nobody.
-        if (! CrawlerUserAgent::isBrowser($obRequest->userAgent())) {
-            return true;
-        }
+        return ! CrawlerUserAgent::isBrowser($obRequest->userAgent());
+    }
 
+    /**
+     * Site-level skip inside the request site context: PluginGuard-disabled
+     * site or kill switch off. Settings::get throwing falls back to enabled
+     * (Pitfall 8) so the initial migration HTTP request does not 500.
+     */
+    private function isSiteSkipped(): bool
+    {
         try {
-            // PluginGuard reads Settings::get('pixel_id') — same boundary
-            // fail-safe rationale as the kill-switch lookup below (initial
-            // migration HTTP request must not 500 when system_settings is
-            // absent). isDisabled() memoises the result, so the wrap is a
-            // first-request-only cost.
+            // PluginGuard reads credentials through Settings::lookupForSite and
+            // never throws; the wrap covers the kill-switch lookup below.
             if (PluginGuard::isDisabled()) {
                 return true;
             }
@@ -170,10 +197,10 @@ class EnsureFbpFbcCookies
             return ! ($mToggle === true || $mToggle === 1 || $mToggle === '1');
         } catch (Throwable $obException) {
             // boundary fail-safe: missing system_settings table during initial
-            // migration must not 500 the HTTP request — default to enabled and
+            // migration must not 500 the HTTP request - default to enabled and
             // let downstream readTrustedHosts handle the empty-list NO-OP.
             Log::warning(
-                'metapixel: PluginGuard or kill-switch lookup threw — middleware defaults to enabled',
+                'metapixel: PluginGuard or kill-switch lookup threw - middleware defaults to enabled',
                 ['exception' => get_class($obException)]
             );
 
@@ -193,7 +220,7 @@ class EnsureFbpFbcCookies
         try {
             $mRaw = Settings::get('trusted_hosts', '');
         } catch (Throwable $obException) {
-            // boundary fail-safe — same rationale as shouldSkip's catch block.
+            // boundary fail-safe — same rationale as isSiteSkipped's catch block.
             Log::warning(
                 'metapixel: trusted_hosts lookup threw — middleware NO-OPs',
                 ['exception' => get_class($obException)]

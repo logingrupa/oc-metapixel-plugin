@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver;
 use Logingrupa\Metapixel\Classes\Event\CapturesRequestUserData;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\PayloadRequestContext;
 use Logingrupa\Metapixel\Classes\Meta\UserDataHasher;
@@ -46,6 +47,10 @@ final class OrderStatusWatcher
             }
 
             $obAdapter = new ShopaholicOrderAdapter;
+            if (PluginGuard::isDisabledForSite($obAdapter->getSiteId($obOrder))) {
+                return;
+            }
+
             $obResolver = new ShopaholicOrderValueResolver;
             $obBuilder = new PayloadBuilder(new UserDataHasher);
 

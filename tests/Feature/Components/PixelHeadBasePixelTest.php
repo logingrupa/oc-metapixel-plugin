@@ -6,6 +6,7 @@ use ArrayAccess;
 use Cms\Classes\Controller;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
@@ -19,6 +20,7 @@ use Logingrupa\Metapixel\Components\PixelHead;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
+use October\Rain\Support\Facades\Site;
 use PHPUnit\Framework\Attributes\Group;
 use ReflectionProperty;
 
@@ -48,6 +50,8 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         App::forgetInstance(PixelHeadDeferredFlushBuffer::class);
         PluginGuard::reset();
         (new CreateMetapixelEventLogTable)->down();
+        $this->app['db']->connection()->getSchemaBuilder()->dropIfExists('system_site_definitions');
+        Site::resetCache();
         parent::tearDown();
     }
 
@@ -131,6 +135,42 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
 
         $this->assertNull($arPage['pixelHeadBase'], 'pixelHeadBase MUST be null when PluginGuard reports disabled');
         Bus::assertNotDispatched(SendCapiEvent::class);
+    }
+
+    public function test_skips_emission_in_backend_execution_context(): void
+    {
+        Bus::fake();
+        Settings::clearInternalCache();
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
+        Settings::clearInternalCache();
+        $this->app->instance('execution.context', 'backend');
+
+        $arPage = $this->runComponent(new PixelHead);
+
+        $this->assertNull($arPage['pixelHeadBase'], 'a frontend 404 under the backend uri resolves the edit site, no pixel there');
+        Bus::assertNotDispatched(SendCapiEvent::class);
+    }
+
+    public function test_site_row_without_credentials_renders_the_default_row_pixel(): void
+    {
+        Bus::fake();
+        $fnSeedSites = require __DIR__.'/../../fixtures/sites.php';
+        $fnSeedSites(
+            $this->app['db']->connection()->getSchemaBuilder(),
+            $this->app['db']->connection(),
+        );
+        foreach ([1 => ['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X'], 2 => ['account_identity_enabled' => true, 'account_phone_dial_code' => '371']] as $iSiteId => $arValue) {
+            DB::table('system_settings')->insert([
+                'item' => 'logingrupa_metapixel_settings',
+                'site_id' => $iSiteId,
+                'value' => json_encode($arValue),
+            ]);
+        }
+
+        $arPage = Site::withContext(2, fn (): array => $this->runComponent(new PixelHead));
+
+        $this->assertSame('1234567890', $arPage['pixelHeadBase']['pixel_id'] ?? null);
+        Bus::assertDispatchedTimes(SendCapiEvent::class, 1);
     }
 
     public function test_skips_emission_on_october_ajax_postback(): void
