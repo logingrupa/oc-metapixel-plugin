@@ -11,6 +11,7 @@ use Logingrupa\Metapixel\Tests\ShopaholicAdapterTestCase;
 use Lovata\OrdersShopaholic\Models\CartPosition;
 use Lovata\Shopaholic\Models\Offer;
 use Lovata\Shopaholic\Models\Product;
+use October\Rain\Support\Facades\Site;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -42,6 +43,8 @@ final class ShopaholicCartPositionValueResolverTest extends ShopaholicAdapterTes
     {
         Schema::dropIfExists('lovata_shopaholic_currency');
         Schema::dropIfExists('lovata_shopaholic_prices');
+        Schema::dropIfExists('system_site_definitions');
+        Site::resetCache();
         parent::tearDown();
     }
 
@@ -155,6 +158,25 @@ final class ShopaholicCartPositionValueResolverTest extends ShopaholicAdapterTes
 
         $this->expectException(OrderHasNoCurrencyException::class);
         (new ShopaholicCartPositionValueResolver)->resolveCurrency($obPosition);
+    }
+
+    public function test_resolve_currency_on_a_site_without_its_own_row_reads_the_default_row(): void
+    {
+        $fnSeedSites = require __DIR__.'/../../../fixtures/sites.php';
+        $fnSeedSites(Schema::getConnection()->getSchemaBuilder(), DB::connection());
+        DB::table('system_settings')->insert([
+            'item' => 'logingrupa_metapixel_settings',
+            'site_id' => 1,
+            'value' => json_encode(['default_currency_code' => 'EUR']),
+        ]);
+
+        $sCurrency = Site::withContext(2, static function (): string {
+            Settings::clearInternalCache();
+
+            return (new ShopaholicCartPositionValueResolver)->resolveCurrency(new CartPosition);
+        });
+
+        $this->assertSame('EUR', $sCurrency);
     }
 
     private function makeOfferWithProduct(int $iProductId, int $iOfferId, int $iSiblingOffers): Offer

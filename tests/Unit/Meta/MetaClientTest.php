@@ -250,4 +250,37 @@ final class MetaClientTest extends MetapixelTestCase
 
         $this->assertSame([], $arResult);
     }
+
+    /** @return array<string, array{0: string, 1: string, 2: string, 3: string}> */
+    public static function provideMalformedCredentials(): array
+    {
+        return [
+            'send, email pixel' => ['sendForPixel', 'owner@example.com', 'EAAB1', MissingPixelConfigException::class],
+            'send, password token' => ['sendForPixel', '1234567890', 'hunter2hunter2', MissingCapiTokenException::class],
+            'dataset quality, email pixel' => ['fetchDatasetQuality', 'owner@example.com', 'EAAB1', MissingPixelConfigException::class],
+            'dataset quality, password token' => ['fetchDatasetQuality', '1234567890', 'hunter2hunter2', MissingCapiTokenException::class],
+        ];
+    }
+
+    #[DataProvider('provideMalformedCredentials')]
+    public function test_malformed_credentials_never_reach_the_graph_api(string $sMethod, string $sPixelId, string $sToken, string $sException): void
+    {
+        $arHistory = [];
+        $obStack = HandlerStack::create(new MockHandler([new Response(200, [], '{}')]));
+        $obStack->push(Middleware::history($arHistory));
+        $obClient = new MetaClient(new Client(['handler' => $obStack]));
+
+        try {
+            $sMethod === 'sendForPixel'
+                ? $obClient->sendForPixel($sPixelId, $sToken, ['data' => []])
+                : $obClient->fetchDatasetQuality($sPixelId, $sToken);
+            $this->fail('expected '.$sException);
+        } catch (MissingPixelConfigException|MissingCapiTokenException $obException) {
+            $this->assertInstanceOf($sException, $obException);
+            $this->assertStringNotContainsString('owner@example.com', $obException->getMessage());
+            $this->assertStringNotContainsString('hunter2hunter2', $obException->getMessage());
+        }
+
+        $this->assertSame([], $arHistory, 'no HTTP request leaves the server');
+    }
 }

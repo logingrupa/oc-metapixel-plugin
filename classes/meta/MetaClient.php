@@ -53,12 +53,7 @@ class MetaClient
      */
     public function sendForPixel(string $sPixelId, string $sToken, array $arPayload): array
     {
-        if ($sPixelId === '') {
-            throw new MissingPixelConfigException('metapixel: pixel_id is empty at dispatch time');
-        }
-        if ($sToken === '') {
-            throw new MissingCapiTokenException('metapixel: capi_access_token is empty at dispatch time');
-        }
+        $this->requireValidCredentials($sPixelId, $sToken, 'dispatch time');
 
         $sUrl = sprintf(
             '%s/%s/%s/events',
@@ -123,12 +118,7 @@ class MetaClient
      */
     public function fetchDatasetQuality(string $sPixelId, string $sToken): array
     {
-        if ($sPixelId === '') {
-            throw new MissingPixelConfigException('metapixel: pixel_id is empty at dataset quality fetch');
-        }
-        if ($sToken === '') {
-            throw new MissingCapiTokenException('metapixel: capi_access_token is empty at dataset quality fetch');
-        }
+        $this->requireValidCredentials($sPixelId, $sToken, 'dataset quality fetch');
 
         $sUrl = sprintf(
             '%s/%s/dataset_quality?dataset_id=%s&fields=%s',
@@ -211,6 +201,23 @@ class MetaClient
         }
 
         return $arResult;
+    }
+
+    /**
+     * Refuses an empty or malformed credential before any HTTP request. Messages
+     * state the rule and never the value (an autofilled password must not reach logs).
+     *
+     * @throws MissingPixelConfigException
+     * @throws MissingCapiTokenException
+     */
+    private function requireValidCredentials(string $sPixelId, string $sToken, string $sContext): void
+    {
+        if (! CredentialFormat::isPixelId($sPixelId)) {
+            throw new MissingPixelConfigException('metapixel: pixel_id is empty or not digits only at '.$sContext);
+        }
+        if (! CredentialFormat::isAccessToken($sToken)) {
+            throw new MissingCapiTokenException('metapixel: capi_access_token is empty or does not start with EAA at '.$sContext);
+        }
     }
 
     private function client(): ClientInterface

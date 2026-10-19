@@ -9,11 +9,13 @@ use Illuminate\Support\MessageBag;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Lovata\Toolbox\Models\CommonSettings;
 use October\Rain\Database\ModelException;
+use System\Facades\System;
 
 /**
  * Plugin settings model. Per-site credentials route through the Multisite
  * trait inherited from CommonSettings; $propagatable = [] locks pixel_id +
  * capi_access_token out of the cross-site whitelist (D-02 / D-20).
+ * A site without its own row reads the default row's other keys; its credentials come only from lookupForSite.
  *
  * @method static mixed get(string $sCode, mixed $mDefault = null)
  * @method static void set(array<string, mixed> $arValues)
@@ -35,6 +37,9 @@ class Settings extends CommonSettings
      * @var list<string>
      */
     protected $propagatable = [];
+
+    /** Multisite credential keys, resolved only through lookupForSite(). */
+    private const CREDENTIAL_KEYS = ['pixel_id', 'capi_access_token'];
 
     /**
      * Validation error bag — satisfies ModelException contract without
@@ -60,8 +65,8 @@ class Settings extends CommonSettings
      */
     public static function lookupForSite(?int $iSiteId): array
     {
-        $arRowList = self::readCredentialRows();
-        [$sDefaultPixel, $sDefaultToken] = self::resolveDefaultCredentials($arRowList);
+        $arRowList = self::readRows();
+        [$sDefaultPixel, $sDefaultToken] = self::credentialsOf(self::resolveDefaultRow($arRowList));
 
         if ($iSiteId === null) {
             return [
@@ -70,12 +75,28 @@ class Settings extends CommonSettings
             ];
         }
 
-        [$sSitePixel, $sSiteToken] = $arRowList[$iSiteId] ?? ['', ''];
+        [$sSitePixel, $sSiteToken] = self::credentialsOf($arRowList[$iSiteId] ?? []);
 
         return [
             'pixel_id' => $sSitePixel !== '' ? $sSitePixel : $sDefaultPixel,
             'capi_access_token' => $sSiteToken !== '' ? $sSiteToken : $sDefaultToken,
         ];
+    }
+
+    /**
+     * SettingModel::instance() calls this only when the context site has no row:
+     * copy the default row's values except the credentials (lookupForSite owns those).
+     */
+    public function initSettingsData(): void
+    {
+        if (! System::hasDatabase()) {
+            return;
+        }
+
+        $arDefaultRow = array_diff_key(self::resolveDefaultRow(self::readRows()), array_flip(self::CREDENTIAL_KEYS));
+        foreach ($arDefaultRow as $sKey => $mValue) {
+            $this->setAttribute($sKey, $mValue);
+        }
     }
 
     /**
@@ -85,9 +106,9 @@ class Settings extends CommonSettings
      * Cache::remember), whose getCacheKey() is shared across
      * Site::withGlobalContext / Site::withContext switches.
      *
-     * @return array<int|string, array{0: string, 1: string}>
+     * @return array<int|string, array<string, mixed>>
      */
-    private static function readCredentialRows(): array
+    private static function readRows(): array
     {
         $obRowList = DB::table('system_settings')
             ->where('item', (new self)->settingsCode)
@@ -102,53 +123,65 @@ class Settings extends CommonSettings
                 continue;
             }
             $mValue = $obRow->value;
-            $arRowList[$mKey] = self::decodeCredentials(is_string($mValue) ? $mValue : null);
+            $arRowList[$mKey] = self::decodeRow(is_string($mValue) ? $mValue : null);
         }
 
         return $arRowList;
     }
 
     /**
-     * Resolve the default-row credentials. Prefers the site_id IS NULL row
-     * (seeded inside Site::withGlobalContext); falls back to the first row
-     * for single-site installs, which save under the active site.
+     * Resolve the default row. Prefers the site_id IS NULL row when it carries
+     * credentials (seeded inside Site::withGlobalContext); falls back to the
+     * first row for single-site installs, which save under the active site.
      *
-     * @param  array<int|string, array{0: string, 1: string}>  $arRowList
-     * @return array{0: string, 1: string}
+     * @param  array<int|string, array<string, mixed>>  $arRowList
+     * @return array<string, mixed>
      */
-    private static function resolveDefaultCredentials(array $arRowList): array
+    private static function resolveDefaultRow(array $arRowList): array
     {
-        $arNullSite = $arRowList[''] ?? ['', ''];
-        if ($arNullSite[0] !== '' || $arNullSite[1] !== '') {
+        $arNullSite = $arRowList[''] ?? [];
+        if (self::credentialsOf($arNullSite) !== ['', '']) {
             return $arNullSite;
         }
 
         $arFirst = reset($arRowList);
 
-        return $arFirst === false ? ['', ''] : $arFirst;
+        return $arFirst === false ? [] : $arFirst;
     }
 
     /**
-     * Shared decoder for the system_settings JSON expando column.
-     *
+     * @param  array<string, mixed>  $arRow
      * @return array{0: string, 1: string}
      */
-    private static function decodeCredentials(?string $sValue): array
+    private static function credentialsOf(array $arRow): array
     {
-        if ($sValue === null) {
-            return ['', ''];
-        }
-        $mDecoded = json_decode($sValue, true);
-        if (! is_array($mDecoded)) {
-            return ['', ''];
-        }
-        $mPixel = $mDecoded['pixel_id'] ?? '';
-        $mToken = $mDecoded['capi_access_token'] ?? '';
+        $mPixel = $arRow['pixel_id'] ?? '';
+        $mToken = $arRow['capi_access_token'] ?? '';
 
         return [
             is_string($mPixel) ? $mPixel : '',
             is_string($mToken) ? $mToken : '',
         ];
+    }
+
+    /**
+     * Shared decoder for the system_settings JSON expando column.
+     *
+     * @return array<string, mixed>
+     */
+    private static function decodeRow(?string $sValue): array
+    {
+        $mDecoded = $sValue === null ? null : json_decode($sValue, true);
+        if (! is_array($mDecoded)) {
+            return [];
+        }
+
+        $arRow = [];
+        foreach ($mDecoded as $mKey => $mValue) {
+            $arRow[(string) $mKey] = $mValue;
+        }
+
+        return $arRow;
     }
 
     /**
