@@ -63,8 +63,8 @@ final class CartPositionWatcherBrowserPixelTest extends ShopaholicAdapterTestCas
         PluginGuard::reset();
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PIXEL-1',
-            'capi_access_token' => 'TOKEN-1',
+            'pixel_id' => '100000000000001',
+            'capi_access_token' => 'EAATOKEN-1',
         ]);
         Settings::clearInternalCache();
 

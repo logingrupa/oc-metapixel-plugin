@@ -40,8 +40,8 @@ final class ThemeAjaxHandlerAllowlistTest extends MetapixelTestCase
         );
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PIXEL-1',
-            'capi_access_token' => 'TOKEN-1',
+            'pixel_id' => '100000000000001',
+            'capi_access_token' => 'EAATOKEN-1',
         ]);
         PluginGuard::reset();
         // Fresh array-driver RateLimiter per test — array cache resets in setUp.

@@ -49,8 +49,8 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         );
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PIXEL-1',
-            'capi_access_token' => 'TOKEN-1',
+            'pixel_id' => '100000000000001',
+            'capi_access_token' => 'EAATOKEN-1',
         ]);
         PluginGuard::reset();
         $this->app->forgetInstance(RateLimiter::class);
@@ -215,8 +215,8 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         $this->app->instance(ProductPageWatcher::class, $obFakeWatcher);
 
         Settings::set([
-            'pixel_id' => 'PIXEL-1',
-            'capi_access_token' => 'TOKEN-1',
+            'pixel_id' => '100000000000001',
+            'capi_access_token' => 'EAATOKEN-1',
             'test_event_code' => 'TEST123',
         ]);
         Settings::clearInternalCache();
@@ -341,8 +341,8 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
         App::make(AdapterRegistry::class)->register($sAdapterClass, $sAdapterClass);
 
         Settings::set([
-            'pixel_id' => 'PIXEL-1',
-            'capi_access_token' => 'TOKEN-1',
+            'pixel_id' => '100000000000001',
+            'capi_access_token' => 'EAATOKEN-1',
             'test_event_code' => 'TEST123',
         ]);
         Settings::clearInternalCache();
@@ -382,8 +382,8 @@ final class ThemeAjaxHandlerSubjectTypeTest extends MetapixelTestCase
     public function test_generic_theme_branch_carries_test_event_code_and_event_i_d_with_empty_custom_data(): void
     {
         Settings::set([
-            'pixel_id' => 'PIXEL-1',
-            'capi_access_token' => 'TOKEN-1',
+            'pixel_id' => '100000000000001',
+            'capi_access_token' => 'EAATOKEN-1',
             'test_event_code' => 'TEST123',
         ]);
         Settings::clearInternalCache();

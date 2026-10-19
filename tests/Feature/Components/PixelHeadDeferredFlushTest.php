@@ -36,7 +36,7 @@ final class PixelHeadDeferredFlushTest extends MetapixelTestCase
         App::singleton(PixelHeadDeferredFlushBuffer::class);
         PluginGuard::reset();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => 'TEST-PIXEL-1', 'capi_access_token' => 'TEST-TOKEN-1']);
+        Settings::set(['pixel_id' => '900000000000001', 'capi_access_token' => 'EAATEST-TOKEN-1']);
         Settings::clearInternalCache();
         PluginGuard::reset();
         $this->app['request']->headers->set('User-Agent', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36');
@@ -144,8 +144,8 @@ final class PixelHeadDeferredFlushTest extends MetapixelTestCase
         Bus::fake();
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PX',
-            'capi_access_token' => 'TOK',
+            'pixel_id' => '333333333333333',
+            'capi_access_token' => 'EAATOK',
             'test_event_code' => 'TEST123',
         ]);
         Settings::clearInternalCache();
@@ -162,8 +162,8 @@ final class PixelHeadDeferredFlushTest extends MetapixelTestCase
         Bus::fake();
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PX',
-            'capi_access_token' => 'TOK',
+            'pixel_id' => '333333333333333',
+            'capi_access_token' => 'EAATOK',
             'test_event_code' => 'TEST123',
         ]);
         Settings::clearInternalCache();

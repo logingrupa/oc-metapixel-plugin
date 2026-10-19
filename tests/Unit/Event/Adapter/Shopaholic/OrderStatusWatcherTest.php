@@ -16,6 +16,7 @@ use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Logingrupa\Metapixel\Updates\CreateMetapixelOrderBrowserContextsTable;
 use Lovata\OrdersShopaholic\Models\Order;
 use Lovata\OrdersShopaholic\Models\Status;
+use October\Rain\Database\Model;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -37,8 +38,8 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         app(AdapterRegistry::class)->register(Order::class, ShopaholicOrderAdapter::class);
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PIXEL-1',
-            'capi_access_token' => 'TOKEN-1',
+            'pixel_id' => '100000000000001',
+            'capi_access_token' => 'EAATOKEN-1',
             'paid_status_code' => 'new-payment-received',
             'default_currency_code' => 'EUR',
         ]);
@@ -191,9 +192,9 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         });
     }
 
-    private function makeUser(string $sLastIp): \October\Rain\Database\Model
+    private function makeUser(string $sLastIp): Model
     {
-        $obUser = new class extends \October\Rain\Database\Model
+        $obUser = new class extends Model
         {
             protected $table = 'users';
         };

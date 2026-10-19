@@ -55,7 +55,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
     {
         Bus::fake();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
         Settings::clearInternalCache();
         PluginGuard::reset();
 
@@ -73,7 +73,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
     {
         Bus::fake();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
         Settings::clearInternalCache();
         PluginGuard::reset();
 
@@ -101,7 +101,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
     {
         Bus::fake();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
         Settings::clearInternalCache();
         PluginGuard::reset();
 
@@ -137,7 +137,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
     {
         Bus::fake();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
         Settings::clearInternalCache();
         PluginGuard::reset();
 
@@ -173,7 +173,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
     {
         Bus::fake();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
         Settings::clearInternalCache();
         PluginGuard::reset();
         App::make(ThemeEventCollector::class)->push(['name' => 'ViewContent', 'value' => 99.99]);
@@ -191,7 +191,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
     {
         Bus::fake();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
         Settings::clearInternalCache();
         PluginGuard::reset();
         App::singleton(UserDataResolveHook::class);
@@ -230,7 +230,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
     {
         Bus::fake();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
         Settings::clearInternalCache();
         PluginGuard::reset();
 
@@ -242,7 +242,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
     public function test_dispatch_failure_does_not_break_page_render(): void
     {
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'TOKEN-X']);
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
         Settings::clearInternalCache();
         PluginGuard::reset();
         // Force SendCapiEvent::dispatch path to throw by removing the queue

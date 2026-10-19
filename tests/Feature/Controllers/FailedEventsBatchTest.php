@@ -30,8 +30,8 @@ final class FailedEventsBatchTest extends MetapixelTestCase
 
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PIXEL-BATCH',
-            'capi_access_token' => 'TOKEN-BATCH',
+            'pixel_id' => '700000000000003',
+            'capi_access_token' => 'EAATOKEN-BATCH',
         ]);
 
         app(AdapterRegistry::class)->register(stdClass::class, FakeAdapter::class);

@@ -27,7 +27,7 @@ final class ProductPixelTest extends MetapixelTestCase
         App::singleton(ThemeEventCollector::class);
         PluginGuard::reset();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => 'PX', 'capi_access_token' => 'TOK']);
+        Settings::set(['pixel_id' => '333333333333333', 'capi_access_token' => 'EAATOK']);
         Settings::clearInternalCache();
         PluginGuard::reset();
     }

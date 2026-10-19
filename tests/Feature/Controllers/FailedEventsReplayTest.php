@@ -35,8 +35,8 @@ final class FailedEventsReplayTest extends MetapixelTestCase
 
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PIXEL-REPLAY',
-            'capi_access_token' => 'TOKEN-REPLAY',
+            'pixel_id' => '700000000000001',
+            'capi_access_token' => 'EAATOKEN-REPLAY',
         ]);
 
         app(AdapterRegistry::class)->register(stdClass::class, FakeAdapter::class);
@@ -102,7 +102,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $this->assertIsArray($mResponse);
         $this->assertArrayHasKey('#failedEventList', $mResponse);
         $this->assertSame(1, $obSpy->iCallCount, 'sendForPixel must be called exactly once');
-        $this->assertSame('PIXEL-REPLAY', $obSpy->sLastPixelId);
+        $this->assertSame('700000000000001', $obSpy->sLastPixelId);
 
         $obFresh = FailedEvent::find($obRow->id);
         $this->assertSame(2, (int) $obFresh->attempts);
@@ -227,7 +227,7 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         // scenarios rather than letting Eloquent's ModelNotFoundException
         // bubble as a backend AJAX 500. RuntimeException short-circuits the
         // handler before any Meta API dispatch.
-        $this->expectException(\RuntimeException::class);
+        $this->expectException(RuntimeException::class);
         $obController->onReplay();
         $this->assertSame(0, $obSpy->iCallCount);
     }
@@ -244,9 +244,9 @@ final class FailedEventsReplayTest extends MetapixelTestCase
         $obController->onReplay();
 
         // D-01 Option A — site_id is null → Settings::lookupForSite(null) returns
-        // the default-row credentials (PIXEL-REPLAY / TOKEN-REPLAY seeded in setUp).
-        $this->assertSame('PIXEL-REPLAY', $obSpy->sLastPixelId);
-        $this->assertSame('TOKEN-REPLAY', $obSpy->sLastToken);
+        // the default-row credentials (700000000000001 / EAATOKEN-REPLAY seeded in setUp).
+        $this->assertSame('700000000000001', $obSpy->sLastPixelId);
+        $this->assertSame('EAATOKEN-REPLAY', $obSpy->sLastToken);
     }
 
     public function test_on_replay_returns_failed_event_list_refresh_partial(): void

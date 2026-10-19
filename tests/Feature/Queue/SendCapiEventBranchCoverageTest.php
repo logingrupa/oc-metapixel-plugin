@@ -30,7 +30,7 @@ final class SendCapiEventBranchCoverageTest extends MetapixelTestCase
         (new AddPayloadToMetapixelEventLogTable)->up();
         (new CreateMetapixelFailedEventsTable)->up();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => 'PIXEL-42', 'capi_access_token' => 'TOKEN-XYZ']);
+        Settings::set(['pixel_id' => '420000000000042', 'capi_access_token' => 'EAATOKEN-XYZ']);
         // Non-null site_id forces the UNIQUE race-fence constraint to actually fire
         // (SQLite + MySQL InnoDB treat multiple NULL values in a UNIQUE column as
         // DISTINCT — see plan 02-04 EventLogWriterRaceFenceTest comments).

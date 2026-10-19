@@ -22,8 +22,8 @@ final class FailedEventsDatasetQualityTest extends MetapixelTestCase
 
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PIXEL-DQ',
-            'capi_access_token' => 'TOKEN-DQ',
+            'pixel_id' => '700000000000004',
+            'capi_access_token' => 'EAATOKEN-DQ',
         ]);
 
         $obFlash = Mockery::mock();
@@ -70,7 +70,7 @@ final class FailedEventsDatasetQualityTest extends MetapixelTestCase
         $arResponse = $obController->onCheckDatasetQuality();
 
         $this->assertSame(1, $obFakeClient->iCallCount, 'one Graph call for the whole pixel');
-        $this->assertSame('PIXEL-DQ', $obFakeClient->sLastPixelId);
+        $this->assertSame('700000000000004', $obFakeClient->sLastPixelId);
         $this->assertArrayHasKey('#metapixelDatasetQuality', $arResponse);
         $this->assertSame([
             ['event_name' => 'PageView', 'emq' => 3.9, 'coverage' => null],

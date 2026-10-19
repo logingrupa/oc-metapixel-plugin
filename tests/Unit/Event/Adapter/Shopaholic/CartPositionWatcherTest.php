@@ -44,8 +44,8 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
         app(AdapterRegistry::class)->register(ThemeActionEvent::class, ThemeActionAdapter::class);
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PIXEL-1',
-            'capi_access_token' => 'TOKEN-1',
+            'pixel_id' => '100000000000001',
+            'capi_access_token' => 'EAATOKEN-1',
             'default_currency_code' => 'EUR',
         ]);
     }

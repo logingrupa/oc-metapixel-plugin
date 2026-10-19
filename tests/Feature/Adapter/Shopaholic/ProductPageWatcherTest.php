@@ -67,8 +67,8 @@ final class ProductPageWatcherTest extends ShopaholicAdapterTestCase
         ProductPageWatcher::resetViewGuard();
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'TEST-PIXEL-1',
-            'capi_access_token' => 'TEST-TOKEN-1',
+            'pixel_id' => '900000000000001',
+            'capi_access_token' => 'EAATEST-TOKEN-1',
             'default_currency_code' => 'EUR',
         ]);
         Settings::clearInternalCache();

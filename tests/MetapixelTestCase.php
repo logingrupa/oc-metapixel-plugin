@@ -5,7 +5,10 @@ namespace Logingrupa\Metapixel\Tests;
 use Backend\Classes\AuthManager;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Testing\TestCase;
+use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Schema;
+use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Models\Settings;
 use October\Rain\Database\Model;
 use October\Rain\Database\Model as ActiveRecord;
 use October\Rain\Database\Pivot;
@@ -117,7 +120,7 @@ abstract class MetapixelTestCase extends TestCase
         // across tests; clear it so Manifest::, System:: route to THIS app's
         // bindings (otherwise the pin lands on a stale singleton from a prior
         // refreshApplication and System::hasDatabase() returns false here).
-        \Illuminate\Support\Facades\Facade::clearResolvedInstances();
+        Facade::clearResolvedInstances();
         $app['system.manifest']->put('database.check', true);
         $obSystem = $app->make('system.helper');
         $obReflect = new \ReflectionObject($obSystem);
@@ -148,12 +151,15 @@ abstract class MetapixelTestCase extends TestCase
         // so Phase 4 Multisite Settings::lookupForSite's clearInternalCache
         // sees System::hasDatabase()=true on the fresh helper instance.
         $this->ensureMigrationsTableForHasDatabaseProbe($this->app);
+        PluginGuard::reset();
+        Settings::clearInternalCache();
 
         \Mail::pretend();
     }
 
     protected function tearDown(): void
     {
+        PluginGuard::reset();
         $this->flushModelEventListeners();
         $this->dropHermeticSchemas();
         parent::tearDown();

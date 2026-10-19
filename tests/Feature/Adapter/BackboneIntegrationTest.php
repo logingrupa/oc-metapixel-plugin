@@ -47,7 +47,7 @@ final class BackboneIntegrationTest extends MetapixelTestCase
         (new AddPayloadToMetapixelEventLogTable)->up();
         (new CreateMetapixelFailedEventsTable)->up();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => 'PIXEL-1', 'capi_access_token' => 'TOKEN-1']);
+        Settings::set(['pixel_id' => '100000000000001', 'capi_access_token' => 'EAATOKEN-1']);
         app(AdapterRegistry::class)->register(TestSubject::class, TestSubjectAdapter::class);
     }
 

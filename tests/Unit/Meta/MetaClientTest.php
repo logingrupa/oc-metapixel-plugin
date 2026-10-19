@@ -32,7 +32,7 @@ final class MetaClientTest extends MetapixelTestCase
         ]);
         $obClient = new Client(['handler' => HandlerStack::create($obMock)]);
 
-        $arResult = (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN-XYZ', ['data' => []]);
+        $arResult = (new MetaClient($obClient))->sendForPixel('420000000000042', 'EAATOKEN-XYZ', ['data' => []]);
 
         $this->assertSame(1, $arResult['events_received']);
         $this->assertSame('AAA', $arResult['fbtrace_id']);
@@ -41,13 +41,13 @@ final class MetaClientTest extends MetapixelTestCase
     public function test_throws_missing_pixel_config_on_empty_pixel_id(): void
     {
         $this->expectException(MissingPixelConfigException::class);
-        (new MetaClient)->sendForPixel('', 'TOKEN', ['data' => []]);
+        (new MetaClient)->sendForPixel('', 'EAATOKEN', ['data' => []]);
     }
 
     public function test_throws_missing_capi_token_on_empty_token(): void
     {
         $this->expectException(MissingCapiTokenException::class);
-        (new MetaClient)->sendForPixel('PIXEL-42', '', ['data' => []]);
+        (new MetaClient)->sendForPixel('420000000000042', '', ['data' => []]);
     }
 
     public static function provideTransientStatusCodes(): array
@@ -71,7 +71,7 @@ final class MetaClientTest extends MetapixelTestCase
         $obClient = new Client(['handler' => HandlerStack::create($obMock)]);
 
         try {
-            (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN', ['data' => []]);
+            (new MetaClient($obClient))->sendForPixel('420000000000042', 'EAATOKEN', ['data' => []]);
             $this->fail("expected MetaApiTransientException for status {$iStatus}");
         } catch (MetaApiTransientException $obException) {
             $this->assertSame($iStatus, $obException->getHttpStatus());
@@ -97,7 +97,7 @@ final class MetaClientTest extends MetapixelTestCase
         $obClient = new Client(['handler' => HandlerStack::create($obMock)]);
 
         try {
-            (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN', ['data' => []]);
+            (new MetaClient($obClient))->sendForPixel('420000000000042', 'EAATOKEN', ['data' => []]);
             $this->fail("expected MetaApiPermanentException for status {$iStatus}");
         } catch (MetaApiPermanentException $obException) {
             $this->assertSame($iStatus, $obException->getHttpStatus());
@@ -111,7 +111,7 @@ final class MetaClientTest extends MetapixelTestCase
         $obClient = new Client(['handler' => HandlerStack::create($obMock)]);
 
         try {
-            (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN', ['data' => []]);
+            (new MetaClient($obClient))->sendForPixel('420000000000042', 'EAATOKEN', ['data' => []]);
             $this->fail('expected MetaApiTransientException on ConnectException');
         } catch (MetaApiTransientException $obException) {
             $this->assertSame($obConnect, $obException->getPrevious(), 'original ConnectException MUST be carried as previous');
@@ -123,13 +123,13 @@ final class MetaClientTest extends MetapixelTestCase
     public function test_connect_failure_message_drops_guzzle_docs_link_and_url(): void
     {
         $obConnect = new ConnectException(
-            'cURL error 28: Resolving timed out after 5001 milliseconds (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://graph.facebook.com/v23.0/PIXEL-42/events',
+            'cURL error 28: Resolving timed out after 5001 milliseconds (see https://curl.haxx.se/libcurl/c/libcurl-errors.html) for https://graph.facebook.com/v23.0/420000000000042/events',
             new Request('POST', 'https://graph.facebook.com'),
         );
         $obClient = new Client(['handler' => HandlerStack::create(new MockHandler([$obConnect]))]);
 
         try {
-            (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN', ['data' => []]);
+            (new MetaClient($obClient))->sendForPixel('420000000000042', 'EAATOKEN', ['data' => []]);
             $this->fail('expected MetaApiTransientException on ConnectException');
         } catch (MetaApiTransientException $obException) {
             $this->assertSame('metapixel: graph API connect failure: cURL error 28: Resolving timed out after 5001 milliseconds', $obException->getMessage());
@@ -150,7 +150,7 @@ final class MetaClientTest extends MetapixelTestCase
         $obStack->push(Middleware::history($arHistory));
         $obClient = new Client(['handler' => $obStack]);
 
-        $arResult = (new MetaClient($obClient))->fetchDatasetQuality('PIXEL-42', 'TOKEN');
+        $arResult = (new MetaClient($obClient))->fetchDatasetQuality('420000000000042', 'EAATOKEN');
 
         $this->assertCount(1, $arHistory);
         /** @var RequestInterface $obRequest */
@@ -158,10 +158,10 @@ final class MetaClientTest extends MetapixelTestCase
         $this->assertSame('GET', $obRequest->getMethod());
         $sUrl = (string) $obRequest->getUri();
         $this->assertStringStartsWith('https://graph.facebook.com/'.MetaClient::META_GRAPH_API_VERSION.'/dataset_quality?', $sUrl);
-        $this->assertStringContainsString('dataset_id=PIXEL-42', $sUrl);
+        $this->assertStringContainsString('dataset_id=420000000000042', $sUrl);
         $this->assertStringContainsString('fields='.rawurlencode('web{event_name,event_match_quality,event_coverage}'), $sUrl);
-        $this->assertStringNotContainsString('TOKEN', $sUrl, 'token never travels in the URL');
-        $this->assertSame('Bearer TOKEN', $obRequest->getHeaderLine('Authorization'));
+        $this->assertStringNotContainsString('EAATOKEN', $sUrl, 'token never travels in the URL');
+        $this->assertSame('Bearer EAATOKEN', $obRequest->getHeaderLine('Authorization'));
         $this->assertSame(['event_match_quality' => [], 'event_coverage' => [], 'raw' => ['web' => []]], $arResult);
     }
 
@@ -176,7 +176,7 @@ final class MetaClientTest extends MetapixelTestCase
         ]]) ?: '';
         $obClient = new Client(['handler' => HandlerStack::create(new MockHandler([new Response(200, [], $sBody)]))]);
 
-        $arResult = (new MetaClient($obClient))->fetchDatasetQuality('PIXEL-42', 'TOKEN');
+        $arResult = (new MetaClient($obClient))->fetchDatasetQuality('420000000000042', 'EAATOKEN');
 
         $this->assertSame(['ViewContent' => 4.5, 'AddToCart' => 5.7], $arResult['event_match_quality']);
         $this->assertSame(['ViewContent' => 0.1, 'AddToCart' => 100.0], $arResult['event_coverage']);
@@ -189,7 +189,7 @@ final class MetaClientTest extends MetapixelTestCase
         $obClient = new Client(['handler' => HandlerStack::create(new MockHandler([new Response(400, [], $sBody)]))]);
 
         try {
-            (new MetaClient($obClient))->fetchDatasetQuality('PIXEL-42', 'TOKEN');
+            (new MetaClient($obClient))->fetchDatasetQuality('420000000000042', 'EAATOKEN');
             $this->fail('expected MetaApiPermanentException on HTTP 400');
         } catch (MetaApiPermanentException $obException) {
             $this->assertSame(400, $obException->getHttpStatus());
@@ -202,7 +202,7 @@ final class MetaClientTest extends MetapixelTestCase
         $obClient = new MetaClient(new Client(['handler' => HandlerStack::create(new MockHandler([]))]));
 
         $this->expectException(MissingPixelConfigException::class);
-        $obClient->fetchDatasetQuality('', 'TOKEN');
+        $obClient->fetchDatasetQuality('', 'EAATOKEN');
     }
 
     public function test_url_contains_graph_version_and_pixel_id_and_token_lives_in_body(): void
@@ -213,7 +213,7 @@ final class MetaClientTest extends MetapixelTestCase
         $obStack->push(Middleware::history($arHistory));
         $obClient = new Client(['handler' => $obStack]);
 
-        (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN-XYZ', ['data' => [['event_name' => 'Purchase']]]);
+        (new MetaClient($obClient))->sendForPixel('420000000000042', 'EAATOKEN-XYZ', ['data' => [['event_name' => 'Purchase']]]);
 
         $this->assertCount(1, $arHistory);
         /** @var RequestInterface $obRequest */
@@ -221,15 +221,15 @@ final class MetaClientTest extends MetapixelTestCase
         $sUrl = (string) $obRequest->getUri();
 
         // Graph version + pixel id in path
-        $this->assertStringContainsString('/v23.0/PIXEL-42/events', $sUrl);
+        $this->assertStringContainsString('/v23.0/420000000000042/events', $sUrl);
         // Token MUST NOT appear in URL (leaks via webserver access logs)
         $this->assertStringNotContainsString('access_token=', $sUrl);
-        $this->assertStringNotContainsString('TOKEN-XYZ', $sUrl);
+        $this->assertStringNotContainsString('EAATOKEN-XYZ', $sUrl);
 
         // Token IS in body json
         $sBody = (string) $obRequest->getBody();
         $arBody = json_decode($sBody, associative: true);
-        $this->assertSame('TOKEN-XYZ', $arBody['access_token']);
+        $this->assertSame('EAATOKEN-XYZ', $arBody['access_token']);
         $this->assertArrayHasKey('data', $arBody);
     }
 
@@ -246,7 +246,7 @@ final class MetaClientTest extends MetapixelTestCase
         $obMock = new MockHandler([new Response(200, [], 'not-json-at-all')]);
         $obClient = new Client(['handler' => HandlerStack::create($obMock)]);
 
-        $arResult = (new MetaClient($obClient))->sendForPixel('PIXEL-42', 'TOKEN', ['data' => []]);
+        $arResult = (new MetaClient($obClient))->sendForPixel('420000000000042', 'EAATOKEN', ['data' => []]);
 
         $this->assertSame([], $arResult);
     }

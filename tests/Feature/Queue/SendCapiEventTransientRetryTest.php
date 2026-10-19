@@ -28,7 +28,7 @@ final class SendCapiEventTransientRetryTest extends MetapixelTestCase
         (new AddPayloadToMetapixelEventLogTable)->up();
         (new CreateMetapixelFailedEventsTable)->up();
         Settings::clearInternalCache();
-        Settings::set(['pixel_id' => 'PIXEL-42', 'capi_access_token' => 'TOKEN-XYZ']);
+        Settings::set(['pixel_id' => '420000000000042', 'capi_access_token' => 'EAATOKEN-XYZ']);
         app(AdapterRegistry::class)->register(TestSubject::class, TestSubjectAdapter::class);
     }
 

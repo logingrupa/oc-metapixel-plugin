@@ -29,8 +29,8 @@ final class FailedEventsHelpersTest extends MetapixelTestCase
 
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'PIXEL-HELP',
-            'capi_access_token' => 'TOKEN-HELP',
+            'pixel_id' => '700000000000002',
+            'capi_access_token' => 'EAATOKEN-HELP',
         ]);
 
         app(AdapterRegistry::class)->register(stdClass::class, FakeAdapter::class);

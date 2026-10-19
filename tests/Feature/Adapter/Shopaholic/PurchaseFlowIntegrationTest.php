@@ -26,7 +26,9 @@ use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelFailedEventsTable;
 use Logingrupa\Metapixel\Updates\CreateMetapixelOrderBrowserContextsTable;
 use Lovata\OrdersShopaholic\Models\Order;
+use Lovata\Shopaholic\Models\Offer;
 use PHPUnit\Framework\Attributes\Group;
+use Psr\Http\Message\RequestInterface;
 use Ramsey\Uuid\Uuid;
 
 /**
@@ -42,7 +44,7 @@ use Ramsey\Uuid\Uuid;
 #[Group('adapter')]
 final class PurchaseFlowIntegrationTest extends ShopaholicAdapterTestCase
 {
-    /** @var list<array{request: \Psr\Http\Message\RequestInterface, response: mixed, error: mixed, options: array<string, mixed>}> */
+    /** @var list<array{request: RequestInterface, response: mixed, error: mixed, options: array<string, mixed>}> */
     private array $arHistory = [];
 
     protected function setUp(): void
@@ -67,8 +69,8 @@ final class PurchaseFlowIntegrationTest extends ShopaholicAdapterTestCase
 
         Settings::clearInternalCache();
         Settings::set([
-            'pixel_id' => 'test-pixel-123',
-            'capi_access_token' => 'test-token-xyz',
+            'pixel_id' => '123000000000123',
+            'capi_access_token' => 'EAAtest-token-xyz',
             'paid_status_code' => 'new-payment-received',
             'default_currency_code' => 'EUR',
         ]);
@@ -131,7 +133,7 @@ final class PurchaseFlowIntegrationTest extends ShopaholicAdapterTestCase
 
         $sUrl = (string) $this->arHistory[0]['request']->getUri();
         $this->assertSame(
-            'https://graph.facebook.com/v23.0/test-pixel-123/events',
+            'https://graph.facebook.com/v23.0/123000000000123/events',
             $sUrl,
             'URL hits Graph v23.0 with the test pixel id',
         );
@@ -140,7 +142,7 @@ final class PurchaseFlowIntegrationTest extends ShopaholicAdapterTestCase
         /** @var array<string, mixed> $arBody */
         $arBody = json_decode($sBody, true) ?: [];
 
-        $this->assertSame('test-token-xyz', $arBody['access_token'] ?? null, 'access_token merged into body');
+        $this->assertSame('EAAtest-token-xyz', $arBody['access_token'] ?? null, 'access_token merged into body');
         $this->assertIsArray($arBody['data'] ?? null);
         $arEvent = $arBody['data'][0] ?? [];
         $this->assertIsArray($arEvent);
@@ -280,7 +282,7 @@ final class PurchaseFlowIntegrationTest extends ShopaholicAdapterTestCase
                 'id' => 1,
                 'order_id' => 1,
                 'item_id' => 1,
-                'item_type' => \Lovata\Shopaholic\Models\Offer::class,
+                'item_type' => Offer::class,
                 'offer_id' => 1,
                 'quantity' => 1,
                 'price_value' => 99.99,

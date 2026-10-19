@@ -85,54 +85,54 @@ final class SettingsLookupForSiteTest extends MetapixelTestCase
 
     public function test_lookup_for_site_null_returns_default_row(): void
     {
-        $this->seedDefaultRow('DEFAULT_PIXEL', 'DEFAULT_TOKEN');
+        $this->seedDefaultRow('222222222222222', 'EAADEFAULT_TOKEN');
 
         $arResult = Settings::lookupForSite(null);
 
         $this->assertSame(
-            ['pixel_id' => 'DEFAULT_PIXEL', 'capi_access_token' => 'DEFAULT_TOKEN'],
+            ['pixel_id' => '222222222222222', 'capi_access_token' => 'EAADEFAULT_TOKEN'],
             $arResult
         );
     }
 
     public function test_lookup_for_site_with_id_returns_per_site_row(): void
     {
-        $this->seedDefaultRow('DEFAULT_PIXEL', 'DEFAULT_TOKEN');
-        $this->seedPerSiteRow(1, 'SITE1_PIXEL', 'SITE1_TOKEN');
+        $this->seedDefaultRow('222222222222222', 'EAADEFAULT_TOKEN');
+        $this->seedPerSiteRow(1, '111111111111111', 'EAASITE1_TOKEN');
 
         $arResult = Settings::lookupForSite(1);
 
         $this->assertSame(
-            ['pixel_id' => 'SITE1_PIXEL', 'capi_access_token' => 'SITE1_TOKEN'],
+            ['pixel_id' => '111111111111111', 'capi_access_token' => 'EAASITE1_TOKEN'],
             $arResult
         );
     }
 
     public function test_lookup_for_site_empty_per_site_pixel_falls_back_to_default(): void
     {
-        $this->seedDefaultRow('DEFAULT_PIXEL', 'DEFAULT_TOKEN');
-        $this->seedPerSiteRow(1, '', 'SITE1_TOKEN');
+        $this->seedDefaultRow('222222222222222', 'EAADEFAULT_TOKEN');
+        $this->seedPerSiteRow(1, '', 'EAASITE1_TOKEN');
 
         $arResult = Settings::lookupForSite(1);
 
-        $this->assertSame('DEFAULT_PIXEL', $arResult['pixel_id'], 'D-01: empty per-site pixel_id falls back to default.');
-        $this->assertSame('SITE1_TOKEN', $arResult['capi_access_token']);
+        $this->assertSame('222222222222222', $arResult['pixel_id'], 'D-01: empty per-site pixel_id falls back to default.');
+        $this->assertSame('EAASITE1_TOKEN', $arResult['capi_access_token']);
     }
 
     public function test_lookup_for_site_null_per_site_token_falls_back_to_default(): void
     {
-        $this->seedDefaultRow('DEFAULT_PIXEL', 'DEFAULT_TOKEN');
-        $this->seedPerSiteRow(1, 'SITE1_PIXEL', null);
+        $this->seedDefaultRow('222222222222222', 'EAADEFAULT_TOKEN');
+        $this->seedPerSiteRow(1, '111111111111111', null);
 
         $arResult = Settings::lookupForSite(1);
 
-        $this->assertSame('SITE1_PIXEL', $arResult['pixel_id']);
-        $this->assertSame('DEFAULT_TOKEN', $arResult['capi_access_token'], 'D-01: null per-site token falls back to default.');
+        $this->assertSame('111111111111111', $arResult['pixel_id']);
+        $this->assertSame('EAADEFAULT_TOKEN', $arResult['capi_access_token'], 'D-01: null per-site token falls back to default.');
     }
 
     public function test_lookup_for_site_return_shape_is_array_with_two_keys(): void
     {
-        $this->seedDefaultRow('P', 'T');
+        $this->seedDefaultRow('555555555555555', 'EAAT');
 
         $arResult = Settings::lookupForSite(null);
 
