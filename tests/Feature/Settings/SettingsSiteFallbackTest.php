@@ -55,6 +55,7 @@ final class SettingsSiteFallbackTest extends MetapixelTestCase
             'default_currency_code' => 'EUR',
             'test_event_code' => 'TEST1',
             'paid_status_code' => ['complete'],
+            'trusted_hosts' => 'example.com',
         ]);
     }
 
@@ -109,6 +110,7 @@ final class SettingsSiteFallbackTest extends MetapixelTestCase
         $this->assertEmpty($arValue['capi_access_token'] ?? null);
         $this->assertSame('EUR', $arValue['default_currency_code'] ?? null);
         $this->assertSame('T2', $arValue['test_event_code'] ?? null);
+        $this->assertSame('example.com', $arValue['trusted_hosts'] ?? null);
         $this->assertSame(
             ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1'],
             Settings::lookupForSite(2)

@@ -204,8 +204,8 @@ class MetaClient
     }
 
     /**
-     * Refuses an empty or malformed credential before any HTTP request. Messages
-     * state the rule and never the value (an autofilled password must not reach logs).
+     * Refuses an empty or malformed credential before any HTTP request.
+     * Messages state the rule and never the value.
      *
      * @throws MissingPixelConfigException
      * @throws MissingCapiTokenException

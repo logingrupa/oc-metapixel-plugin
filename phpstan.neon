@@ -130,7 +130,7 @@ parameters:
             #
             # Rule semantics (Spaze\PHPStan\Rules\Disallowed\Allowed\Allowed::isAllowed):
             # `allowIn` short-circuits to allowed for the whitelisted file.
-            # Outside those paths, `allowExceptParamsAnywhere` only fires the disallow
+            # Outside that file, `allowExceptParamsAnywhere` only fires the disallow
             # when the first arg matches 'pixel_id' or 'capi_access_token'; calls with
             # any other key (test_event_code, default_currency_code, paid_status_code,
             # etc.) remain allowed.

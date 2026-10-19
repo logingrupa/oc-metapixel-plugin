@@ -65,7 +65,7 @@ final class PluginGuard
         $bIsDisabled = ! CredentialFormat::isPixelId($arCredentials['pixel_id'])
             || ($sToken !== '' && ! CredentialFormat::isAccessToken($sToken));
         if ($bIsDisabled) {
-            self::warnOncePerDay($iKey);
+            self::warnOncePerDay($iSiteId);
         }
 
         return self::$arDisabledBySite[$iKey] = $bIsDisabled;
@@ -75,13 +75,18 @@ final class PluginGuard
      * Cache::add writes only when the key is absent, so the warning lands
      * once per interval across every request and worker on the host.
      */
-    private static function warnOncePerDay(int $iSiteId): void
+    private static function warnOncePerDay(?int $iSiteId): void
     {
-        if (! Cache::add(self::WARNING_CACHE_KEY, 1, self::WARNING_INTERVAL_SECONDS)) {
-            return;
-        }
+        try {
+            if (! Cache::add(self::WARNING_CACHE_KEY, 1, self::WARNING_INTERVAL_SECONDS)) {
+                return;
+            }
 
-        Log::warning('metapixel: site '.$iSiteId.' disabled - pixel_id must be digits only and the access token empty or starting with EAA (events suppressed)');
+            $sSubject = $iSiteId === null ? 'default row' : 'site '.$iSiteId;
+            Log::warning('metapixel: '.$sSubject.' disabled - pixel_id must be digits only and the access token empty or starting with EAA (events suppressed)');
+        } catch (Throwable) {
+            // Best-effort warning: a cache or log failure must not break page render.
+        }
     }
 
     /**

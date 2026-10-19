@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\MessageBag;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
-use Logingrupa\Metapixel\Classes\Meta\CredentialFormat;
+use Logingrupa\Metapixel\Classes\Helper\SettingsCredentialErrors;
 use Lovata\Toolbox\Models\CommonSettings;
 use October\Rain\Database\ModelException;
 use System\Facades\System;
@@ -193,7 +193,7 @@ class Settings extends CommonSettings
      */
     public function beforeSave(): void
     {
-        $arCredentialErrors = CredentialFormat::fieldErrors($this->getAttribute('pixel_id'), $this->getAttribute('capi_access_token'));
+        $arCredentialErrors = SettingsCredentialErrors::forValues($this->getAttribute('pixel_id'), $this->getAttribute('capi_access_token'));
         if ($arCredentialErrors !== []) {
             $this->obValidationErrors = new MessageBag($arCredentialErrors);
 

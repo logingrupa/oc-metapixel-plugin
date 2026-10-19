@@ -3,8 +3,6 @@
 namespace Logingrupa\Metapixel\Classes\Exception;
 
 /**
- * Thrown at event-fire time when Settings::lookupForSite returns an empty
- * capi_access_token. The CAPI dispatch step cannot proceed without it; pixel
- * dispatch (browser channel) is unaffected.
+ * Thrown by MetaClient when the access token is empty or does not start with EAA.
  */
 final class MissingCapiTokenException extends MetaPixelException {}

@@ -2,8 +2,6 @@
 
 namespace Logingrupa\Metapixel\Classes\Meta;
 
-use Illuminate\Support\Facades\Lang;
-
 /**
  * Meta credential format rule: pixel ids are digits only, CAPI access tokens start with EAA.
  */
@@ -37,27 +35,5 @@ final class CredentialFormat
     public static function accessTokenErrorKey(string $sValue): ?string
     {
         return $sValue === '' || self::isAccessToken($sValue) ? null : 'capi_access_token_prefix';
-    }
-
-    /**
-     * Settings form errors keyed by field. Empty values pass; messages never echo the value.
-     *
-     * @return array<string, list<string>>
-     */
-    public static function fieldErrors(mixed $mPixel, mixed $mToken): array
-    {
-        $arErrorKeys = array_filter([
-            'pixel_id' => self::pixelIdErrorKey(is_string($mPixel) ? $mPixel : ''),
-            'capi_access_token' => self::accessTokenErrorKey(is_string($mToken) ? $mToken : ''),
-        ]);
-
-        $arErrors = [];
-        foreach ($arErrorKeys as $sField => $sErrorKey) {
-            $sLangKey = 'logingrupa.metapixel::lang.validation.'.$sErrorKey;
-            $mMessage = Lang::get($sLangKey);
-            $arErrors[$sField] = [is_string($mMessage) ? $mMessage : $sLangKey];
-        }
-
-        return $arErrors;
     }
 }

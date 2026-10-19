@@ -16,6 +16,7 @@ use Logingrupa\Metapixel\Classes\Helper\CrawlerUserAgent;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Helper\RequestKind;
+use Logingrupa\Metapixel\Classes\Meta\CredentialFormat;
 use Logingrupa\Metapixel\Classes\Meta\FbqScriptBuilder;
 use Logingrupa\Metapixel\Classes\Meta\PayloadBuilder;
 use Logingrupa\Metapixel\Classes\Meta\PixelRenderHook;
@@ -105,7 +106,7 @@ class PixelHead extends ComponentBase
             $iSiteId = $obAdapter->getSiteId($obProbeEvent);
             $arCreds = Settings::lookupForSite($iSiteId);
             $sPixelId = $arCreds['pixel_id'];
-            if ($sPixelId === '') {
+            if (! CredentialFormat::isPixelId($sPixelId)) {
                 return;
             }
 

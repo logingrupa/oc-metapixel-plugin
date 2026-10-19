@@ -178,6 +178,26 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
         $this->assertSame($sStoredBefore, $this->readStoredRow());
     }
 
+    /** @return array<string, array{0: string, 1: int}> */
+    public static function provideNonStringCredentials(): array
+    {
+        return [
+            'int pixel id' => ['pixel_id', 2291486191076331],
+            'int token' => ['capi_access_token', 12345],
+        ];
+    }
+
+    #[DataProvider('provideNonStringCredentials')]
+    public function test_before_save_refuses_non_string_credentials(string $sField, int $iValue): void
+    {
+        try {
+            Settings::set([$sField => $iValue]);
+            $this->fail('Settings::set accepted a non-string '.$sField.'.');
+        } catch (ModelException $obException) {
+            $this->assertTrue($obException->getModel()->errors()->has($sField));
+        }
+    }
+
     public function test_before_save_accepts_empty_credentials(): void
     {
         Settings::set(['pixel_id' => '', 'capi_access_token' => '']);

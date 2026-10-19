@@ -146,6 +146,26 @@ final class PluginGuardTest extends MetapixelTestCase
         $this->assertFalse(PluginGuard::isDisabledForSite(1));
     }
 
+    public function test_warning_names_the_default_row_or_the_site(): void
+    {
+        $this->insertRow(null, ['pixel_id' => 'owner@example.com']);
+        $this->insertRow(2, ['pixel_id' => 'abc123']);
+        Log::shouldReceive('warning')->once()->withArgs(static fn (string $sMessage): bool => str_starts_with($sMessage, 'metapixel: default row disabled'));
+        Log::shouldReceive('warning')->once()->withArgs(static fn (string $sMessage): bool => str_starts_with($sMessage, 'metapixel: site 2 disabled'));
+
+        $this->assertTrue(PluginGuard::isDisabledForSite(null));
+        Cache::forget(PluginGuard::WARNING_CACHE_KEY);
+        $this->assertTrue(PluginGuard::isDisabledForSite(2));
+    }
+
+    public function test_warning_throttle_failure_never_throws(): void
+    {
+        $this->insertRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'EAAB1']);
+        Cache::shouldReceive('add')->andThrow(new RuntimeException('cache store down'));
+
+        $this->assertTrue(PluginGuard::isDisabledForSite(2));
+    }
+
     public function test_settings_read_failure_disables_without_memoising(): void
     {
         Schema::rename('system_settings', 'system_settings_away');

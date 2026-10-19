@@ -83,7 +83,7 @@ class EnsureFbpFbcCookies
         }
 
         $obSite = Site::getSiteFromRequest($obRequest->root(), $obRequest->path());
-        if (! $obSite instanceof SiteDefinition || ! $obSite->is_enabled) {
+        if (! $obSite instanceof SiteDefinition) {
             return [];
         }
 
@@ -181,7 +181,7 @@ class EnsureFbpFbcCookies
     /**
      * Site-level skip inside the request site context: PluginGuard-disabled
      * site or kill switch off. Settings::get throwing falls back to enabled
-     * (Pitfall 8) so the initial migration HTTP request does not 500.
+     * so the initial migration HTTP request does not 500.
      */
     private function isSiteSkipped(): bool
     {
@@ -220,7 +220,7 @@ class EnsureFbpFbcCookies
         try {
             $mRaw = Settings::get('trusted_hosts', '');
         } catch (Throwable $obException) {
-            // boundary fail-safe — same rationale as isSiteSkipped's catch block.
+            // boundary fail-safe - same rationale as isSiteSkipped's catch block.
             Log::warning(
                 'metapixel: trusted_hosts lookup threw — middleware NO-OPs',
                 ['exception' => get_class($obException)]

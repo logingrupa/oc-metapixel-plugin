@@ -239,6 +239,24 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         Bus::assertNotDispatched(SendCapiEvent::class);
     }
 
+    public function test_skips_emission_when_the_rendered_pixel_id_is_malformed(): void
+    {
+        Bus::fake();
+        Settings::clearInternalCache();
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X']);
+        Settings::clearInternalCache();
+        PluginGuard::reset();
+        $this->assertFalse(PluginGuard::isDisabled());
+        DB::table('system_settings')
+            ->where('item', 'logingrupa_metapixel_settings')
+            ->update(['value' => json_encode(['pixel_id' => 'owner@example.com', 'capi_access_token' => 'EAATOKEN-X'])]);
+
+        $arPage = $this->runComponent(new PixelHead);
+
+        $this->assertNull($arPage['pixelHeadBase'], 'the rendered pixel id passes the same format rule as the Graph call');
+        Bus::assertNotDispatched(SendCapiEvent::class);
+    }
+
     public function test_collector_flush_still_runs_alongside_base_pixel(): void
     {
         Bus::fake();

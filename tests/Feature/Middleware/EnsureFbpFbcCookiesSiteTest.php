@@ -53,10 +53,10 @@ final class EnsureFbpFbcCookiesSiteTest extends MetapixelTestCase
     {
         DB::table('system_site_definitions')->where('id', 2)->update(['is_enabled' => 0]);
         Site::resetCache();
-        $this->insertRow(1, ['pixel_id' => '', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
-        $this->insertRow(2, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $this->insertRow(1, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $this->insertRow(2, ['pixel_id' => 'owner@example.com', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
 
-        $this->assertFalse($this->hasFbp($this->dispatchPath('/two/page')));
+        $this->assertTrue($this->hasFbp($this->dispatchPath('/two/page')));
     }
 
     public function test_request_matching_no_enabled_site_gets_no_cookies(): void
