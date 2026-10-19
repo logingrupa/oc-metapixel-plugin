@@ -200,7 +200,7 @@ class EnsureFbpFbcCookies
             // migration must not 500 the HTTP request - default to enabled and
             // let downstream readTrustedHosts handle the empty-list NO-OP.
             Log::warning(
-                'metapixel: PluginGuard or kill-switch lookup threw - middleware defaults to enabled',
+                'metapixel: kill-switch lookup threw - middleware defaults to enabled',
                 ['exception' => get_class($obException)]
             );
 
