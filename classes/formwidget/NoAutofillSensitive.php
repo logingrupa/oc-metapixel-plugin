@@ -5,7 +5,7 @@ namespace Logingrupa\Metapixel\Classes\FormWidget;
 use Backend\FormWidgets\Sensitive;
 
 /**
- * The sensitive token input that browser password managers leave alone.
+ * The sensitive token input that browsers do not fill with a saved password.
  */
 final class NoAutofillSensitive extends Sensitive
 {
@@ -18,7 +18,7 @@ final class NoAutofillSensitive extends Sensitive
     public function init(): void
     {
         parent::init();
-        $this->addViewPath(base_path('modules/backend/formwidgets/sensitive/partials'), true);
+        $this->addViewPath($this->guessViewPathFrom(Sensitive::class, '/partials'), true);
     }
 
     /**
@@ -26,7 +26,7 @@ final class NoAutofillSensitive extends Sensitive
      */
     protected function loadAssets(): void
     {
-        $this->assetPath = '/modules/backend/formwidgets/sensitive/assets';
+        $this->assetPath = $this->guessViewPathFrom(Sensitive::class, '/assets', true);
         parent::loadAssets();
     }
 }

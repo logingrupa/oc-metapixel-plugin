@@ -31,18 +31,30 @@ final class NoAutofillSensitiveTest extends MetapixelTestCase
 
     public function test_token_input_renders_new_password_autocomplete(): void
     {
-        $obController = (new ReflectionClass(Controller::class))->newInstanceWithoutConstructor();
-        $obWidget = new NoAutofillSensitive(
-            $obController,
-            new FormField('capi_access_token', 'CAPI token'),
-            ['model' => new Settings],
-        );
-
-        $sHtml = $obWidget->render();
+        $sHtml = $this->makeWidget()->render();
 
         $this->assertStringContainsString('data-control="sensitive"', $sHtml);
         $this->assertStringContainsString('autocomplete="new-password"', $sHtml);
         $this->assertStringNotContainsString('autocomplete="off"', $sHtml);
         $this->assertStringContainsString('name="capi_access_token"', $sHtml);
+    }
+
+    public function test_widget_loads_the_core_sensitive_assets(): void
+    {
+        $arAssetPaths = $this->makeWidget()->getAssetPaths();
+
+        $this->assertSame(['/modules/backend/formwidgets/sensitive/assets/js/sensitive.js'], $arAssetPaths['js']);
+        $this->assertSame(['/modules/backend/formwidgets/sensitive/assets/css/sensitive.css'], $arAssetPaths['css']);
+    }
+
+    private function makeWidget(): NoAutofillSensitive
+    {
+        $obController = (new ReflectionClass(Controller::class))->newInstanceWithoutConstructor();
+
+        return new NoAutofillSensitive(
+            $obController,
+            new FormField('capi_access_token', 'CAPI token'),
+            ['model' => new Settings],
+        );
     }
 }

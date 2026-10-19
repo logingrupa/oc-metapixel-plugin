@@ -132,7 +132,7 @@ Consent: send identity only for visitors who gave it to you, that is a logged-in
 
 ### Per-site setup
 
-On a multi-site install, pick the target site from the backend top-bar site picker **before** you open the settings panel. The **Pixel ID** and **CAPI Access Token** you enter are scoped to the selected site; every other field is shared. See [Multi-site routing](#multi-site-routing) below for the isolation guarantee.
+On a multi-site install, pick the target site from the backend top-bar site picker **before** you open the settings panel. The **Pixel ID** and **CAPI Access Token** you enter are scoped to the selected site. A site without its own settings uses the default site's values. Saving under a site stores that site's own copy, and empty credentials in it keep using the default credentials. See [Multi-site routing](#multi-site-routing) below for the isolation guarantee.
 
 ## Acquire Meta credentials
 
@@ -239,7 +239,7 @@ Grep the OctoberCMS runtime log at `storage/logs/system.log` for these signature
 
 ## Multi-site routing
 
-On a multi-site OctoberCMS install, the operator selects the target site from the backend top-bar site picker. The **Pixel ID** and **CAPI Access Token** are stored as per-site settings rows, so each site tracks against its own Meta Pixel. Cross-site propagation of these two fields is locked off, which prevents one site's access token from leaking into another site's configuration. Every other setting is shared across sites.
+On a multi-site OctoberCMS install, the operator selects the target site from the backend top-bar site picker. The **Pixel ID** and **CAPI Access Token** are stored as per-site settings rows, so each site tracks against its own Meta Pixel. Cross-site propagation of these two fields is locked off, which prevents one site's access token from leaking into another site's configuration. A site without its own settings uses the default site's values. Saving under a site stores that site's own copy, and empty credentials in it keep using the default credentials.
 
 Server-side event dispatch reads the site from the tracked subject itself — never from the incoming request — so an event queued for one site always resolves that site's credentials, regardless of which site's request triggered it.
 
