@@ -95,6 +95,11 @@ return [
         'sync_queue_title' => 'Rinda darbojas sinhroni (QUEUE_CONNECTION=sync)',
         'sync_queue_hint' => 'Katrs Conversions API sūtījums notiek apmeklētāja pieprasījuma laikā, un neizdevies sūtījums netiek atkārtots. Konfigurējiet rindas savienojumu (redis vai database) un palaidiet worker procesu; skatiet spraudņa README sadaļu Install.',
     ],
+    'validation' => [
+        'pixel_id_email' => 'Pixel ID izskatās pēc e-pasta adreses. Iespējams, pārlūka paroļu pārvaldnieks šeit ievadīja pieteikšanās vārdu. Ievadiet skaitlisko Pixel ID no Meta Events Manager.',
+        'pixel_id_digits' => 'Pixel ID drīkst saturēt tikai ciparus. Nokopējiet to no Meta Events Manager.',
+        'capi_access_token_prefix' => 'Piekļuves marķierim jāsākas ar EAA. Iespējams, pārlūka paroļu pārvaldnieks šeit ievadīja saglabātu paroli. Ielīmējiet Meta Events Manager ģenerēto marķieri.',
+    ],
     'exception' => [
         'missing_pixel_config' => 'Meta Pixel ID nav konfigurēts. Iestatiet to sadaļā Iestatījumi > Meta Pixel + CAPI > Pixel & CAPI cilne.',
         'missing_capi_token' => 'Meta CAPI piekļuves marķieris nav konfigurēts.',

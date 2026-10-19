@@ -2,9 +2,12 @@
 
 namespace Logingrupa\Metapixel\Tests\Unit\Models;
 
+use Illuminate\Support\Facades\DB;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Mockery;
+use October\Rain\Database\ModelException;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
@@ -22,6 +25,7 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
     {
         parent::setUp();
         Settings::clearInternalCache();
+        $this->app['translator']->addNamespace('logingrupa.metapixel', dirname(__DIR__, 3).'/lang');
     }
 
     protected function tearDown(): void
@@ -30,7 +34,7 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
         parent::tearDown();
     }
 
-    public function test_beforeSave_keeps_valid_entries_one_per_line(): void
+    public function test_before_save_keeps_valid_entries_one_per_line(): void
     {
         Settings::set(['theme_custom_event_names' => "Foo\nBar_baz\nQuux42\n"]);
 
@@ -39,7 +43,7 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
         $this->assertSame(['Foo', 'Bar_baz', 'Quux42'], $arResult);
     }
 
-    public function test_beforeSave_drops_entries_with_dashes_or_special_chars(): void
+    public function test_before_save_drops_entries_with_dashes_or_special_chars(): void
     {
         $obFlashFake = Mockery::mock();
         $obFlashFake->shouldReceive('warning')->andReturnNull();
@@ -51,7 +55,7 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
         $this->assertSame(['Good'], $arResult);
     }
 
-    public function test_beforeSave_drops_entries_over_50_chars(): void
+    public function test_before_save_drops_entries_over_50_chars(): void
     {
         $obFlashFake = Mockery::mock();
         $obFlashFake->shouldReceive('warning')->andReturnNull();
@@ -64,7 +68,7 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
         $this->assertSame(['Valid'], $arResult);
     }
 
-    public function test_beforeSave_drops_empty_lines_silently_without_flash(): void
+    public function test_before_save_drops_empty_lines_silently_without_flash(): void
     {
         $obFlashFake = Mockery::mock();
         $obFlashFake->shouldNotReceive('warning');
@@ -76,7 +80,7 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
         $this->assertSame(['GoodName'], $arResult);
     }
 
-    public function test_beforeSave_flashes_warning_listing_dropped_entries(): void
+    public function test_before_save_flashes_warning_listing_dropped_entries(): void
     {
         $obFlashFake = Mockery::mock();
         $obFlashFake->shouldReceive('warning')
@@ -139,5 +143,63 @@ final class SettingsBeforeSaveTest extends MetapixelTestCase
             $this->assertNotSame($sKey, $sValue, "Lang key 'field.{$sKey}' value is a placeholder copy of the key.");
             $this->assertGreaterThan(0, strlen($sValue), "Lang key 'field.{$sKey}' resolved to an empty string.");
         }
+    }
+
+    /** @return array<string, array{0: string, 1: string, 2: string}> */
+    public static function provideRejectedCredentials(): array
+    {
+        return [
+            'email pixel id' => ['pixel_id', 'owner@example.com', 'pixel_id_email'],
+            'letters in pixel id' => ['pixel_id', 'abc123', 'pixel_id_digits'],
+            'password token' => ['capi_access_token', 'hunter2hunter2', 'capi_access_token_prefix'],
+        ];
+    }
+
+    #[DataProvider('provideRejectedCredentials')]
+    public function test_before_save_refuses_malformed_credentials_without_echoing_them(
+        string $sField,
+        string $sValue,
+        string $sLangKey,
+    ): void {
+        Settings::set(['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB12']);
+        $sStoredBefore = $this->readStoredRow();
+
+        try {
+            Settings::set([$sField => $sValue]);
+            $this->fail('Settings::set accepted a malformed '.$sField.'.');
+        } catch (ModelException $obException) {
+            $sMessage = (string) $obException->getModel()->errors()->first($sField);
+            $arLang = require dirname(__DIR__, 3).'/lang/en/lang.php';
+            $this->assertSame($arLang['validation'][$sLangKey], $sMessage);
+            $this->assertStringNotContainsString($sValue, $sMessage);
+            $this->assertStringNotContainsString($sValue, $obException->getMessage());
+        }
+
+        $this->assertSame($sStoredBefore, $this->readStoredRow());
+    }
+
+    public function test_before_save_accepts_empty_credentials(): void
+    {
+        Settings::set(['pixel_id' => '', 'capi_access_token' => '']);
+
+        $arStored = json_decode($this->readStoredRow(), true);
+        $this->assertSame('', $arStored['pixel_id']);
+        $this->assertSame('', $arStored['capi_access_token']);
+    }
+
+    public function test_before_save_trims_credentials(): void
+    {
+        Settings::set(['pixel_id' => ' 1234567890 ', 'capi_access_token' => ' EAAB12 ']);
+
+        $arStored = json_decode($this->readStoredRow(), true);
+        $this->assertSame('1234567890', $arStored['pixel_id']);
+        $this->assertSame('EAAB12', $arStored['capi_access_token']);
+    }
+
+    private function readStoredRow(): string
+    {
+        $mValue = DB::table('system_settings')->where('item', 'logingrupa_metapixel_settings')->value('value');
+
+        return is_string($mValue) ? $mValue : '';
     }
 }

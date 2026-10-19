@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\MessageBag;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
+use Logingrupa\Metapixel\Classes\Meta\CredentialFormat;
 use Lovata\Toolbox\Models\CommonSettings;
 use October\Rain\Database\ModelException;
 use System\Facades\System;
@@ -122,8 +123,7 @@ class Settings extends CommonSettings
             if (array_key_exists($mKey, $arRowList)) {
                 continue;
             }
-            $mValue = $obRow->value;
-            $arRowList[$mKey] = self::decodeRow(is_string($mValue) ? $mValue : null);
+            $arRowList[$mKey] = self::decodeRow($obRow->value);
         }
 
         return $arRowList;
@@ -169,9 +169,9 @@ class Settings extends CommonSettings
      *
      * @return array<string, mixed>
      */
-    private static function decodeRow(?string $sValue): array
+    private static function decodeRow(mixed $mStored): array
     {
-        $mDecoded = $sValue === null ? null : json_decode($sValue, true);
+        $mDecoded = is_string($mStored) ? json_decode($mStored, true) : null;
         if (! is_array($mDecoded)) {
             return [];
         }
@@ -185,6 +185,7 @@ class Settings extends CommonSettings
     }
 
     /**
+     * Refuse a malformed pixel_id or capi_access_token (field errors, value never echoed).
      * Sanitize operator-supplied trusted_hosts + theme_custom_event_names.
      * trusted_hosts halts the save on any unknown-TLD / charset-violating
      * line (D-14 strict); theme_custom_event_names drops invalids with a
@@ -192,6 +193,13 @@ class Settings extends CommonSettings
      */
     public function beforeSave(): void
     {
+        $arCredentialErrors = CredentialFormat::fieldErrors($this->getAttribute('pixel_id'), $this->getAttribute('capi_access_token'));
+        if ($arCredentialErrors !== []) {
+            $this->obValidationErrors = new MessageBag($arCredentialErrors);
+
+            throw new ModelException($this);
+        }
+
         $this->beforeSaveTrustedHosts();
         $this->beforeSaveThemeCustomEventNames();
         $this->beforeSaveAccountPhoneDialCode();

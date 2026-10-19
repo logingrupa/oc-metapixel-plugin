@@ -94,3 +94,6 @@
 
 2.1.17:
   - 'Meta Pixel + CAPI and Failed events now sit under the plain settings category Marketing, and lang/lv.json translates it to Mārketings. October groups settings by the raw category string, so another plugin that registers its settings under Marketing joins this sidebar group instead of adding a second Marketing heading.'
+
+2.1.18:
+  - 'The pixel guard answers per site: the request''s site in the cookie middleware, the applied site on the page, the cart''s or order''s site for AddToCart and Purchase. It stays off in backend context, including frontend 404s under the backend URI such as /backoffice, and the cookie middleware skips backend.uri as a path segment. A pixel id that is not digits only, or a token that does not start with EAA, counts as missing and never reaches Meta. A 404 sends one PageView. The settings form refuses an email-like or non-numeric pixel id and a token without EAA without repeating the value, and the token input asks browsers not to autofill it. A site without its own settings row reads the default row''s other settings, so .lt /en and /ru find their currency; its credentials keep coming from the default row.'

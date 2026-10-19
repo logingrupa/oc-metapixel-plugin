@@ -44,4 +44,37 @@ final class CredentialFormatTest extends MetapixelTestCase
     {
         $this->assertSame($bExpected, CredentialFormat::isAccessToken($sValue));
     }
+
+    /** @return array<string, array{0: string, 1: ?string}> */
+    public static function providePixelIdErrorKeys(): array
+    {
+        return [
+            'empty' => ['', null],
+            'digits' => ['1234567890', null],
+            'email' => ['owner@example.com', 'pixel_id_email'],
+            'letters' => ['abc123', 'pixel_id_digits'],
+        ];
+    }
+
+    #[DataProvider('providePixelIdErrorKeys')]
+    public function test_pixel_id_error_key(string $sValue, ?string $sExpected): void
+    {
+        $this->assertSame($sExpected, CredentialFormat::pixelIdErrorKey($sValue));
+    }
+
+    /** @return array<string, array{0: string, 1: ?string}> */
+    public static function provideAccessTokenErrorKeys(): array
+    {
+        return [
+            'empty' => ['', null],
+            'eaa prefix' => ['EAAB12', null],
+            'password' => ['hunter2hunter2', 'capi_access_token_prefix'],
+        ];
+    }
+
+    #[DataProvider('provideAccessTokenErrorKeys')]
+    public function test_access_token_error_key(string $sValue, ?string $sExpected): void
+    {
+        $this->assertSame($sExpected, CredentialFormat::accessTokenErrorKey($sValue));
+    }
 }

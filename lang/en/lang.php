@@ -95,6 +95,11 @@ return [
         'sync_queue_title' => 'Queue runs synchronously (QUEUE_CONNECTION=sync)',
         'sync_queue_hint' => 'Every Conversions API send runs inside the visitor request and a failed send is never retried. Configure a queue connection (redis or database) and run a worker; see the plugin README, section Install.',
     ],
+    'validation' => [
+        'pixel_id_email' => 'The Pixel ID looks like an email address. A browser password manager may have filled in a login here. Enter the numeric Pixel ID from Meta Events Manager.',
+        'pixel_id_digits' => 'The Pixel ID must contain digits only. Copy it from Meta Events Manager.',
+        'capi_access_token_prefix' => 'The access token must start with EAA. A browser password manager may have filled in a saved password here. Paste the token generated in Meta Events Manager.',
+    ],
     'exception' => [
         'missing_pixel_config' => 'Meta Pixel ID is not configured. Set it in Settings > Meta Pixel + CAPI > Pixel & CAPI tab.',
         'missing_capi_token' => 'Meta CAPI access token is not configured.',

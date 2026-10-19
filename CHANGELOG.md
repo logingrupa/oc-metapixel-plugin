@@ -5,6 +5,18 @@ All notable changes to `logingrupa/metapixel-plugin` are documented in this file
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.18] - 2026-10-20
+
+### Fixed
+
+- **The pixel guard answers per site.** It used to remember one answer per request, and the first caller was the cookie middleware, which runs before October applies the site. A site whose primary site row had no pixel lost tracking on every site. The guard now keeps one answer per site id: the middleware resolves the request's own site from host and route prefix, the page uses the site October applied, and the watchers use the cart's or order's site.
+- **No pixel and no cookies in backend context.** October treats any path that starts with the backend URI as backend context, so a frontend 404 such as `/backoffice` rendered the pixel for the edit site. The guard is off in backend context, and the cookie middleware skips `backend.uri` as a whole path segment. It read `cms.backendUri`, a key that does not exist.
+- **AddToCart and Purchase check the subject's site.** `CartPositionWatcher` and `OrderStatusWatcher` queued events without asking the guard. Both now return early when the cart's or order's site has no usable pixel id or a token that does not start with EAA. A Purchase saved from the backend on a valid site still goes out.
+- **Malformed credentials never reach Meta.** `MetaClient` treats a pixel id that is not digits only, or a token that does not start with EAA, as missing and throws before any HTTP request. Exception and log messages state the rule and never the value.
+- **A 404 sends one PageView.** The not-found path of an element page runs the layout a second time in the same request. `PixelHead` used to dispatch a second server PageView whose event id was not on the page. The second run now renders the first run's pixel and dispatches nothing.
+- **Settings refuse autofilled credentials.** Chrome filled the backend login and password into the pixel id and token fields on one shop. Saving now fails with a field error for an email-like pixel id, a non-numeric pixel id or a token without EAA, and the message never repeats the value. The token input renders `autocomplete="new-password"`, which password managers leave alone.
+- **A site without its own settings row reads the default row.** On a shop whose /en and /ru sites had no row, `Settings::get('default_currency_code')` returned null and every AddToCart there threw `OrderHasNoCurrencyException`. A row-less site now reads the other settings from the same default row `lookupForSite` uses. Credentials are never copied: saving such a site stores empty credentials, which keep resolving to the default row's.
+
 ## [2.1.8] - 2026-09-11
 
 ### Fixed

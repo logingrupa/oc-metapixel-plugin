@@ -23,6 +23,7 @@ use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderBrowserContextRecorder;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\OrderStatusWatcher;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\ProductPageWatcher;
+use Logingrupa\Metapixel\Classes\FormWidget\NoAutofillSensitive;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
@@ -138,6 +139,18 @@ class Plugin extends PluginBase
             EventPixel::class => 'eventPixel',
             PixelHead::class => 'pixelHead',
             ProductPixel::class => 'productPixel',
+        ];
+    }
+
+    /**
+     * Backend form widgets used by the settings form.
+     *
+     * @return array<class-string, string>
+     */
+    public function registerFormWidgets(): array
+    {
+        return [
+            NoAutofillSensitive::class => 'metapixelsensitive',
         ];
     }
 
