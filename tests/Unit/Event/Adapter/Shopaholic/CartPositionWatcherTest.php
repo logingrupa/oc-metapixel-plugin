@@ -193,7 +193,7 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
     public function test_context_site_with_malformed_credentials_queues_nothing_for_a_cart_without_site_id(): void
     {
         $this->seedSites();
-        $this->insertSiteRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2']);
+        $this->insertSiteRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2', 'default_currency_code' => 'EUR']);
         Bus::fake();
         $obPosition = $this->makePositionWithOffer();
         $obPosition->getRelationValue('cart')->setAttribute('site_id', null);
