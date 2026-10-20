@@ -4,7 +4,9 @@ namespace Logingrupa\Metapixel\Tests\Feature\Components;
 
 use ArrayAccess;
 use Cms\Classes\Controller;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\App;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
@@ -14,11 +16,13 @@ use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeEventCollector;
+use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Classes\Helper\PixelHeadDeferredFlushBuffer;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
 use Logingrupa\Metapixel\Classes\Meta\UserDataResolveHook;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Components\PixelHead;
+use Logingrupa\Metapixel\Middleware\EnsureFbpFbcCookies;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
 use Logingrupa\Metapixel\Updates\CreateMetapixelEventLogTable;
@@ -190,17 +194,45 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
             $this->app['db']->connection(),
         );
         foreach ([1 => ['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X'], 2 => ['account_identity_enabled' => true, 'account_phone_dial_code' => '371']] as $iSiteId => $arValue) {
-            DB::table('system_settings')->insert([
-                'item' => 'logingrupa_metapixel_settings',
-                'site_id' => $iSiteId,
-                'value' => json_encode($arValue),
-            ]);
+            $this->seedSettingsRow($iSiteId, $arValue);
         }
 
         $arPage = Site::withContext(2, fn (): array => $this->runComponent(new PixelHead));
 
         $this->assertSame('1234567890', $arPage['pixelHeadBase']['pixel_id'] ?? null);
         Bus::assertDispatchedTimes(SendCapiEvent::class, 1);
+    }
+
+    public function test_cookie_middleware_and_page_render_share_one_settings_statement(): void
+    {
+        Bus::fake();
+        $this->app->instance(HostIndexResolver::class, new HostIndexResolver(__DIR__.'/../../fixtures/data/test_psl.dat'));
+        $fnSeedSites = require __DIR__.'/../../fixtures/sites.php';
+        $fnSeedSites(
+            $this->app['db']->connection()->getSchemaBuilder(),
+            $this->app['db']->connection(),
+        );
+        $this->seedSettingsRow(1, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAATOKEN-X', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $arStatementList = [];
+        DB::listen(static function ($obQuery) use (&$arStatementList): void {
+            if (in_array(Settings::SETTINGS_CODE, $obQuery->bindings, true)) {
+                $arStatementList[] = $obQuery->sql;
+            }
+        });
+
+        $this->renderPageThroughCookieMiddleware();
+
+        $this->assertCount(1, $arStatementList, 'cold: one snapshot read for the middleware guard, kill switch, base pixel and deferred flush');
+
+        $arStatementList = [];
+        Settings::clearInternalCache();
+        PluginGuard::reset();
+        App::forgetInstance(PixelHeadDeferredFlushBuffer::class);
+        App::singleton(PixelHeadDeferredFlushBuffer::class);
+
+        $this->renderPageThroughCookieMiddleware();
+
+        $this->assertSame([], $arStatementList, 'warm: the next request reads no settings rows');
     }
 
     public function test_skips_emission_on_october_ajax_postback(): void
@@ -247,9 +279,7 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         Settings::clearInternalCache();
         PluginGuard::reset();
         $this->assertFalse(PluginGuard::isDisabled());
-        DB::table('system_settings')
-            ->where('item', 'logingrupa_metapixel_settings')
-            ->update(['value' => json_encode(['pixel_id' => 'owner@example.com', 'capi_access_token' => 'EAATOKEN-X'])]);
+        $this->editSettingsRows(static fn (Builder $obQuery): int => $obQuery->update(['value' => json_encode(['pixel_id' => 'owner@example.com', 'capi_access_token' => 'EAATOKEN-X'])]));
 
         $arPage = $this->runComponent(new PixelHead);
 
@@ -344,6 +374,25 @@ final class PixelHeadBasePixelTest extends MetapixelTestCase
         $arPage = $this->runComponent(new PixelHead);
 
         $this->assertNull($arPage['pixelHeadBase'], 'Failure path leaves pixelHeadBase null (fail-safe)');
+    }
+
+    private function renderPageThroughCookieMiddleware(): void
+    {
+        $obRequest = Request::create('https://example.com/page', 'GET', [], [], [], [
+            'HTTP_HOST' => 'example.com',
+            'HTTPS' => 'on',
+            'SERVER_PORT' => 443,
+            'HTTP_USER_AGENT' => 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.0.0 Safari/537.36',
+        ]);
+        $obResponse = $this->app->make(EnsureFbpFbcCookies::class)->handle($obRequest, function (): Response {
+            $arPage = Site::withContext(1, fn (): array => $this->runComponent(new PixelHead));
+            $this->assertSame('1234567890', $arPage['pixelHeadBase']['pixel_id'] ?? null);
+            PixelHead::flushDeferredFromController(\Mockery::mock(Controller::class));
+
+            return new Response('ok', 200);
+        });
+
+        $this->assertNotEmpty($obResponse->headers->getCookies(), 'the middleware wrote the cookies, so it read the guard, kill switch and trusted hosts');
     }
 
     /**

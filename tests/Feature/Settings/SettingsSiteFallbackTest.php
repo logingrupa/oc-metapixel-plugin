@@ -37,19 +37,9 @@ final class SettingsSiteFallbackTest extends MetapixelTestCase
         parent::tearDown();
     }
 
-    /** @param  array<string, mixed>  $arValue */
-    private function insertRow(?int $iSiteId, array $arValue): void
-    {
-        DB::table('system_settings')->insert([
-            'item' => 'logingrupa_metapixel_settings',
-            'site_id' => $iSiteId,
-            'value' => json_encode($arValue),
-        ]);
-    }
-
     private function insertSiteOneRow(): void
     {
-        $this->insertRow(1, [
+        $this->seedSettingsRow(1, [
             'pixel_id' => '1234567890',
             'capi_access_token' => 'EAAB1',
             'default_currency_code' => 'EUR',
@@ -120,7 +110,7 @@ final class SettingsSiteFallbackTest extends MetapixelTestCase
     public function test_own_site_row_wins_without_a_per_key_merge(): void
     {
         $this->insertSiteOneRow();
-        $this->insertRow(2, ['default_currency_code' => 'NOK']);
+        $this->seedSettingsRow(2, ['default_currency_code' => 'NOK']);
 
         $this->assertSame('NOK', $this->readOnSite(2, 'default_currency_code'));
         $this->assertNull($this->readOnSite(2, 'test_event_code'));
@@ -129,7 +119,7 @@ final class SettingsSiteFallbackTest extends MetapixelTestCase
     public function test_null_site_row_with_credentials_is_the_default(): void
     {
         $this->insertSiteOneRow();
-        $this->insertRow(null, ['pixel_id' => '9876543210', 'default_currency_code' => 'USD']);
+        $this->seedSettingsRow(null, ['pixel_id' => '9876543210', 'default_currency_code' => 'USD']);
 
         $this->assertSame('USD', $this->readOnSite(2, 'default_currency_code'));
     }

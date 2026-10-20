@@ -1,7 +1,6 @@
 <?php
 
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
@@ -82,8 +81,8 @@ final class PluginGuardTest extends MetapixelTestCase
 
     public function test_each_site_gets_its_own_answer_in_one_request(): void
     {
-        $this->insertRow(1, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
-        $this->insertRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'EAAB1']);
+        $this->seedSettingsRow(1, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
+        $this->seedSettingsRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'EAAB1']);
         Log::shouldReceive('warning')->once();
 
         $this->assertFalse(PluginGuard::isDisabledForSite(1));
@@ -93,9 +92,9 @@ final class PluginGuardTest extends MetapixelTestCase
 
     public function test_site_rows_without_credentials_inherit_the_default_row(): void
     {
-        $this->insertRow(1, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
-        $this->insertRow(2, ['account_identity_enabled' => true, 'account_phone_dial_code' => '371']);
-        $this->insertRow(3, ['account_identity_enabled' => true, 'account_phone_dial_code' => '371']);
+        $this->seedSettingsRow(1, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
+        $this->seedSettingsRow(2, ['account_identity_enabled' => true, 'account_phone_dial_code' => '371']);
+        $this->seedSettingsRow(3, ['account_identity_enabled' => true, 'account_phone_dial_code' => '371']);
 
         $this->assertFalse(PluginGuard::isDisabledForSite(2));
         $this->assertFalse(PluginGuard::isDisabledForSite(3));
@@ -104,8 +103,8 @@ final class PluginGuardTest extends MetapixelTestCase
     public function test_is_disabled_follows_the_applied_site(): void
     {
         $this->seedSites();
-        $this->insertRow(1, ['pixel_id' => '', 'capi_access_token' => '']);
-        $this->insertRow(2, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
+        $this->seedSettingsRow(1, ['pixel_id' => '', 'capi_access_token' => '']);
+        $this->seedSettingsRow(2, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
         Log::shouldReceive('warning')->once();
 
         $this->assertTrue(PluginGuard::isDisabled(), 'the primary site row has no pixel');
@@ -129,7 +128,7 @@ final class PluginGuardTest extends MetapixelTestCase
     #[DataProvider('credentialProvider')]
     public function test_malformed_credentials_disable_the_plugin(string $sPixelId, string $sToken, bool $bExpected): void
     {
-        $this->insertRow(null, ['pixel_id' => $sPixelId, 'capi_access_token' => $sToken]);
+        $this->seedSettingsRow(null, ['pixel_id' => $sPixelId, 'capi_access_token' => $sToken]);
         Log::shouldReceive('warning')->zeroOrMoreTimes()->withArgs(static function (string $sMessage) use ($sPixelId, $sToken): bool {
             return ! str_contains($sMessage, $sPixelId) && ($sToken === '' || ! str_contains($sMessage, $sToken));
         });
@@ -139,7 +138,7 @@ final class PluginGuardTest extends MetapixelTestCase
 
     public function test_backend_context_disables_the_context_guard_only(): void
     {
-        $this->insertRow(null, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
+        $this->seedSettingsRow(null, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
         $this->app->instance('execution.context', 'backend');
 
         $this->assertTrue(PluginGuard::isDisabled());
@@ -148,8 +147,8 @@ final class PluginGuardTest extends MetapixelTestCase
 
     public function test_warning_names_the_default_row_or_the_site(): void
     {
-        $this->insertRow(null, ['pixel_id' => 'owner@example.com']);
-        $this->insertRow(2, ['pixel_id' => 'abc123']);
+        $this->seedSettingsRow(null, ['pixel_id' => 'owner@example.com']);
+        $this->seedSettingsRow(2, ['pixel_id' => 'abc123']);
         Log::shouldReceive('warning')->once()->withArgs(static fn (string $sMessage): bool => str_starts_with($sMessage, 'metapixel: default row disabled'));
         Log::shouldReceive('warning')->once()->withArgs(static fn (string $sMessage): bool => str_starts_with($sMessage, 'metapixel: site 2 disabled'));
 
@@ -160,10 +159,20 @@ final class PluginGuardTest extends MetapixelTestCase
 
     public function test_warning_throttle_failure_never_throws(): void
     {
-        $this->insertRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'EAAB1']);
-        Cache::shouldReceive('add')->andThrow(new RuntimeException('cache store down'));
+        $this->seedSettingsRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'EAAB1']);
+        $this->failCacheMethod('add');
+        Log::shouldReceive('warning')->never();
 
         $this->assertTrue(PluginGuard::isDisabledForSite(2));
+    }
+
+    public function test_cache_store_failure_disables_and_logs_once(): void
+    {
+        $this->seedSettingsRow(1, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
+        $this->failCacheMethod('remember');
+        Log::shouldReceive('warning')->once()->withArgs(static fn (string $sMessage): bool => str_starts_with($sMessage, 'metapixel: settings lookup failed'));
+
+        $this->assertTrue(PluginGuard::isDisabledForSite(1));
     }
 
     public function test_settings_read_failure_disables_without_memoising(): void
@@ -176,19 +185,9 @@ final class PluginGuardTest extends MetapixelTestCase
         } finally {
             Schema::rename('system_settings_away', 'system_settings');
         }
-        $this->insertRow(1, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
+        $this->seedSettingsRow(1, ['pixel_id' => '1234567890', 'capi_access_token' => 'EAAB1']);
 
         $this->assertFalse(PluginGuard::isDisabledForSite(1));
-    }
-
-    /** @param  array<string, mixed>  $arValue */
-    private function insertRow(?int $iSiteId, array $arValue): void
-    {
-        DB::table('system_settings')->insert([
-            'item' => 'logingrupa_metapixel_settings',
-            'site_id' => $iSiteId,
-            'value' => json_encode($arValue),
-        ]);
     }
 
     private function seedSites(): void

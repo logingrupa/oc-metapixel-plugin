@@ -164,11 +164,7 @@ final class ShopaholicCartPositionValueResolverTest extends ShopaholicAdapterTes
     {
         $fnSeedSites = require __DIR__.'/../../../fixtures/sites.php';
         $fnSeedSites(Schema::getConnection()->getSchemaBuilder(), DB::connection());
-        DB::table('system_settings')->insert([
-            'item' => 'logingrupa_metapixel_settings',
-            'site_id' => 1,
-            'value' => json_encode(['default_currency_code' => 'EUR']),
-        ]);
+        $this->seedSettingsRow(1, ['default_currency_code' => 'EUR']);
 
         $sCurrency = Site::withContext(2, static function (): string {
             Settings::clearInternalCache();

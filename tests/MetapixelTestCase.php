@@ -4,10 +4,14 @@ namespace Logingrupa\Metapixel\Tests;
 
 use Backend\Classes\AuthManager;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\Query\Builder;
 use Illuminate\Foundation\Testing\TestCase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Facade;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Classes\Helper\SettingsRowCache;
 use Logingrupa\Metapixel\Models\Settings;
 use October\Rain\Database\Model;
 use October\Rain\Database\Model as ActiveRecord;
@@ -15,6 +19,7 @@ use October\Rain\Database\Pivot;
 use October\Tests\Concerns\InteractsWithAuthentication;
 use October\Tests\Concerns\PerformsMigrations;
 use October\Tests\Concerns\PerformsRegistrations;
+use RuntimeException;
 
 /**
  * Base PHPUnit 12 / Pest 4 test case for the Logingrupa.Metapixel plugin core.
@@ -164,6 +169,43 @@ abstract class MetapixelTestCase extends TestCase
         $this->dropHermeticSchemas();
         parent::tearDown();
         unset($this->app);
+    }
+
+    /**
+     * Insert a metapixel settings row by query builder and forget the row snapshot.
+     *
+     * @param  array<string, mixed>  $arValue
+     */
+    protected function seedSettingsRow(?int $iSiteId, array $arValue): void
+    {
+        $this->editSettingsRows(static fn (Builder $obQuery): bool => $obQuery->insert([
+            'item' => Settings::SETTINGS_CODE,
+            'site_id' => $iSiteId,
+            'value' => json_encode($arValue),
+        ]));
+    }
+
+    /**
+     * Edit the metapixel settings rows by query builder, then forget the row
+     * snapshot as an operator's cache:forget does after a SQL edit.
+     *
+     * @param  callable(Builder): mixed  $fnEdit
+     */
+    protected function editSettingsRows(callable $fnEdit): void
+    {
+        $fnEdit(DB::table('system_settings')->where('item', Settings::SETTINGS_CODE));
+        SettingsRowCache::forget();
+    }
+
+    /**
+     * Swap the cache manager for a proxy whose $sMethod throws; every other call
+     * reaches the real manager.
+     */
+    protected function failCacheMethod(string $sMethod): void
+    {
+        $obCache = \Mockery::mock($this->app['cache']);
+        $obCache->shouldReceive($sMethod)->andThrow(new RuntimeException('cache store down'));
+        Cache::swap($obCache);
     }
 
     /**

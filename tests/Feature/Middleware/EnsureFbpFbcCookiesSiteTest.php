@@ -42,8 +42,8 @@ final class EnsureFbpFbcCookiesSiteTest extends MetapixelTestCase
 
     public function test_prefixed_site_with_its_own_pixel_gets_cookies_while_the_primary_is_off(): void
     {
-        $this->insertRow(1, ['pixel_id' => '', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
-        $this->insertRow(2, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $this->seedSettingsRow(1, ['pixel_id' => '', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $this->seedSettingsRow(2, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
 
         $this->assertTrue($this->hasFbp($this->dispatchPath('/two/page')));
         $this->assertFalse($this->hasFbp($this->dispatchPath('/page')));
@@ -53,8 +53,8 @@ final class EnsureFbpFbcCookiesSiteTest extends MetapixelTestCase
     {
         DB::table('system_site_definitions')->where('id', 2)->update(['is_enabled' => 0]);
         Site::resetCache();
-        $this->insertRow(1, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
-        $this->insertRow(2, ['pixel_id' => 'owner@example.com', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $this->seedSettingsRow(1, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $this->seedSettingsRow(2, ['pixel_id' => 'owner@example.com', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
 
         $this->assertTrue($this->hasFbp($this->dispatchPath('/two/page')));
     }
@@ -63,7 +63,7 @@ final class EnsureFbpFbcCookiesSiteTest extends MetapixelTestCase
     {
         DB::table('system_site_definitions')->update(['is_enabled' => 0]);
         Site::resetCache();
-        $this->insertRow(1, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $this->seedSettingsRow(1, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
 
         $this->assertFalse($this->hasFbp($this->dispatchPath('/page')));
     }
@@ -71,7 +71,7 @@ final class EnsureFbpFbcCookiesSiteTest extends MetapixelTestCase
     public function test_backend_uri_segments_skip_and_lookalike_frontend_paths_do_not(): void
     {
         config(['backend.uri' => '/back']);
-        $this->insertRow(1, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $this->seedSettingsRow(1, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
 
         $this->assertFalse($this->hasFbp($this->dispatchPath('/back')));
         $this->assertFalse($this->hasFbp($this->dispatchPath('/back/auth/signin')));
@@ -81,20 +81,10 @@ final class EnsureFbpFbcCookiesSiteTest extends MetapixelTestCase
     public function test_backend_execution_context_gets_no_cookies(): void
     {
         config(['backend.uri' => '/back']);
-        $this->insertRow(1, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
+        $this->seedSettingsRow(1, ['pixel_id' => '1234567890', 'trusted_hosts' => 'example.com', 'ensure_fbp_fbc_server_side' => true]);
         $this->app->instance('execution.context', 'backend');
 
         $this->assertFalse($this->hasFbp($this->dispatchPath('/backoffice')));
-    }
-
-    /** @param  array<string, mixed>  $arValue */
-    private function insertRow(?int $iSiteId, array $arValue): void
-    {
-        DB::table('system_settings')->insert([
-            'item' => 'logingrupa_metapixel_settings',
-            'site_id' => $iSiteId,
-            'value' => json_encode($arValue),
-        ]);
     }
 
     private function dispatchPath(string $sPath): Response

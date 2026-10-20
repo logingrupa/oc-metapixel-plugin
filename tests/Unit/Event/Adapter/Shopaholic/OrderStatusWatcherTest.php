@@ -118,11 +118,7 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
     public function test_does_not_dispatch_for_an_order_site_with_malformed_credentials(): void
     {
         Bus::fake();
-        DB::table('system_settings')->insert([
-            'item' => 'logingrupa_metapixel_settings',
-            'site_id' => 2,
-            'value' => json_encode(['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2']),
-        ]);
+        $this->seedSettingsRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2']);
         $obOrder = $this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5);
         $obOrder->setAttribute('site_id', 2);
 

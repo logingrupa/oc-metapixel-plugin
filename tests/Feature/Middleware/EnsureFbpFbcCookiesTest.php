@@ -1,12 +1,13 @@
 <?php
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Classes\Helper\PluginGuard;
+use Logingrupa\Metapixel\Classes\Helper\SettingsRowCache;
 use Logingrupa\Metapixel\Middleware\EnsureFbpFbcCookies;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
@@ -251,18 +252,11 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
         // request time. Bypass beforeSave by writing the row directly via the
         // settings JSON expando column — simulates a malformed row that
         // arrived via a future schema migration or a manual operator edit.
-        $sCode = (new Settings)->settingsCode;
-        DB::table('system_settings')
-            ->where('item', $sCode)
-            ->delete();
-        DB::table('system_settings')->insert([
-            'item' => $sCode,
-            'value' => json_encode([
-                'pixel_id' => '1234567890',
-                'trusted_hosts' => "example.com\nwat.fakeylock",
-                'ensure_fbp_fbc_server_side' => true,
-            ]),
-            'site_id' => null,
+        $this->editSettingsRows(static fn (Builder $obQuery): int => $obQuery->delete());
+        $this->seedSettingsRow(null, [
+            'pixel_id' => '1234567890',
+            'trusted_hosts' => "example.com\nwat.fakeylock",
+            'ensure_fbp_fbc_server_side' => true,
         ]);
         Settings::clearInternalCache();
 
@@ -298,11 +292,24 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
         Log::shouldReceive('warning')->zeroOrMoreTimes();
         Settings::clearInternalCache();
         Schema::dropIfExists('system_settings');
+        SettingsRowCache::forget();
 
         $obResponse = $this->dispatchRequest('example.com');
 
         // Middleware did not 500 → the inner pipeline's response carried through.
         $this->assertSame(200, $obResponse->getStatusCode());
+    }
+
+    public function test_cache_store_failure_does_not_500_and_writes_no_cookies(): void
+    {
+        $this->failCacheMethod('remember');
+        Log::shouldReceive('warning')->atLeast()->once();
+        Settings::clearInternalCache();
+
+        $obResponse = $this->dispatchRequest('example.com', 'IwAR1abc_XYZ-123');
+
+        $this->assertSame(200, $obResponse->getStatusCode());
+        $this->assertNull($this->extractCookie($obResponse, '_fbp'));
     }
 
     // -----------------------------------------------------------------------

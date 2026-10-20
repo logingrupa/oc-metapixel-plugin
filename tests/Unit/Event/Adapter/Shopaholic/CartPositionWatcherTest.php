@@ -2,6 +2,7 @@
 
 namespace Logingrupa\Metapixel\Tests\Unit\Event\Adapter\Shopaholic;
 
+use Illuminate\Database\Query\Builder;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -180,7 +181,7 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
     public function test_cart_site_with_malformed_credentials_queues_nothing(): void
     {
         Bus::fake();
-        $this->insertSiteRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2']);
+        $this->seedSettingsRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2']);
         $obPosition = $this->makePositionWithOffer();
         $obPosition->getRelationValue('cart')->setAttribute('site_id', 2);
 
@@ -193,7 +194,7 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
     public function test_context_site_with_malformed_credentials_queues_nothing_for_a_cart_without_site_id(): void
     {
         $this->seedSites();
-        $this->insertSiteRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2', 'default_currency_code' => 'EUR']);
+        $this->seedSettingsRow(2, ['pixel_id' => 'owner@example.com', 'capi_access_token' => 'hunter2hunter2', 'default_currency_code' => 'EUR']);
         Bus::fake();
         $obPosition = $this->makePositionWithOffer();
         $obPosition->getRelationValue('cart')->setAttribute('site_id', null);
@@ -209,7 +210,7 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
     public function test_context_site_with_valid_credentials_queues_add_to_cart_for_a_cart_without_site_id(): void
     {
         $this->seedSites();
-        $this->insertSiteRow(2, ['pixel_id' => '100000000000002', 'capi_access_token' => 'EAATOKEN-2', 'default_currency_code' => 'EUR']);
+        $this->seedSettingsRow(2, ['pixel_id' => '100000000000002', 'capi_access_token' => 'EAATOKEN-2', 'default_currency_code' => 'EUR']);
         Bus::fake();
         $obPosition = $this->makePositionWithOffer();
         $obPosition->getRelationValue('cart')->setAttribute('site_id', null);
@@ -225,8 +226,8 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
     public function test_row_less_cart_site_uses_the_default_row_pixel_and_currency(): void
     {
         $this->seedSites();
-        DB::table('system_settings')->delete();
-        $this->insertSiteRow(1, ['pixel_id' => '100000000000001', 'capi_access_token' => 'EAATOKEN-1', 'default_currency_code' => 'EUR']);
+        $this->editSettingsRows(static fn (Builder $obQuery): int => $obQuery->delete());
+        $this->seedSettingsRow(1, ['pixel_id' => '100000000000001', 'capi_access_token' => 'EAATOKEN-1', 'default_currency_code' => 'EUR']);
         DB::table('lovata_shopaholic_prices')->insert(['item_id' => 1, 'item_type' => Offer::class, 'price' => 12.5]);
         Settings::clearInternalCache();
         Bus::fake();
@@ -301,16 +302,6 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
             $this->app['db']->connection()->getSchemaBuilder(),
             $this->app['db']->connection(),
         );
-    }
-
-    /** @param  array<string, mixed>  $arValue */
-    private function insertSiteRow(int $iSiteId, array $arValue): void
-    {
-        DB::table('system_settings')->insert([
-            'item' => 'logingrupa_metapixel_settings',
-            'site_id' => $iSiteId,
-            'value' => json_encode($arValue),
-        ]);
     }
 
     private function makePositionWithOffer(): CartPosition

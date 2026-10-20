@@ -3,11 +3,12 @@
 namespace Logingrupa\Metapixel\Models;
 
 use Flash;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\App;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\MessageBag;
 use Logingrupa\Metapixel\Classes\Helper\HostIndexResolver;
 use Logingrupa\Metapixel\Classes\Helper\SettingsCredentialErrors;
+use Logingrupa\Metapixel\Classes\Helper\SettingsRowCache;
 use Lovata\Toolbox\Models\CommonSettings;
 use October\Rain\Database\ModelException;
 use System\Facades\System;
@@ -24,8 +25,10 @@ use System\Facades\System;
  */
 class Settings extends CommonSettings
 {
+    public const SETTINGS_CODE = 'logingrupa_metapixel_settings';
+
     /** @var string */
-    public $settingsCode = 'logingrupa_metapixel_settings';
+    public $settingsCode = self::SETTINGS_CODE;
 
     /** @var string */
     public $settingsFields = 'fields.yaml';
@@ -66,7 +69,7 @@ class Settings extends CommonSettings
      */
     public static function lookupForSite(?int $iSiteId): array
     {
-        $arRowList = self::readRows();
+        $arRowList = SettingsRowCache::valuesBySite();
         [$sDefaultPixel, $sDefaultToken] = self::credentialsOf(self::resolveDefaultRow($arRowList));
 
         if ($iSiteId === null) {
@@ -94,39 +97,36 @@ class Settings extends CommonSettings
             return;
         }
 
-        $arDefaultRow = array_diff_key(self::resolveDefaultRow(self::readRows()), array_flip(self::CREDENTIAL_KEYS));
+        $arDefaultRow = array_diff_key(self::resolveDefaultRow(SettingsRowCache::valuesBySite()), array_flip(self::CREDENTIAL_KEYS));
         foreach ($arDefaultRow as $sKey => $mValue) {
             $this->setAttribute($sKey, $mValue);
         }
     }
 
     /**
-     * Read all rows for this settings code in one direct DB query, keyed by
-     * site_id (int per site, '' for the site_id IS NULL row; first row wins per key).
-     * Bypasses the SettingModel cache layer (static $instances +
-     * Cache::remember), whose getCacheKey() is shared across
-     * Site::withGlobalContext / Site::withContext switches.
+     * The row SettingModel would fetch for the current site context, hydrated
+     * from the cached row snapshot instead of a per-site query.
      *
-     * @return array<int|string, array<string, mixed>>
+     * @return Model|null
      */
-    private static function readRows(): array
+    public function getSettingsRecord()
     {
-        $obRowList = DB::table('system_settings')
-            ->where('item', (new self)->settingsCode)
-            ->orderBy('id')
-            ->get();
-
-        $arRowList = [];
-        foreach ($obRowList as $obRow) {
-            $mSiteId = $obRow->site_id;
-            $mKey = is_numeric($mSiteId) ? (int) $mSiteId : '';
-            if (array_key_exists($mKey, $arRowList)) {
-                continue;
-            }
-            $arRowList[$mKey] = self::decodeRow($obRow->value);
+        if (! System::hasDatabase()) {
+            return null;
         }
 
-        return $arRowList;
+        $arRow = SettingsRowCache::rowForContext();
+
+        return $arRow === null ? null : $this->newFromBuilder($arRow);
+    }
+
+    /**
+     * Forget the row snapshot along with the per-site SettingModel cache entry.
+     */
+    public function clearCache(): void
+    {
+        parent::clearCache();
+        SettingsRowCache::forget();
     }
 
     /**
@@ -162,26 +162,6 @@ class Settings extends CommonSettings
             is_string($mPixel) ? $mPixel : '',
             is_string($mToken) ? $mToken : '',
         ];
-    }
-
-    /**
-     * Shared decoder for the system_settings JSON expando column.
-     *
-     * @return array<string, mixed>
-     */
-    private static function decodeRow(mixed $mStored): array
-    {
-        $mDecoded = is_string($mStored) ? json_decode($mStored, true) : null;
-        if (! is_array($mDecoded)) {
-            return [];
-        }
-
-        $arRow = [];
-        foreach ($mDecoded as $mKey => $mValue) {
-            $arRow[(string) $mKey] = $mValue;
-        }
-
-        return $arRow;
     }
 
     /**
