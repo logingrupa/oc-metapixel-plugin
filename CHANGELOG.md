@@ -5,6 +5,13 @@ All notable changes to `logingrupa/metapixel-plugin` are documented in this file
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.20] - 2026-10-20
+
+### Fixed
+
+- **The Purchase build no longer loads every offer of a product.** `ShopaholicOrderValueResolver` read `$product->offer->count()` once per order line to pick `SKU-{product_id}` or `SKU-{product_id}-{offer_id}`, which hydrated all offers of the product for each line. On .lv the 1C exchange marks orders complete inside its queue job, and for large orders that build needed 472 to 703 MB, past the 512 MB worker limit. The resolver now runs one SQL count per product and reuses it for every line of that product. The count keeps the relation's rules: inactive offers count, soft-deleted ones do not. A local 120-line order went from 686 MB and 490 queries to 36 MB and 407 queries, with the same content ids.
+- **Purchase is queued after the transaction commits.** `OrderStatusWatcher` dispatches `SendCapiEvent` with `afterCommit()`. A paid status saved inside a transaction, such as the 1C order sync or checkout, reaches the queue only when the outermost transaction commits, and a rollback drops it. Without an open transaction the job is queued at once, as before.
+
 ## [2.1.19] - 2026-10-20
 
 ### Fixed

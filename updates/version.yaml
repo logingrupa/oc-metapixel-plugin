@@ -100,3 +100,6 @@
 
 2.1.19:
   - 'Settings reads come from one cached copy of the plugin''s settings rows, so a warm page view runs no settings query. 2.1.18 read the rows from the database on every request in the cookie middleware, and the page render read its own site row once more, so each product page cost one extra query warm and cold. Saving or resetting the settings in the backend clears the copy for web requests and queue workers. After a direct SQL edit of system_settings, run php artisan cache:forget logingrupa.metapixel.settings_rows or wait up to an hour.'
+
+2.1.20:
+  - 'The Purchase build counts each product''s offers with one SQL query per product instead of loading every offer. A local 120-line order dropped from 686 MB to 36 MB. The old build pushed 1C completions of large orders past the 512 MB worker limit. The Purchase job is queued after the surrounding transaction commits, so a rolled back save sends nothing.'
