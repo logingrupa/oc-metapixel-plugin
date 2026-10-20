@@ -73,12 +73,19 @@ final class SettingsRowCache
         return null;
     }
 
+    /**
+     * Drop the cached snapshot so the next read queries system_settings.
+     */
     public static function forget(): void
     {
         Cache::forget(self::CACHE_KEY);
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * The metapixel system_settings rows ordered by id.
+     *
+     * @return list<array<string, mixed>>
+     */
     private static function queryRows(): array
     {
         $arRowList = [];
