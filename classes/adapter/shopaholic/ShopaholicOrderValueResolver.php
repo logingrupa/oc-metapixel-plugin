@@ -151,11 +151,7 @@ final class ShopaholicOrderValueResolver implements ValueResolver
             : sprintf('SKU-%d', $iProductId);
     }
 
-    /**
-     * Counted in SQL once per product, over the same rows as Product::offer
-     * (inactive offers count, trashed ones do not). Loading that relation
-     * hydrates every offer of the product, thousands of models per line.
-     */
+    /** Counted in SQL once per product over the same rows as Product::offer: inactive offers count, trashed ones do not. */
     private function hasManyOffers(int $iProductId): bool
     {
         return $this->arHasManyOffersByProductId[$iProductId] ??= Offer::query()->where('product_id', $iProductId)->count() > 1;

@@ -2,6 +2,7 @@
 
 namespace Logingrupa\Metapixel\Tests\Unit\Event\Adapter\Shopaholic;
 
+use Illuminate\Database\Events\TransactionCommitted;
 use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\Config;
@@ -260,10 +261,26 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
         $this->assertSame(0, DB::transactionLevel());
     }
 
-    /**
-     * Database driver with after_commit off, as the production redis
-     * connection: only the job's own afterCommit flag can defer the push.
-     */
+    public function test_a_failed_queue_push_is_logged_and_the_commit_completes(): void
+    {
+        $this->routeQueueToTable('metapixel_missing_jobs');
+        Log::spy();
+        $iCommittedCount = 0;
+        Event::listen(TransactionCommitted::class, function () use (&$iCommittedCount): void {
+            $iCommittedCount++;
+        });
+
+        DB::beginTransaction();
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5));
+        DB::commit();
+
+        $this->assertSame(1, $iCommittedCount);
+        $this->assertSame(0, $this->iQueuedCount);
+        Log::shouldHaveReceived('warning')
+            ->withArgs(fn (string $sMessage): bool => str_contains($sMessage, 'Purchase queue push failed'))
+            ->once();
+    }
+
     private function useDatabaseQueue(): void
     {
         Schema::create('jobs', function ($obTable): void {
@@ -275,9 +292,18 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
             $obTable->unsignedInteger('available_at');
             $obTable->unsignedInteger('created_at');
         });
+        $this->routeQueueToTable('jobs');
+    }
+
+    /**
+     * Database driver with after_commit off, as the production redis
+     * connection, so the queue itself never defers the push.
+     */
+    private function routeQueueToTable(string $sTable): void
+    {
         Config::set('queue.connections.metapixel-test', [
             'driver' => 'database',
-            'table' => 'jobs',
+            'table' => $sTable,
             'queue' => 'default',
             'retry_after' => 90,
             'after_commit' => false,

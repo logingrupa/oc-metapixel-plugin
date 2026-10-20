@@ -19,9 +19,8 @@ use PHPUnit\Framework\Attributes\Group;
 /**
  * SHOP-02 — ShopaholicOrderValueResolver unit tests. Covers SKU content_id
  * format (single + multi-offer branches, one SQL offer count per product),
- * currency fallback chain (relation
- * → currency_code → Settings default → OrderHasNoCurrencyException), and
- * resolveNumItems aggregation.
+ * currency fallback chain (relation → currency_code → Settings default →
+ * OrderHasNoCurrencyException), and resolveNumItems aggregation.
  */
 #[Group('adapter')]
 final class ShopaholicOrderValueResolverTest extends ShopaholicAdapterTestCase

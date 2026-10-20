@@ -3,6 +3,7 @@
 namespace Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic;
 
 use Illuminate\Events\Dispatcher;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderAdapter;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver;
@@ -21,7 +22,8 @@ use Throwable;
 /**
  * Watches Order eloquent.updated|created; fires Purchase on transition to
  * paid_status_code. EventLog UNIQUE race-fence is the dedup anchor.
- * The job is queued after the open transaction commits; a rollback drops it.
+ * The job is queued after the open transaction commits; a rollback drops it
+ * and a failed push is only logged.
  * Buyer identity precedence: stored checkout context, then the current
  * request when it is the buyer's browser, then the account's last IP.
  */
@@ -68,11 +70,30 @@ final class OrderStatusWatcher
             $arPayload = $this->injectRequestUserData('Purchase', $obAdapter->getSubjectType($obOrder), $arPayload);
             $arPayload = PayloadRequestContext::merge($arPayload, ['client_ip_address' => $this->userLastIp($obOrder)], null);
 
-            SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class)->afterCommit();
+            DB::afterCommit(function () use ($arPayload, $obOrder): void {
+                $this->queuePurchase($arPayload, $obOrder);
+            });
         } catch (Throwable $obException) {
             // Tiger-Style: log + return. Do NOT rethrow — would cascade-break
             // Order::save() through Lovata OrderProcessor / Campaign / PromoMechanism.
             Log::warning('metapixel: OrderStatusWatcher payload-build failed', [
+                'meta_pixel.order_id' => $obOrder->id,
+                'meta_pixel.exception' => get_class($obException),
+                'meta_pixel.message' => $obException->getMessage(),
+            ]);
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $arPayload
+     */
+    private function queuePurchase(array $arPayload, Order $obOrder): void
+    {
+        try {
+            SendCapiEvent::dispatch('Purchase', $arPayload, $obOrder, ShopaholicOrderAdapter::class);
+        } catch (Throwable $obException) {
+            // Runs inside the host's DB::commit() after the data is written; a throw would surface there as a failed save.
+            Log::warning('metapixel: Purchase queue push failed', [
                 'meta_pixel.order_id' => $obOrder->id,
                 'meta_pixel.exception' => get_class($obException),
                 'meta_pixel.message' => $obException->getMessage(),
