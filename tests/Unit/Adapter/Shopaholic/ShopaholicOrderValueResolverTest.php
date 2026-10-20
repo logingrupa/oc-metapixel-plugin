@@ -2,6 +2,7 @@
 
 namespace Logingrupa\Metapixel\Tests\Unit\Adapter\Shopaholic;
 
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\Shopaholic\ShopaholicOrderValueResolver;
@@ -17,7 +18,8 @@ use PHPUnit\Framework\Attributes\Group;
 
 /**
  * SHOP-02 — ShopaholicOrderValueResolver unit tests. Covers SKU content_id
- * format (single + multi-offer branches), currency fallback chain (relation
+ * format (single + multi-offer branches, one SQL offer count per product),
+ * currency fallback chain (relation
  * → currency_code → Settings default → OrderHasNoCurrencyException), and
  * resolveNumItems aggregation.
  */
@@ -172,6 +174,78 @@ final class ShopaholicOrderValueResolverTest extends ShopaholicAdapterTestCase
         $obOrder->setRelation('order_position', collect([$obPos]));
 
         $this->assertSame(['SKU-0'], (new ShopaholicOrderValueResolver)->resolveContentIds($obOrder));
+    }
+
+    public function test_offers_are_counted_in_sql_once_per_product_without_loading_the_offer_relation(): void
+    {
+        $this->insertOffers([
+            ['id' => 7, 'product_id' => 42, 'active' => true, 'deleted_at' => null],
+            ['id' => 8, 'product_id' => 42, 'active' => true, 'deleted_at' => null],
+            ['id' => 9, 'product_id' => 43, 'active' => true, 'deleted_at' => null],
+        ]);
+        $obOrder = $this->makeOrderForOffers([7, 8, 9]);
+        $arCountQueries = [];
+        DB::listen(function (QueryExecuted $obQuery) use (&$arCountQueries): void {
+            if (str_contains($obQuery->sql, 'count(*)')) {
+                $arCountQueries[] = $obQuery->sql;
+            }
+        });
+
+        $obResolver = new ShopaholicOrderValueResolver;
+        $arContentIds = $obResolver->resolveContentIds($obOrder);
+        $arContents = $obResolver->resolveContents($obOrder);
+
+        $this->assertSame(['SKU-42-7', 'SKU-42-8', 'SKU-43'], $arContentIds);
+        $this->assertSame($arContentIds, array_column($arContents, 'id'));
+        $this->assertCount(2, $arCountQueries, 'one count per product across both passes');
+        foreach ($obOrder->order_position as $obPos) {
+            $this->assertFalse($obPos->item->getRelationValue('product')->relationLoaded('offer'));
+        }
+    }
+
+    public function test_offer_count_keeps_inactive_offers_and_skips_trashed_ones_like_the_offer_relation(): void
+    {
+        $this->insertOffers([
+            ['id' => 7, 'product_id' => 42, 'active' => true, 'deleted_at' => null],
+            ['id' => 8, 'product_id' => 42, 'active' => false, 'deleted_at' => null],
+            ['id' => 9, 'product_id' => 43, 'active' => true, 'deleted_at' => null],
+            ['id' => 10, 'product_id' => 43, 'active' => true, 'deleted_at' => '2026-10-01 00:00:00'],
+        ]);
+
+        $arContentIds = (new ShopaholicOrderValueResolver)->resolveContentIds($this->makeOrderForOffers([7, 9]));
+
+        $this->assertSame(['SKU-42-7', 'SKU-43'], $arContentIds);
+        $this->assertSame([2, 1], [Product::find(42)?->offer->count(), Product::find(43)?->offer->count()]);
+    }
+
+    /**
+     * @param  list<array{id: int, product_id: int, active: bool, deleted_at: ?string}>  $arOffers
+     */
+    private function insertOffers(array $arOffers): void
+    {
+        DB::table('lovata_shopaholic_offers')->insert($arOffers);
+        $arProductIds = array_values(array_unique(array_column($arOffers, 'product_id')));
+        DB::table('lovata_shopaholic_products')->insert(array_map(
+            static fn (int $iProductId): array => ['id' => $iProductId, 'name' => "Product-{$iProductId}", 'slug' => "p-{$iProductId}"],
+            $arProductIds,
+        ));
+    }
+
+    /**
+     * @param  list<int>  $arOfferIds
+     */
+    private function makeOrderForOffers(array $arOfferIds): Order
+    {
+        $arPositions = [];
+        foreach ($arOfferIds as $iOfferId) {
+            $obPos = new OrderPosition;
+            $obPos->setRelation('item', Offer::find($iOfferId));
+            $arPositions[] = $obPos;
+        }
+        $obOrder = $this->makeBareOrder([]);
+        $obOrder->setRelation('order_position', collect($arPositions));
+
+        return $obOrder;
     }
 
     /**

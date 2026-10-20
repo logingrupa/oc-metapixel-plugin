@@ -2,8 +2,11 @@
 
 namespace Logingrupa\Metapixel\Tests\Unit\Event\Adapter\Shopaholic;
 
+use Illuminate\Queue\Events\JobQueued;
 use Illuminate\Support\Facades\Bus;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Schema;
 use Logingrupa\Metapixel\Classes\Adapter\AdapterRegistry;
@@ -29,6 +32,8 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('adapter')]
 final class OrderStatusWatcherTest extends MetapixelTestCase
 {
+    private int $iQueuedCount = 0;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -48,6 +53,7 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
     protected function tearDown(): void
     {
         (new CreateMetapixelOrderBrowserContextsTable)->down();
+        Schema::dropIfExists('jobs');
         Schema::dropIfExists('lovata_shopaholic_taxes');
         Schema::dropIfExists('lovata_orders_shopaholic_order_promo_mechanism');
         Schema::dropIfExists('lovata_orders_shopaholic_order_positions');
@@ -211,6 +217,75 @@ final class OrderStatusWatcherTest extends MetapixelTestCase
             $arUserData = $obJob->arPayload['data'][0]['user_data'];
 
             return $arUserData['client_ip_address'] === '203.0.113.7' && $arUserData['client_user_agent'] === null;
+        });
+    }
+
+    public function test_purchase_is_queued_at_once_without_an_open_transaction(): void
+    {
+        $this->useDatabaseQueue();
+
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5));
+
+        $this->assertSame(1, $this->iQueuedCount);
+        $this->assertSame(1, DB::table('jobs')->count());
+    }
+
+    public function test_purchase_reaches_the_queue_only_after_the_outer_transaction_commits(): void
+    {
+        $this->useDatabaseQueue();
+
+        DB::beginTransaction();
+        DB::beginTransaction();
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5));
+        DB::commit();
+        $iQueuedBeforeOuterCommit = $this->iQueuedCount;
+        $iRowsBeforeOuterCommit = DB::table('jobs')->count();
+        DB::commit();
+
+        $this->assertSame(0, $iQueuedBeforeOuterCommit);
+        $this->assertSame(0, $iRowsBeforeOuterCommit);
+        $this->assertSame(1, $this->iQueuedCount);
+        $this->assertSame(1, DB::table('jobs')->count());
+    }
+
+    public function test_purchase_is_never_queued_when_the_transaction_rolls_back(): void
+    {
+        $this->useDatabaseQueue();
+
+        DB::beginTransaction();
+        (new OrderStatusWatcher)->handle($this->makePaidOrder(iOriginalStatusId: 1, iCurrentStatusId: 5));
+        DB::rollBack();
+
+        $this->assertSame(0, $this->iQueuedCount);
+        $this->assertSame(0, DB::transactionLevel());
+    }
+
+    /**
+     * Database driver with after_commit off, as the production redis
+     * connection: only the job's own afterCommit flag can defer the push.
+     */
+    private function useDatabaseQueue(): void
+    {
+        Schema::create('jobs', function ($obTable): void {
+            $obTable->bigIncrements('id');
+            $obTable->string('queue')->index();
+            $obTable->longText('payload');
+            $obTable->unsignedTinyInteger('attempts');
+            $obTable->unsignedInteger('reserved_at')->nullable();
+            $obTable->unsignedInteger('available_at');
+            $obTable->unsignedInteger('created_at');
+        });
+        Config::set('queue.connections.metapixel-test', [
+            'driver' => 'database',
+            'table' => 'jobs',
+            'queue' => 'default',
+            'retry_after' => 90,
+            'after_commit' => false,
+        ]);
+        Config::set('queue.default', 'metapixel-test');
+        $this->iQueuedCount = 0;
+        Event::listen(JobQueued::class, function (): void {
+            $this->iQueuedCount++;
         });
     }
 

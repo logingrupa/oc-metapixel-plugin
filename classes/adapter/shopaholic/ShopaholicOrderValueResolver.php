@@ -18,6 +18,9 @@ use October\Rain\Database\Model;
  */
 final class ShopaholicOrderValueResolver implements ValueResolver
 {
+    /** @var array<int, bool> product id => the product has more than one offer */
+    private array $arHasManyOffersByProductId = [];
+
     /** @return list<string> */
     public function resolveContentIds(object $obSubject): array
     {
@@ -143,9 +146,19 @@ final class ShopaholicOrderValueResolver implements ValueResolver
         }
         $iProductId = $this->intAttr($obProduct, 'id');
 
-        return $obProduct->offer->count() > 1
+        return $this->hasManyOffers($iProductId)
             ? sprintf('SKU-%d-%d', $iProductId, $this->intAttr($obOffer, 'id'))
             : sprintf('SKU-%d', $iProductId);
+    }
+
+    /**
+     * Counted in SQL once per product, over the same rows as Product::offer
+     * (inactive offers count, trashed ones do not). Loading that relation
+     * hydrates every offer of the product, thousands of models per line.
+     */
+    private function hasManyOffers(int $iProductId): bool
+    {
+        return $this->arHasManyOffersByProductId[$iProductId] ??= Offer::query()->where('product_id', $iProductId)->count() > 1;
     }
 
     private function intAttr(Model $obModel, string $sAttr): int
