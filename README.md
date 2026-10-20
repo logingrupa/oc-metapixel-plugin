@@ -236,6 +236,7 @@ Grep the OctoberCMS runtime log at `storage/logs/system.log` for these signature
 | `_fbp` / `_fbc` cookies stop refreshing | `PSL snapshot is <N> days old — run php artisan metapixel:refresh-psl` | Run `php artisan metapixel:refresh-psl` to refresh the bundled Public Suffix List. |
 | Failed events pile up with `graph API connect failure: cURL error 28: Resolving timed out` | `metapixel: graph API connect failure: <curl cause>` | Outbound DNS on the host drops queries. Use a local caching resolver (see **Queue worker** under Install) and run the queue worker so the retries absorb the rest. Replay the rows afterwards. |
 | Page views from crawlers never appear in the event log | none — by design | Crawler and tooling user agents are skipped before any send or log write; the browser pixel never fires for them, so no twin is needed. |
+| Settings edited by SQL in `system_settings` do not take effect | none | The plugin keeps its settings rows in the cache for an hour. Run `php artisan cache:forget logingrupa.metapixel.settings_rows` after the edit. A save in the backend clears it on its own. |
 
 ## Multi-site routing
 

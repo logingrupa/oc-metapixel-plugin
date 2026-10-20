@@ -97,3 +97,6 @@
 
 2.1.18:
   - 'The pixel guard answers per site: the request''s site in the cookie middleware, the applied site on the page, the cart''s or order''s site for AddToCart and Purchase. It stays off in backend context, including frontend 404s under the backend URI such as /backoffice, and the cookie middleware skips backend.uri as a path segment. A pixel id that is not digits only, or a token that does not start with EAA, counts as missing and never reaches Meta. A 404 sends one PageView. The settings form refuses an email-like or non-numeric pixel id and a token without EAA without repeating the value, and the token input asks browsers not to autofill it. A site without its own settings row reads the default row''s other settings, including the currency; its credentials keep coming from the default row.'
+
+2.1.19:
+  - 'Settings reads come from one cached copy of the plugin''s settings rows, so a warm page view runs no settings query. 2.1.18 read the rows from the database on every request in the cookie middleware, and the page render read its own site row once more, so each product page cost one extra query warm and cold. Saving or resetting the settings in the backend clears the copy for web requests and queue workers. After a direct SQL edit of system_settings, run php artisan cache:forget logingrupa.metapixel.settings_rows or wait up to an hour.'

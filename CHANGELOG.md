@@ -5,6 +5,13 @@ All notable changes to `logingrupa/metapixel-plugin` are documented in this file
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.19] - 2026-10-20
+
+### Fixed
+
+- **Settings reads no longer query the database on every request.** In 2.1.18 the cookie middleware read every settings row from the database on each browser request, and the page render read the site's own row once more through October's settings cache. A warm product page ran one extra query and a cold one ran two. All settings reads now go through one cached copy of the rows, `logingrupa.metapixel.settings_rows`, kept for an hour. Credentials and the per-site row are picked from that copy in PHP, so global context and site context reads never share a cache entry. A warm page runs no settings query and a cold page runs one.
+- **Saves reach the queue worker at once.** Saving or resetting the settings clears the cached copy, so the next web request and the next queued Conversions API job read the new values. A direct SQL edit of `system_settings` bypasses this; run `php artisan cache:forget logingrupa.metapixel.settings_rows` afterwards, or the old values stay for up to an hour.
+
 ## [2.1.18] - 2026-10-20
 
 ### Fixed
