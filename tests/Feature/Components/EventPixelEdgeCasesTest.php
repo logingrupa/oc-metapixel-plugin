@@ -6,7 +6,10 @@ use ArrayAccess;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
+use Logingrupa\Metapixel\Classes\Helper\SettingsRowCache;
 use Logingrupa\Metapixel\Components\EventPixel;
+use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\Fixtures\Migrations\CreateTestSubjectsTable;
 use Logingrupa\Metapixel\Tests\Fixtures\Models\TestSubject;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
@@ -137,6 +140,49 @@ final class EventPixelEdgeCasesTest extends MetapixelTestCase
 
         // Recreate so tearDown's CreateTestSubjectsTable::down() doesn't error.
         CreateTestSubjectsTable::up();
+    }
+
+    public function test_on_run_suppresses_emission_and_logs_warning_when_event_log_query_throws(): void
+    {
+        TestSubject::create(['id' => 48, 'secret_key' => 'missing-event-log']);
+        (new AddPayloadToMetapixelEventLogTable)->down();
+        (new CreateMetapixelEventLogTable)->down();
+
+        Log::shouldReceive('warning')->once();
+
+        $arPageData = $this->runComponent([
+            'subject_class' => TestSubject::class,
+            'subject_slug_field' => 'secret_key',
+            'subject_type' => 'shopaholic.order',
+            'event_name' => 'Purchase',
+            'slug' => 'missing-event-log',
+        ]);
+
+        $this->assertNull($arPageData);
+
+        (new CreateMetapixelEventLogTable)->up();
+        (new AddPayloadToMetapixelEventLogTable)->up();
+    }
+
+    public function test_on_run_suppresses_emission_and_logs_warning_when_settings_lookup_throws(): void
+    {
+        $this->seedCapiRowRawPayload(49, 'pld-settings-err', '{"data":[{"custom_data":{"value":10}}]}');
+        TestSubject::create(['id' => 49, 'secret_key' => 'settings-err']);
+        Settings::clearInternalCache();
+        SettingsRowCache::forget();
+        Schema::dropIfExists('system_settings');
+
+        Log::shouldReceive('warning')->atLeast()->once();
+
+        $arPageData = $this->runComponent([
+            'subject_class' => TestSubject::class,
+            'subject_slug_field' => 'secret_key',
+            'subject_type' => 'shopaholic.order',
+            'event_name' => 'Purchase',
+            'slug' => 'settings-err',
+        ]);
+
+        $this->assertNull($arPageData);
     }
 
     // -----------------------------------------------------------------------

@@ -79,8 +79,10 @@ Remaining deferred `Event::fire` hooks (adapter.resolve, value.resolve, settings
 
 ```
 composer qa  →  pint-test → phpstan analyse (level 10, phpVersion 80300) → phpmd → pest --coverage --min=90
-composer deps → composer-dependency-analyser  (enforces Lovata import boundary)
+composer deps → composer-dependency-analyser  (standalone plugin-local install only; not in host vendor or CI)
 ```
+
+`composer.json` scripts and `phpstan.neon` reference the host app's vendor tree directly (`@php ../../../vendor/bin/<tool>` and `../../../vendor/...`). **Never create a `vendor` symlink or Windows NTFS junction inside a Composer-managed plugin directory** — Composer's `VcsDownloader::emptyDirectory()` fails on Windows junctions during root `composer update`/`install`.
 
 Coverage gate ≥ 90 % on full-Lovata CI matrix cell. Minimal-install cell excludes adapter tests via `pest --exclude-group=adapter`. Adapter tests are tagged with `#[PHPUnit\Framework\Attributes\Group('adapter')]` at the class level. Rationale: overlapping `<testsuite>` directories in `phpunit.xml` triggered "Cannot add file ... already added to test suite" warnings under PHPUnit 12 + Pest 4, flipping the qa exit code to 1 despite all tests passing. Group attributes are framework-native (PHPUnit + Pest) and orthogonal to directory layout; `pest()->group()->in()` in `tests/Pest.php` only tags Pest-style closures (`test()` / `it()`), not class-based tests that extend `MetapixelTestCase`.
 

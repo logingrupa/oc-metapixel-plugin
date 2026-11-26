@@ -103,3 +103,5 @@
 
 2.1.20:
   - 'The Purchase build counts each product''s offers with one SQL query instead of loading them all, so a 120-line order needs 36 MB instead of 686 MB. The Purchase job is queued after the surrounding transaction commits; a rollback sends nothing and a failed queue push is only logged.'
+2.1.21:
+  - 'EventPixel and EnsureFbpFbcCookies fail closed at their request boundaries: uncertain EventLog or Settings reads on order-complete suppress browser emission instead of returning HTTP 500, onMarkFired returns a structured db error on lookup failure, cookie middleware catches site/settings/cache errors without swallowing downstream exceptions, and QA tooling runs directly against host vendor binaries without a plugin vendor symlink or junction.'

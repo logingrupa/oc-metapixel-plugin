@@ -63,13 +63,13 @@
     },
     "scripts": {
         "qa": ["@pint-test", "@analyse", "@phpmd", "@test-cov"],
-        "pint-test": "pint --test",
-        "pint": "pint",
-        "analyse": "phpstan analyse",
-        "phpmd": "phpmd Plugin.php,classes,models,console,components,middleware,controllers text phpmd.xml",
-        "test": "pest",
-        "test-cov": "pest --coverage --min=90",
-        "rector": "rector process --dry-run",
+        "pint-test": "@php ../../../vendor/bin/pint --test",
+        "pint": "@php ../../../vendor/bin/pint",
+        "analyse": "@php ../../../vendor/bin/phpstan analyse --memory-limit=1G",
+        "phpmd": "@php ../../../vendor/bin/phpmd Plugin.php,classes,models,console,components,middleware,controllers text phpmd.xml",
+        "test": "@php ../../../vendor/bin/pest",
+        "test-cov": "@php -d pcov.enabled=1 ../../../vendor/bin/pest --coverage --min=90",
+        "rector": "@php ../../../vendor/bin/rector process --dry-run",
         "deps": "composer-dependency-analyser"
     },
     "extra": {

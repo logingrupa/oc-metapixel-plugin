@@ -5,6 +5,14 @@ All notable changes to `logingrupa/metapixel-plugin` are documented in this file
 The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.21] - 2026-11-26
+
+### Fixed
+
+- **Order-complete `EventPixel` no longer throws HTTP 500 on uncertain database or settings reads.** `EventPixel::onRun()` now catches `Throwable` at its component boundary, logs a warning with the operation and exception class (never secrets, payloads, or test codes), and suppresses browser pixel emission whenever the `EventLog` lookup, twin-row check, or `test_event_code` settings read fails. `EventPixel::onMarkFired()` likewise catches lookup and write errors at its boundary and returns `['ok' => false, 'error' => 'db error']` while preserving `'no capi row'` for genuine misses.
+- **Cookie middleware fails closed across site, settings, and cache errors.** `EnsureFbpFbcCookies::resolveFreshCookies()` wraps request-side cookie derivation in one fail-closed boundary catch that logs a warning and skips cookie writes without swallowing exceptions from the downstream HTTP pipeline.
+- **QA tooling no longer requires a plugin-local `vendor` junction or symlink.** `phpstan.neon`, `composer.json` QA scripts, and `.github/workflows/metapixel-qa.yml` resolve Larastan, Spaze, Pint, PHPMD, and Pest directly from the host app's `../../../vendor/` tree, avoiding Windows Composer `VcsDownloader` junction failures and dropping the redundant plugin-dir install step in CI.
+
 ## [2.1.20] - 2026-10-20
 
 ### Fixed

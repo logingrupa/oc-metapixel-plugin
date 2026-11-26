@@ -177,41 +177,6 @@ jobs:
           composer require --no-interaction --no-progress --with-all-dependencies \
             lovata/toolbox-plugin:^2.2
 
-      - name: Install plugin vendor + swap larastan/spaze to host symlinks (full-lovata cell)
-        if: matrix.install == 'full-lovata'
-        working-directory: ${{ env.PLUGIN_DIR }}
-        run: |
-          # The plugin-dir install exists for TWO consumers only:
-          #   1. composer-dependency-analyser (deps gate) — needs the plugin's
-          #      vendor/composer/installed.json + physical package trees to map
-          #      imported symbols to packages.
-          #   2. phpstan.neon `includes:` — vendor/larastan + vendor/spaze
-          #      extension.neon paths are plugin-vendor-relative.
-          # DISABLE October's composer/installers so october/system + lovata/* stay
-          # under vendor/ (pint auto-excludes vendor/) instead of being relocated
-          # into plugins/ + modules/ where the qa tools would lint third-party code.
-          composer config allow-plugins.composer/installers false
-          composer config allow-plugins.php-http/discovery true
-          composer config allow-plugins.pestphp/pest-plugin true
-          composer config allow-plugins.cweagans/composer-patches true
-          # Drop rector from the CI plugin vendor: its scope-prefixed vendor stubs
-          # (RectorPrefix*\...) fatal composer-dependency-analyser's reflection pass
-          # when a scanned symbol resolves into rector's bundled symfony copies.
-          # rector is not part of the qa chain (separate `composer rector` script).
-          composer remove --dev --no-update --no-interaction rector/rector
-          composer install --no-interaction --no-progress --prefer-dist
-          # THE LOCAL-DEV MECHANISM, replicated exactly: in local dev the plugin's
-          # vendor/larastan/larastan is a SYMLINK into the host app vendor. PHP's
-          # __DIR__ resolves symlinks to real paths, so larastan's bootstrap
-          # dirname(__DIR__, 3) lands on the HOST app root where bootstrap/app.php
-          # exists -> the October app boots -> LARAVEL_VERSION is defined and
-          # October's ClassLoader autoloads Lovata\* + Logingrupa\Metapixel\*.
-          # A real (non-symlink) plugin-vendor larastan resolves to the plugin dir,
-          # finds no app, and dies with "Undefined constant LARAVEL_VERSION".
-          rm -rf vendor/larastan/larastan vendor/spaze/phpstan-disallowed-calls
-          ln -sfn "$OCTOBER_APP_DIR/vendor/larastan/larastan" vendor/larastan/larastan
-          ln -sfn "$OCTOBER_APP_DIR/vendor/spaze/phpstan-disallowed-calls" vendor/spaze/phpstan-disallowed-calls
-
       - name: composer qa — full Lovata (Run A, coverage gate >= 90%)
         if: matrix.install == 'full-lovata'
         working-directory: ${{ env.PLUGIN_DIR }}

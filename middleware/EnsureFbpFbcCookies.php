@@ -78,21 +78,31 @@ class EnsureFbpFbcCookies
      */
     private function resolveFreshCookies(Request $obRequest): array
     {
-        if ($this->shouldSkip($obRequest)) {
+        try {
+            if ($this->shouldSkip($obRequest)) {
+                return [];
+            }
+
+            $obSite = Site::getSiteFromRequest($obRequest->root(), $obRequest->path());
+            if (! $obSite instanceof SiteDefinition) {
+                return [];
+            }
+
+            $arFresh = [];
+            Site::withContext($obSite->getKey(), function () use ($obRequest, &$arFresh): void {
+                $arFresh = $this->resolveForSite($obRequest);
+            });
+
+            return $arFresh;
+        } catch (Throwable $obException) {
+            // boundary fail-safe: site/settings/cache/resolver errors skip cookie tracking without breaking the HTTP response.
+            Log::warning(
+                'metapixel: cookie middleware failed - skipping cookie write',
+                ['exception' => get_class($obException)]
+            );
+
             return [];
         }
-
-        $obSite = Site::getSiteFromRequest($obRequest->root(), $obRequest->path());
-        if (! $obSite instanceof SiteDefinition) {
-            return [];
-        }
-
-        $arFresh = [];
-        Site::withContext($obSite->getKey(), function () use ($obRequest, &$arFresh): void {
-            $arFresh = $this->resolveForSite($obRequest);
-        });
-
-        return $arFresh;
     }
 
     /**
@@ -180,55 +190,28 @@ class EnsureFbpFbcCookies
 
     /**
      * Site-level skip inside the request site context: PluginGuard-disabled
-     * site or kill switch off. Settings::get throwing falls back to enabled
-     * so the initial migration HTTP request does not 500.
+     * site or kill switch off. Lookup errors propagate to resolveFreshCookies'
+     * fail-closed boundary.
      */
     private function isSiteSkipped(): bool
     {
-        try {
-            // PluginGuard reads credentials through Settings::lookupForSite and
-            // never throws; the wrap covers the kill-switch lookup below.
-            if (PluginGuard::isDisabled()) {
-                return true;
-            }
-
-            $mToggle = Settings::get('ensure_fbp_fbc_server_side', true);
-
-            return ! ($mToggle === true || $mToggle === 1 || $mToggle === '1');
-        } catch (Throwable $obException) {
-            // boundary fail-safe: missing system_settings table during initial
-            // migration must not 500 the HTTP request - default to enabled and
-            // let downstream readTrustedHosts handle the empty-list NO-OP.
-            Log::warning(
-                'metapixel: kill-switch lookup threw - middleware defaults to enabled',
-                ['exception' => get_class($obException)]
-            );
-
-            return false;
+        if (PluginGuard::isDisabled()) {
+            return true;
         }
+
+        $mToggle = Settings::get('ensure_fbp_fbc_server_side', true);
+
+        return ! ($mToggle === true || $mToggle === 1 || $mToggle === '1');
     }
 
     /**
      * Read Settings.trusted_hosts as a lowercase-trimmed non-empty host list.
-     * Returns an empty list on any read failure so the host-trust check below
-     * NO-OPs the middleware (fail-safe — never throws).
      *
      * @return list<string>
      */
     private function readTrustedHosts(): array
     {
-        try {
-            $mRaw = Settings::get('trusted_hosts', '');
-        } catch (Throwable $obException) {
-            // boundary fail-safe - same rationale as isSiteSkipped's catch block.
-            Log::warning(
-                'metapixel: trusted_hosts lookup threw — middleware NO-OPs',
-                ['exception' => get_class($obException)]
-            );
-
-            return [];
-        }
-
+        $mRaw = Settings::get('trusted_hosts', '');
         if (! is_string($mRaw) || $mRaw === '') {
             return [];
         }

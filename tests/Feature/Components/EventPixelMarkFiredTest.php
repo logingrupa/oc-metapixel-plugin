@@ -4,6 +4,7 @@ namespace Logingrupa\Metapixel\Tests\Feature\Components;
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Request;
 use Logingrupa\Metapixel\Components\EventPixel;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
@@ -115,6 +116,27 @@ final class EventPixelMarkFiredTest extends MetapixelTestCase
         $this->assertSame(1, DB::table(self::TABLE)
             ->where('channel', 'pixel')->where('subject_id', 77)->count(),
             'UNIQUE race-fence on (subject_type, subject_id, event_name, channel, site_id) blocked the second insert');
+    }
+
+    public function test_onMarkFired_returns_db_error_and_logs_warning_when_capi_lookup_throws(): void
+    {
+        (new AddPayloadToMetapixelEventLogTable)->down();
+        (new CreateMetapixelEventLogTable)->down();
+
+        Log::shouldReceive('warning')->once();
+        $this->mockInput([
+            'subject_type' => 'shopaholic.order',
+            'subject_id' => 88,
+            'event_name' => 'Purchase',
+            'event_id' => 'lookup-error-uuid',
+        ]);
+
+        $arResult = (new EventPixel)->onMarkFired();
+
+        $this->assertSame(['ok' => false, 'error' => 'db error'], $arResult);
+
+        (new CreateMetapixelEventLogTable)->up();
+        (new AddPayloadToMetapixelEventLogTable)->up();
     }
 
     /**

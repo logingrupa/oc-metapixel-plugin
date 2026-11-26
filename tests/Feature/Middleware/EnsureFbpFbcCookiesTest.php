@@ -11,6 +11,7 @@ use Logingrupa\Metapixel\Classes\Helper\SettingsRowCache;
 use Logingrupa\Metapixel\Middleware\EnsureFbpFbcCookies;
 use Logingrupa\Metapixel\Models\Settings;
 use Logingrupa\Metapixel\Tests\MetapixelTestCase;
+use October\Rain\Support\Facades\Site;
 use Symfony\Component\HttpFoundation\Cookie;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -310,6 +311,44 @@ final class EnsureFbpFbcCookiesTest extends MetapixelTestCase
 
         $this->assertSame(200, $obResponse->getStatusCode());
         $this->assertNull($this->extractCookie($obResponse, '_fbp'));
+    }
+
+    public function test_site_resolution_failure_returns_200_with_no_cookies_and_runs_downstream_once(): void
+    {
+        Site::shouldReceive('getSiteFromRequest')
+            ->once()
+            ->andThrow(new RuntimeException('site lookup failed'));
+        Log::shouldReceive('warning')->once();
+
+        $iDownstreamCalls = 0;
+        $obResponse = $this->dispatchRequest(
+            'example.com',
+            'IwAR1abc_XYZ-123',
+            [],
+            static function () use (&$iDownstreamCalls): void {
+                $iDownstreamCalls++;
+            }
+        );
+
+        $this->assertSame(200, $obResponse->getStatusCode());
+        $this->assertSame(1, $iDownstreamCalls);
+        $this->assertNull($this->extractCookie($obResponse, '_fbp'));
+        $this->assertNull($this->extractCookie($obResponse, '_fbc'));
+    }
+
+    public function test_downstream_exception_is_not_swallowed_by_cookie_boundary(): void
+    {
+        $this->expectException(RuntimeException::class);
+        $this->expectExceptionMessage('checkout failed');
+
+        $this->dispatchRequest(
+            'example.com',
+            null,
+            [],
+            static function (): void {
+                throw new RuntimeException('checkout failed');
+            }
+        );
     }
 
     // -----------------------------------------------------------------------
