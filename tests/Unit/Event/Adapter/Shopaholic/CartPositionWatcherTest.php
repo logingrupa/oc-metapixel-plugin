@@ -14,11 +14,14 @@ use Logingrupa\Metapixel\Classes\Adapter\Theme\ThemeActionEvent;
 use Logingrupa\Metapixel\Classes\Event\Adapter\Shopaholic\CartPositionWatcher;
 use Logingrupa\Metapixel\Classes\Queue\SendCapiEvent;
 use Logingrupa\Metapixel\Models\Settings;
+use Logingrupa\Metapixel\Tests\Concerns\RegistersActiveUserPlugin;
 use Logingrupa\Metapixel\Tests\ShopaholicAdapterTestCase;
 use Lovata\OrdersShopaholic\Models\Cart;
 use Lovata\OrdersShopaholic\Models\CartPosition;
+use Lovata\Shopaholic\Classes\Helper\CurrencyHelper;
 use Lovata\Shopaholic\Models\Offer;
 use Lovata\Shopaholic\Models\Product;
+use Lovata\Toolbox\Classes\Helper\UserHelper;
 use October\Rain\Support\Facades\Site;
 use PHPUnit\Framework\Attributes\Group;
 
@@ -33,9 +36,13 @@ use PHPUnit\Framework\Attributes\Group;
 #[Group('adapter')]
 final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
 {
+    use RegistersActiveUserPlugin;
+
     protected function setUp(): void
     {
         parent::setUp();
+        $this->registerActiveUserPlugin();
+        CurrencyHelper::forgetInstance();
         $this->bootCartPositionTable();
         $this->bootCartTable();
         $this->bootOffersAndProductsTables();
@@ -54,6 +61,8 @@ final class CartPositionWatcherTest extends ShopaholicAdapterTestCase
 
     protected function tearDown(): void
     {
+        CurrencyHelper::forgetInstance();
+        UserHelper::forgetInstance();
         Schema::dropIfExists('logingrupa_metapixel_event_log');
         Schema::dropIfExists('lovata_shopaholic_prices');
         Schema::dropIfExists('lovata_shopaholic_currency');
